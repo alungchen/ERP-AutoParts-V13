@@ -1,0 +1,118 @@
+.layout {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background-color: var(--bg-primary);
+}
+
+.mainArea {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    background-color: var(--bg-primary);
+    /* slight overlay to separate from sidebar */
+}
+
+.launcherContent {
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+}
+
+.launcherWrap {
+    width: 100%;
+    max-width: 980px;
+}
+
+.launcherHeader {
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.launcherTitle {
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+
+.launcherDesc {
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+.launcherGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.docQuickGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.launcherCard {
+    padding: 1.1rem 1.2rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-weight: 800;
+    font-size: 1.05rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    justify-content: flex-start;
+    min-height: 86px;
+    transition: all var(--trans-fast);
+}
+
+.launcherCard:hover {
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
+}
+
+.launcherCardIcon {
+    color: var(--accent-primary);
+    flex-shrink: 0;
+}
+
+@media (max-width: 980px) {
+    .launcherGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .docQuickGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .launcherContent {
+        padding: 1.25rem;
+    }
+
+    .launcherTitle {
+        font-size: 1.45rem;
+    }
+
+    .launcherDesc {
+        font-size: 0.9rem;
+    }
+
+    .launcherGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .docQuickGrid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,432 @@
+.container {
+    padding: 2rem;
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.addBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background-color: var(--accent-primary);
+    color: white;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--trans-fast);
+}
+
+.addBtn:hover {
+    background-color: var(--accent-hover);
+}
+
+/* 新增單據按鈕 - 聚焦時明顯辨識 */
+.addDocBtn {
+    outline: none;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.addDocBtn:focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.25);
+    transform: translateY(-1px);
+}
+
+/* 單據搜尋查詢按鈕 - 聚焦時明顯辨識 */
+.searchQueryBtn {
+    outline: none;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.searchQueryBtn:focus,
+.searchQueryBtn:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 4px var(--accent-subtle);
+    transform: translateY(-1px);
+}
+
+/* 重設全部條件按鈕 - 聚焦時明顯辨識 */
+.searchResetBtn {
+    outline: none;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+.searchResetBtn:focus,
+.searchResetBtn:focus-visible {
+    outline: 2px solid #f59e0b;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.35);
+    border-color: #f59e0b !important;
+    background: rgba(245, 158, 11, 0.12) !important;
+    color: #f59e0b !important;
+    transform: translateY(-1px);
+}
+
+.searchField {
+    border-radius: 8px;
+    transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.searchField:focus-within {
+    box-shadow: 0 0 0 2px var(--accent-subtle);
+    background: color-mix(in srgb, var(--accent-subtle) 22%, transparent);
+}
+
+.searchInput {
+    outline: none;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.searchInput:focus,
+.searchInput:focus-visible {
+    border-color: var(--accent-primary) !important;
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.alertBanner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 10px;
+    flex-wrap: wrap;
+}
+
+.alertIcon {
+    color: #fbbf24;
+    flex-shrink: 0;
+}
+
+.alertBtn {
+    padding: 0.375rem 0.875rem;
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--trans-fast);
+}
+
+.alertBtn:hover {
+    background: rgba(251, 191, 36, 0.25);
+}
+
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all var(--trans-fast);
+    margin-bottom: -1px;
+}
+
+.tab:hover {
+    color: var(--text-primary);
+}
+
+.activeTab {
+    color: var(--accent-hover);
+    border-bottom-color: var(--accent-primary);
+}
+
+.tabCount {
+    padding: 1px 6px;
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.miniAddBtn:hover {
+    background: var(--accent-primary) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.card {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    text-align: left;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+}
+
+.table td {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+
+.table tr:hover td {
+    cursor: pointer;
+}
+
+.statusBadge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.viewBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    transition: all var(--trans-fast);
+}
+
+.viewBtn:hover {
+    background: var(--accent-subtle);
+    color: var(--accent-hover);
+}
+
+.editRowBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    transition: all var(--trans-fast);
+}
+
+.editRowBtn:hover {
+    background: #3b82f622;
+    color: #3b82f6;
+    border-color: #3b82f644;
+}
+
+.viewerOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.viewerModal {
+    background-color: white;
+    width: 800px;
+    max-width: 100%;
+    max-height: 90vh;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.viewerActions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.actionBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.actionBtn:hover {
+    background-color: var(--border-color);
+}
+
+.actionBtnClose {
+    color: var(--text-muted);
+    border-color: transparent;
+    background-color: transparent;
+    padding: 0.5rem;
+}
+
+.actionBtnClose:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.viewerPaper {
+    background-color: white;
+    color: #1f2937;
+    padding: 3rem;
+    overflow-y: auto;
+    font-family: -apple-system, system-ui, sans-serif;
+}
+
+.viewerHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 3rem;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 1rem;
+}
+
+.viewerLogo {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #111827;
+    letter-spacing: 0.05em;
+    margin: 0 0 0.5rem 0;
+}
+
+.viewerType {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.viewerDocId {
+    font-family: ui-monospace, monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+}
+
+.viewerDetails {
+    display: flex;
+    margin-bottom: 2rem;
+}
+
+.viewerParty {
+    flex: 1;
+}
+
+.viewerTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+}
+
+.viewerTable th {
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid #e5e7eb;
+    color: #6b7280;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+}
+
+.viewerTable td {
+    padding: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: top;
+}
+
+.viewerTotals {
+    max-width: 300px;
+    margin-left: auto;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    .viewerPaper,
+    .viewerPaper * {
+        visibility: visible;
+    }
+
+    .viewerPaper {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+}

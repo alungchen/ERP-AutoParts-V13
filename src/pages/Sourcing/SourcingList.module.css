@@ -1,0 +1,238 @@
+.container {
+    padding: 2rem;
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.ratesPanel {
+    display: flex;
+    gap: 1.5rem;
+    background-color: var(--bg-secondary);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.rateCard {
+    display: flex;
+    flex-direction: column;
+}
+
+.rateLabel {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.rateValue {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: monospace;
+}
+
+.sourcingCard {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.cardHeader {
+    padding: 1.5rem;
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.itemInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.itemPart {
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: var(--accent-hover);
+}
+
+.itemName {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.quoteTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.quoteTable th {
+    text-align: left;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-tertiary);
+}
+
+.quoteTable td {
+    padding: 1rem 1.5rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.quoteTable tr:last-child td {
+    border-bottom: none;
+}
+
+.quoteTable tr:hover td {
+    background-color: var(--bg-tertiary);
+}
+
+.money {
+    font-family: monospace;
+    font-weight: 500;
+}
+
+.supplierInfo {
+    display: flex;
+    flex-direction: column;
+}
+
+.supplierName {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.bestBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: var(--success-subtle);
+    color: var(--success);
+    margin-top: 0.25rem;
+}
+
+.landedCost {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--warning);
+}
+
+/* For formatting foreign quotes specifically */
+.foreignQuote {
+    font-size: 1rem;
+    color: var(--accent-primary);
+}
+
+.poButton {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--trans-fast);
+}
+
+.poButton:hover {
+    background-color: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.poButton:active {
+    transform: translateY(0);
+}
+
+.statusBadge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.viewRowBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    transition: all var(--trans-fast);
+}
+
+.viewRowBtn:hover {
+    background: var(--accent-subtle);
+    color: var(--accent-hover);
+}
+
+.editRowBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    transition: all var(--trans-fast);
+}
+
+.editRowBtn:hover {
+    background: #3b82f622;
+    color: #3b82f6;
+    border-color: #3b82f644;
+}

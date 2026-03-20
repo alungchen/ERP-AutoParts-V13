@@ -1,0 +1,198 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: flex;
+    justify-content: flex-end;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--trans-normal);
+}
+
+.overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.drawer {
+    width: var(--drawer-width);
+    height: 100%;
+    background-color: var(--bg-primary);
+    border-left: 1px solid var(--border-color);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform var(--trans-bounce);
+    overflow-y: auto;
+}
+
+.overlay.open .drawer {
+    transform: translateX(0);
+}
+
+.header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-primary);
+    z-index: 10;
+}
+
+.title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.closeBtn {
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--trans-fast);
+}
+
+.closeBtn:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.headerActionBtn {
+    outline: none;
+    transition: box-shadow 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+}
+
+.closeBtn:focus,
+.closeBtn:focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.28);
+    background-color: rgba(96, 165, 250, 0.12);
+    transform: translateY(-1px);
+}
+
+.editPrimaryBtn:focus,
+.editPrimaryBtn:focus-visible {
+    background-color: rgba(251, 191, 36, 0.15);
+    color: #f59e0b;
+}
+
+.content {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.sectionTitle {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.gallery {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.imgPlaceholder {
+    width: 120px;
+    height: 90px;
+    flex-shrink: 0;
+    background-color: var(--bg-tertiary);
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.partRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background-color: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.partType {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    min-width: 60px;
+    text-align: center;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.partNumber {
+    font-family: monospace;
+    font-size: 1rem;
+    color: var(--accent-hover);
+    font-weight: 500;
+}
+
+.partBrand {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+}
+
+.label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.input {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: all var(--trans-fast);
+}
+
+.input:focus {
+    border-color: var(--accent-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-subtle);
+}

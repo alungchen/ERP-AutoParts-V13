@@ -1,0 +1,187 @@
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 1rem;
+    z-index: 10;
+    transition: width var(--trans-normal);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    margin-bottom: 2rem;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+    overflow: hidden;
+}
+
+.logoText {
+    white-space: nowrap;
+    transition: opacity var(--trans-normal);
+}
+
+.collapsed .logoText {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.logoIcon {
+    color: var(--accent-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-subtle);
+    padding: 0.5rem;
+    border-radius: 8px;
+}
+
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.navItem {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all var(--trans-fast);
+    cursor: pointer;
+}
+
+.windowMode {
+    width: 300px;
+    padding: 1.25rem 1rem;
+}
+
+.windowModeHint {
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    padding: 0.7rem 0.8rem;
+    margin: -0.5rem 0 1rem;
+}
+
+.windowModeTitle {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--accent-primary);
+}
+
+.windowModeDesc {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+}
+
+.navItem:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.navItem.active {
+    background-color: var(--accent-subtle);
+    color: var(--accent-hover);
+}
+
+.navItem[draggable="true"] {
+    cursor: grab;
+}
+
+.navItem[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.isDragging {
+    opacity: 0.5;
+    background-color: var(--bg-tertiary);
+    transform: scale(0.98);
+}
+
+.dragged {
+    border: 1px dashed var(--accent-primary);
+}
+
+.navItemName {
+    white-space: nowrap;
+    transition: opacity var(--trans-normal);
+}
+
+.collapsed .navItemName {
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+}
+
+.collapsed .navItem {
+    justify-content: center;
+    padding: 0.75rem 0;
+}
+
+.navItemIcon {
+    width: 20px;
+    height: 20px;
+}
+
+.windowOpenBadge {
+    margin-left: auto;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--accent-primary);
+    background: var(--accent-subtle);
+    border: 1px solid var(--accent-primary);
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+}
+
+.sidebar.collapsed {
+    width: var(--sidebar-width-collapsed);
+    padding: 1.5rem 0.5rem;
+}
+
+.toggleBtn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+    border-radius: 8px;
+    color: var(--text-muted);
+    transition: all var(--trans-fast);
+}
+
+.toggleBtn:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.collapsed .toggleBtn {
+    padding: 0.75rem 0;
+}
+
+.navGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.navGroupLabel {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: 0.5rem 1rem 0.25rem;
+}
