@@ -214,7 +214,9 @@ const AppLayout = () => {
             <div className={styles.mainArea}>
                 <Topnav />
                 <main className={styles.content}>
-                    <Outlet />
+                    <div className={styles.contentOutlet}>
+                        <Outlet />
+                    </div>
                 </main>
             </div>
         </div>

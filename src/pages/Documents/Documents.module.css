@@ -1,10 +1,40 @@
+/* 製單主頁：佔滿 Outlet 剩餘高度，卷軸在列表區內 */
+/* flex-basis:0 避免 min-height:auto 依內容把整區撐高而吃掉內層卷軸 */
 .container {
-    padding: 2rem;
-    height: 100%;
-    overflow-y: auto;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.25rem;
+    padding: 0;
+    align-self: stretch;
+    width: 100%;
+}
+
+.docHubTop {
+    flex-shrink: 0;
+}
+
+/* 內嵌編輯時：F8 沿革抽屜掛載於單據搜尋面板正下方 */
+.docHubHistoryDrawerHost {
+    flex-shrink: 0;
+    width: 100%;
+}
+
+.docHubMain {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    overflow: hidden;
+}
+
+.docHubQuickPreview {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
 }
 
 .header {
@@ -186,6 +216,21 @@
     border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 單據／缺貨列表：在卡片內捲動（依父層 flex 剩餘高度） */
+.docTableScroll {
+    flex: 1 1 0;
+    min-height: 0;
+    min-width: 0;
+    overflow-y: scroll;
+    overflow-x: auto;
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
 }
 
 .table {
@@ -203,6 +248,10 @@
     letter-spacing: 0.05em;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-tertiary);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    box-shadow: 0 1px 0 var(--border-color);
 }
 
 .table td {

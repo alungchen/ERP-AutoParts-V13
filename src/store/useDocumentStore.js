@@ -304,7 +304,8 @@ export const useDocumentStore = create(persist((set, get) => ({
 
     syncShortageBook: (products = [], purchaseOrders = []) => set((state) => {
         const productMap = new Map(products.map((p) => [p.p_id, p]));
-        const lowStockProducts = products.filter((p) => Number(p.safety_stock || 0) > 0 && Number(p.stock || 0) < Number(p.safety_stock || 0));
+        // 缺貨簿列：庫存 ≤ 安全庫存 即保留；僅當庫存 > 安全庫存（例如進貨入庫後）才自動從清單移除
+        const lowStockProducts = products.filter((p) => Number(p.safety_stock || 0) > 0 && Number(p.stock || 0) <= Number(p.safety_stock || 0));
         const lowStockIds = new Set(lowStockProducts.map((p) => p.p_id));
         const activeDismissedIds = (state.shortageDismissedIds || []).filter((id) => lowStockIds.has(id));
         const dismissedIdSet = new Set(activeDismissedIds);
@@ -478,7 +479,7 @@ export const useDocumentStore = create(persist((set, get) => ({
             createdDocs.push(created);
         });
 
-        get().deleteShortageItems(pIds);
+        // 轉詢價後仍保留於缺貨簿，直至庫存 > 安全庫存（由 syncShortageBook 依產品庫存更新）
         return createdDocs;
     }
 }), { name: 'erp-document-store' }));

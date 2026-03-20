@@ -21,6 +21,13 @@ export const useAppStore = create(persist((set) => ({
     displayMode: 'nightclub', // 'nightclub' | 'light' | 'warm' | 'system'
     setDisplayMode: (mode) => set({ displayMode: mode }),
 
+    /** 全站 F8 沿革視窗：目前選取之零件 p_id（由各頁面同步） */
+    productHistoryFocusPId: null,
+    setProductHistoryFocusPId: (pId) => set((state) => {
+        const next = pId || null;
+        return state.productHistoryFocusPId === next ? state : { productHistoryFocusPId: next };
+    }),
+
     isMultiCountryMode: true,
     setMultiCountryMode: (enabled) => set({ isMultiCountryMode: enabled }),
 
@@ -76,4 +83,14 @@ export const useAppStore = create(persist((set) => ({
                     : state.activeWorkspaceTab
         };
     }),
-}), { name: 'erp-app-store' }));
+}), {
+    name: 'erp-app-store',
+    merge: (persisted, current) => {
+        const p = { ...(persisted && typeof persisted === 'object' ? persisted : {}) };
+        delete p.priceFieldShortcutCustomer;
+        delete p.priceFieldShortcutVendor;
+        delete p.productHistoryDrawerShortcut;
+        delete p.productHistoryFocusPId;
+        return { ...current, ...p };
+    },
+}));

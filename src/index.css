@@ -352,6 +352,39 @@ h3 {
   color: var(--accent-hover);
 }
 
+/* 狀態色（產品庫存徽章、按鈕等；對應 --success / --warning / --danger） */
+.text-success {
+  color: var(--success);
+}
+
+.text-warning {
+  color: var(--warning);
+}
+
+.text-danger {
+  color: var(--danger);
+}
+
+.bg-success-subtle {
+  background-color: var(--success-subtle);
+}
+
+.bg-warning-subtle {
+  background-color: var(--warning-subtle);
+}
+
+.bg-danger-subtle {
+  background-color: var(--danger-subtle);
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.rounded-sm {
+  border-radius: 4px;
+}
+
 .bg-accent-subtle {
   background-color: var(--accent-subtle);
 }

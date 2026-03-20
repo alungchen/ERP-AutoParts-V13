@@ -82,6 +82,7 @@ const DocumentHub = () => {
     } = useDocumentStore();
     const { products } = useProductStore();
     const { defaultCurrency, isMultiCountryMode, enableLoginSystem, enablePermissionRole, currentUserEmpId } = useAppStore();
+    const setProductHistoryFocusPId = useAppStore((s) => s.setProductHistoryFocusPId);
     const { suppliers } = useSupplierStore();
     const { customers } = useCustomerStore();
     const { employees } = useEmployeeStore();
@@ -103,6 +104,7 @@ const DocumentHub = () => {
     const [activeBusinessGroup, setActiveBusinessGroup] = useState(tabGroupMap[tabFromQuery] || 'sales');
     const [selectedDoc, setSelectedDoc] = useState(null);
     const [isQuickPreview, setIsQuickPreview] = useState(false);
+    const [docHistoryDrawerHostEl, setDocHistoryDrawerHostEl] = useState(null);
     const [previewIndex, setPreviewIndex] = useState(0);
     const [isSearching, setIsSearching] = useState(true); // Search is now always active
     const [searchFilters, setSearchFilters] = useState(() => {
@@ -179,7 +181,31 @@ const DocumentHub = () => {
 
     const isShortageTab = activeTab === 'shortageBook';
 
-    const getDocList = () => {
+    const getPartyName = (doc) => {
+        if (doc.supplier_name) return doc.supplier_name;
+        if (doc.customer_name) return doc.customer_name;
+        if (doc.supplier_id) {
+            const s = suppliers.find(sup => sup.sup_id === doc.supplier_id);
+            if (s) return s.name;
+        }
+        if (doc.customer_id) {
+            const c = customers.find(cust => cust.cust_id === doc.customer_id);
+            if (c) return c.name;
+        }
+        return '-';
+    };
+
+    const getOpenerName = (doc) => {
+        if (doc.opener_emp_name) return `${doc.opener_emp_name} (${doc.opener_emp_id || '-'})`;
+        if (doc.opener_emp_id) {
+            const emp = employees.find((e) => e.emp_id === doc.opener_emp_id);
+            if (emp) return `${emp.name} (${emp.emp_id})`;
+            return doc.opener_emp_id;
+        }
+        return '-';
+    };
+
+    const docs = useMemo(() => {
         if (activeTab === 'inquiry') return inquiries;
         if (activeTab === 'purchase') return purchaseOrders;
         if (activeTab === 'quotation') return quotations;
@@ -188,11 +214,9 @@ const DocumentHub = () => {
         if (activeTab === 'purchaseReturn') return purchaseReturns;
         if (activeTab === 'shortageBook') return shortageBook;
         return [];
-    };
+    }, [activeTab, inquiries, purchaseOrders, quotations, salesOrders, salesReturns, purchaseReturns, shortageBook]);
 
-    const docs = getDocList();
-
-    const filteredDocs = docs.filter(doc => {
+    const filteredDocs = useMemo(() => docs.filter((doc) => {
         if (isShortageTab) {
             const keyword = appliedSearchFilters.docId.trim().toLowerCase();
             if (keyword) {
@@ -225,7 +249,7 @@ const DocumentHub = () => {
         }
 
         return true;
-    });
+    }), [docs, isShortageTab, appliedSearchFilters, suppliers, customers, employees]);
 
     // 僅在切換分頁時重置 activeDocIndex，避免 filteredDocs 變動導致無法移動到第 2 項
     useEffect(() => {
@@ -311,6 +335,17 @@ const DocumentHub = () => {
         }
         setActiveShortageIndex(0);
     }, [isShortageTab, filteredDocs]);
+
+    const shortageHistoryFocusPId = useMemo(() => {
+        if (!isShortageTab || filteredDocs.length === 0) return null;
+        return filteredDocs[activeShortageIndex]?.p_id || null;
+    }, [isShortageTab, filteredDocs, activeShortageIndex]);
+
+    useEffect(() => {
+        setProductHistoryFocusPId(shortageHistoryFocusPId);
+    }, [shortageHistoryFocusPId, setProductHistoryFocusPId]);
+
+    useEffect(() => () => setProductHistoryFocusPId(null), [setProductHistoryFocusPId]);
 
     const isAllShortageSelected = isShortageTab && filteredDocs.length > 0 && selectedShortageIds.length === filteredDocs.length;
     const isShortageIndeterminate = isShortageTab && selectedShortageIds.length > 0 && selectedShortageIds.length < filteredDocs.length;
@@ -406,33 +441,6 @@ const DocumentHub = () => {
         return map[statusColors[status]] || '#94a3b8';
     };
 
-    const getPartyName = (doc) => {
-        if (doc.supplier_name) return doc.supplier_name;
-        if (doc.customer_name) return doc.customer_name;
-
-        // Fallback to searching in stores if name is missing
-        if (doc.supplier_id) {
-            const s = suppliers.find(sup => sup.sup_id === doc.supplier_id);
-            if (s) return s.name;
-        }
-        if (doc.customer_id) {
-            const c = customers.find(cust => cust.cust_id === doc.customer_id);
-            if (c) return c.name;
-        }
-
-        return '-';
-    };
-
-    const getOpenerName = (doc) => {
-        if (doc.opener_emp_name) return `${doc.opener_emp_name} (${doc.opener_emp_id || '-'})`;
-        if (doc.opener_emp_id) {
-            const emp = employees.find((e) => e.emp_id === doc.opener_emp_id);
-            if (emp) return `${emp.name} (${emp.emp_id})`;
-            return doc.opener_emp_id;
-        }
-        return '-';
-    };
-
     const currentUser = employees.find((e) => e.emp_id === currentUserEmpId);
     const permissionDocType = isShortageTab ? 'inquiry' : activeTab;
     const canEditCurrentTab = canEditDocType({
@@ -475,7 +483,6 @@ const DocumentHub = () => {
             openerEmpName: opener?.name || ''
         });
         setSelectedShortageIds([]);
-        setActiveTab('inquiry');
     };
 
     const openSelectedDocInInlineEdit = (doc) => {
@@ -552,7 +559,7 @@ const DocumentHub = () => {
             e.stopPropagation();
             const currentDoc = filteredDocs[activeDocIndex];
             if (!currentDoc) return;
-            openEditor(activeTab, currentDoc.doc_id); // 等同按「檢視」(眼睛)按鈕，另開分頁
+            openEditor(activeTab, currentDoc.doc_id); // 等同雙擊列／「檢視」(inspect) — 另開編輯
         }
     };
 
@@ -612,7 +619,7 @@ const DocumentHub = () => {
 
             if (isTypingTarget(e.target)) return;
 
-            // 在列表時，Space / Enter 等同按「檢視」(眼睛)按鈕，開啟該筆單據
+            // 在列表時，Space / Enter 等同雙擊列／「檢視」(inspect) — 另開編輯
             // 若焦點在「新增單據」按鈕，則不攔截 Enter/Space，讓按鈕處理「新增」
             if (!selectedDoc && !isQuickPreview && filteredDocs.length > 0 && (e.key === ' ' || e.code === 'Space' || e.key === 'Enter')) {
                 if (e.target === addDocBtnRef.current) return; // 焦點在新增按鈕 -> 執行新增，不檢視最後一筆
@@ -688,7 +695,7 @@ const DocumentHub = () => {
                 e.preventDefault();
                 e.stopPropagation();
                 const currentDoc = filteredDocs[activeDocIndex];
-                if (currentDoc) openEditor(activeTab, currentDoc.doc_id); // 等同按「檢視」(眼睛)按鈕
+                if (currentDoc) openEditor(activeTab, currentDoc.doc_id);
             }
         };
 
@@ -712,6 +719,7 @@ const DocumentHub = () => {
 
     return (
         <div className={styles.container}>
+            <div className={styles.docHubTop}>
             <div className={styles.header} style={{ alignItems: 'center', minHeight: '64px' }}>
                 {/* Left: Title Zone */}
                 <div style={{ flex: 1 }}>
@@ -803,6 +811,10 @@ const DocumentHub = () => {
                     </div>
                 </form>
             </div>
+
+            {isQuickPreview && !isShortageTab && (
+                <div ref={setDocHistoryDrawerHostEl} className={styles.docHubHistoryDrawerHost} />
+            )}
 
             {/* Low stock alert banner removed */}
 
@@ -993,9 +1005,10 @@ const DocumentHub = () => {
                     </button>
                 </div>
             )}
+            </div>
 
-            {/* Document table - Hidden in Quick Preview mode to achieve minimalist look */}
-            {!isQuickPreview && (
+            {!isQuickPreview ? (
+            <div className={styles.docHubMain}>
                 <div
                     className={styles.card}
                     ref={!isShortageTab ? docListKeyboardRef : undefined}
@@ -1003,14 +1016,13 @@ const DocumentHub = () => {
                     onKeyDown={!isShortageTab ? handleDocListKeyDown : undefined}
                 >
                     <div
-                        className={isShortageTab ? 'custom-scrollbar' : ''}
-                        style={isShortageTab ? { height: '260px', overflowY: 'scroll', overflowX: 'auto' } : undefined}
+                        className={`${styles.docTableScroll} custom-scrollbar`}
                         ref={isShortageTab ? shortageListKeyboardRef : undefined}
                         tabIndex={isShortageTab ? 0 : undefined}
                         onKeyDown={isShortageTab ? handleShortageListKeyDown : undefined}
                     >
                         <table className={styles.table}>
-                        <thead style={isShortageTab ? { position: 'sticky', top: 0, zIndex: 2, background: 'var(--bg-tertiary)' } : undefined}>
+                        <thead>
                             {isShortageTab ? (
                                 <tr>
                                     <th style={{ width: '52px', textAlign: 'center' }}>
@@ -1115,10 +1127,15 @@ const DocumentHub = () => {
                                 filteredDocs.map((doc, idx) => (
                                     <tr
                                         key={doc.doc_id}
+                                        data-doc-hub-row-idx={idx}
                                         style={activeDocIndex === idx ? { backgroundColor: 'var(--bg-tertiary)' } : undefined}
                                         onClick={() => {
                                             setActiveDocIndex(idx);
                                             docListKeyboardRef.current?.focus();
+                                        }}
+                                        onDoubleClick={(e) => {
+                                            e.preventDefault();
+                                            openEditor(activeTab, doc.doc_id);
                                         }}
                                     >
                                         <td>
@@ -1144,10 +1161,10 @@ const DocumentHub = () => {
                                         </td>
                                         <td>
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button tabIndex={-1} className={styles.editRowBtn} onClick={() => openEditor(activeTab, doc.doc_id)} title={t('docs.inspect')}>
+                                                <button tabIndex={-1} className={styles.editRowBtn} onClick={(e) => { e.stopPropagation(); openEditor(activeTab, doc.doc_id); }} onDoubleClick={(e) => e.stopPropagation()} title={t('docs.inspect')}>
                                                     <Eye size={14} /> {t('docs.inspect')}
                                                 </button>
-                                                <button tabIndex={-1} className={styles.viewBtn} onClick={() => setSelectedDoc(doc)}>
+                                                <button tabIndex={-1} className={styles.viewBtn} onClick={(e) => { e.stopPropagation(); setSelectedDoc(doc); }} onDoubleClick={(e) => e.stopPropagation()}>
                                                     <Printer size={14} /> {t('docs.view')}
                                                 </button>
                                             </div>
@@ -1166,11 +1183,9 @@ const DocumentHub = () => {
                         </table>
                     </div>
                 </div>
-            )}
 
-            {/* 新增單據按鈕 - 置於列表下方左側 */}
-            {!isQuickPreview && !isShortageTab && (
-                <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-start' }}>
+            {!isShortageTab && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                     <button
                         ref={addDocBtnRef}
                         type="button"
@@ -1207,15 +1222,18 @@ const DocumentHub = () => {
                     </button>
                 </div>
             )}
-
-            {isQuickPreview && !isShortageTab && filteredDocs[previewIndex] && (
-                <div style={{ marginTop: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            </div>
+            ) : (
+            <div className={`${styles.docHubMain} ${styles.docHubQuickPreview}`}>
+            {!isShortageTab && filteredDocs[previewIndex] && (
+                <div style={{ borderRadius: '8px', border: '1px solid var(--border-color)', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                     <DocumentDarkPreview
                         doc={filteredDocs[previewIndex]}
                         type={activeTab}
                         inline={true}
                         isEditing={isEditingInline}
                         canEdit={canEditCurrentTab}
+                        docHistoryDrawerHostEl={docHistoryDrawerHostEl}
                         onEdit={() => canEditCurrentTab && setIsEditingInline(true)}
                         onSave={() => setIsEditingInline(false)}
                         onClose={() => { setIsQuickPreview(false); setIsEditingInline(false); }}
@@ -1223,8 +1241,8 @@ const DocumentHub = () => {
                 </div>
             )}
 
-            {isQuickPreview && !isShortageTab && isSearching && filteredDocs.length === 0 && (
-                <div style={{ marginTop: '1rem', padding: '4rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+            {!isShortageTab && isSearching && filteredDocs.length === 0 && (
+                <div style={{ padding: '4rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                     <Search size={48} style={{ marginBottom: '1rem', opacity: 0.2 }} />
                     <p>找不到符合搜尋條件的單據</p>
                     <p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>請調整搜尋條件後再試一次</p>
@@ -1240,6 +1258,8 @@ const DocumentHub = () => {
                         */}
                     </div>
                 </div>
+            )}
+            </div>
             )}
 
             {selectedDoc && !isQuickPreview && !isShortageTab && (

@@ -1,0 +1,14 @@
+---
+description: 程式變更後自動執行 production build 驗證
+alwaysApply: true
+---
+
+# 變更後執行建置
+
+在本專案（ERP-AutoParts-V13）完成 **實質程式修改**（新增/修改原始碼、設定檔等）並準備結束回合前：
+
+1. 在專案根目錄執行：`npm run build`
+2. 若建置失敗，修正錯誤後再次執行，直到成功為止
+3. 僅文件純文字、註解微調且使用者不要求時可省略；其餘預設 **必須** 執行
+
+使用 PowerShell 時以 `;` 連接指令，例如：`cd "專案根目錄"; npm run build`

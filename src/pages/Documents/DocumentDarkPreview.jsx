@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../store/useAppStore';
 import { useSupplierStore } from '../../store/useSupplierStore';
@@ -9,6 +10,8 @@ import { useDocumentStore } from '../../store/useDocumentStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
 import { FileText, Printer, Edit2, X, Trash2, Save, Package, RotateCcw, Plus, Search } from 'lucide-react';
 import PartMappingModal from '../PIM/PartMappingModal';
+import DocProductHistoryDrawer from '../../components/DocProductHistoryDrawer';
+import { isElementInDocPartEditingZone } from '../../utils/docHistoryFocusZones';
 
 // --- Viewing Mode Component ---
 const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, canEdit = true }) => {
@@ -94,8 +97,10 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
             borderRadius: inline ? '0 0 8px 8px' : '12px',
             overflow: 'hidden',
             width: '100%',
-            height: inline ? (doc.items.length > 3 ? '500px' : 'auto') : '90vh',
-            maxHeight: inline ? '600px' : 'none',
+            flex: inline ? 1 : undefined,
+            minHeight: inline ? 0 : undefined,
+            height: inline ? '100%' : '90vh',
+            maxHeight: inline ? '100%' : 'none',
             border: inline ? 'none' : '1px solid var(--border-color)',
             boxShadow: inline ? 'none' : '0 25px 50px -12px rgba(0,0,0,0.5)'
         }}>
@@ -177,7 +182,7 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
             </div>
 
             {/* Content Body */}
-            <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+            <div className="custom-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', padding: '1.5rem' }}>
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
@@ -284,7 +289,7 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
 };
 
 // --- Inline Editor Mode Component ---
-const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) => {
+const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, docHistoryDrawerHostEl = null }) => {
     const { t } = useTranslation();
     const { updateDocument, deleteDocument, inquiries, purchaseOrders, quotations, salesOrders, salesReturns, purchaseReturns } = useDocumentStore();
     const { products } = useProductStore();
@@ -298,6 +303,7 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) =
     const selectAllRef = useRef(null);
     const [selectedIndexes, setSelectedIndexes] = useState([]);
     const [activeItemIndex, setActiveItemIndex] = useState(0);
+    const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
     const itemTbodyRef = useRef(null);
     const docListKeyboardRef = useRef(null);
 
@@ -308,10 +314,55 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) =
     const [pickerQuery, setPickerQuery] = useState({ partNumber: '', model: '', part: '', spec: '', year: '', brand: '' });
     const [pickerResults, setPickerResults] = useState([]);
     const [selectedPickerProductIds, setSelectedPickerProductIds] = useState([]);
+    const [activePickerRowIndex, setActivePickerRowIndex] = useState(0);
     const pickerSelectAllRef = useRef(null);
+    const pickerListRef = useRef(null);
+    const setProductHistoryFocusPId = useAppStore((s) => s.setProductHistoryFocusPId);
 
     useEffect(() => {
         if (!isPickerOpen) setSelectedPickerProductIds([]);
+    }, [isPickerOpen]);
+
+    const docHistoryFocusPId = useMemo(() => {
+        if (!doc) return null;
+        if (isPickerOpen && pickerResults.length > 0) {
+            return pickerResults[activePickerRowIndex]?.p_id || null;
+        }
+        if (doc.items?.length) {
+            const item = doc.items[activeItemIndex];
+            return item?.p_id && String(item.p_id).trim() ? item.p_id : null;
+        }
+        return null;
+    }, [
+        doc?.doc_id,
+        isPickerOpen,
+        pickerResults.length,
+        activePickerRowIndex,
+        pickerResults[activePickerRowIndex]?.p_id,
+        doc?.items?.length,
+        activeItemIndex,
+        doc?.items?.[activeItemIndex]?.p_id,
+    ]);
+
+    useEffect(() => {
+        setProductHistoryFocusPId(docHistoryFocusPId);
+    }, [docHistoryFocusPId, setProductHistoryFocusPId]);
+
+    useEffect(() => () => setProductHistoryFocusPId(null), [setProductHistoryFocusPId]);
+
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.repeat || e.code !== 'F8') return;
+            if (!isElementInDocPartEditingZone(document.activeElement)) return;
+            e.preventDefault();
+            setHistoryDrawerOpen((v) => !v);
+        };
+        window.addEventListener('keydown', onKey, true);
+        return () => window.removeEventListener('keydown', onKey, true);
+    }, []);
+
+    useEffect(() => {
+        setHistoryDrawerOpen(false);
     }, [isPickerOpen]);
 
     // 僅在首次開啟或切換單據時從 store 載入，避免 store 變動時覆蓋使用者未儲存的編輯或新增品項
@@ -527,6 +578,46 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) =
         setPickerResults(filtered.slice(0, 50));
     }, [pickerQuery.partNumber, products, models, parts, brands]);
 
+    useEffect(() => {
+        if (!isPickerOpen) return;
+        if (pickerResults.length === 0) {
+            setActivePickerRowIndex(0);
+            return;
+        }
+        setActivePickerRowIndex((prev) => Math.min(prev, pickerResults.length - 1));
+    }, [isPickerOpen, pickerResults.length]);
+
+    useEffect(() => {
+        if (!isPickerOpen || pickerResults.length === 0) return;
+        const list = pickerListRef.current;
+        if (!list?.contains(document.activeElement)) return;
+        const row = list.querySelector(`[data-picker-row-idx="${activePickerRowIndex}"]`);
+        row?.scrollIntoView({ block: 'nearest' });
+    }, [activePickerRowIndex, isPickerOpen, pickerResults.length]);
+
+    const handlePickerListKeyDown = (e) => {
+        if (pickerResults.length === 0) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setActivePickerRowIndex((prev) => Math.min(prev + 1, pickerResults.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActivePickerRowIndex((prev) => Math.max(prev - 1, 0));
+        } else if (e.key === ' ' || e.code === 'Space') {
+            e.preventDefault();
+            const p = pickerResults[activePickerRowIndex];
+            if (p) {
+                const checked = selectedPickerProductIds.includes(p.p_id);
+                togglePickerSelection(p.p_id, !checked);
+            }
+        } else if (e.key === 'Enter') {
+            if (selectedPickerProductIds.length > 0) {
+                e.preventDefault();
+                handlePickSelectedProducts();
+            }
+        }
+    };
+
     const isAllSelected = doc?.items?.length > 0 && selectedIndexes.length === doc.items.length;
     const isPartiallySelected = selectedIndexes.length > 0 && selectedIndexes.length < (doc?.items?.length || 0);
 
@@ -585,8 +676,10 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) =
                 flexDirection: 'column',
                 overflow: 'hidden',
                 borderRadius: '0 0 8px 8px',
-                height: inline ? (doc.items.length > 3 ? '550px' : 'auto') : '90vh',
-                maxHeight: inline ? '650px' : '90vh'
+                flex: inline ? 1 : undefined,
+                minHeight: inline ? 0 : undefined,
+                height: inline ? '100%' : '90vh',
+                maxHeight: inline ? '100%' : '90vh'
             }}>
                 <div style={{ padding: '1rem 1.5rem', backgroundColor: '#1e293b', borderBottom: '1px solid #334155', flexShrink: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
@@ -650,7 +743,30 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) =
                     </div>
                 </div>
 
-                <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', minHeight: '200px' }}>
+                {!isPickerOpen && (
+                    inline && docHistoryDrawerHostEl != null
+                        ? createPortal(
+                            <DocProductHistoryDrawer
+                                open={historyDrawerOpen}
+                                onClose={() => setHistoryDrawerOpen(false)}
+                                focusPId={docHistoryFocusPId}
+                            />,
+                            docHistoryDrawerHostEl
+                        )
+                        : (
+                            <DocProductHistoryDrawer
+                                open={historyDrawerOpen}
+                                onClose={() => setHistoryDrawerOpen(false)}
+                                focusPId={docHistoryFocusPId}
+                            />
+                        )
+                )}
+
+                <div
+                    className="custom-scrollbar"
+                    data-doc-items-zone
+                    style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', padding: '1.5rem' }}
+                >
                     <div
                         style={{ background: '#1e293b', borderRadius: '8px', border: '1px solid #334155', overflow: 'hidden' }}
                         ref={docListKeyboardRef}
@@ -756,7 +872,7 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) =
 
             {/* Product Picker - rendered OUTSIDE the overflow container so it's never clipped */}
             {isPickerOpen && (
-                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.98)', zIndex: 9999, padding: '2rem' }}>
+                <div data-doc-picker-zone style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.98)', zIndex: 9999, padding: '2rem' }}>
                     <div style={{ maxWidth: '900px', margin: '0 auto', backgroundColor: '#1e293b', borderRadius: '12px', padding: '2rem', border: '1px solid #334155' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
                             <h2 style={{ color: 'white', fontSize: '1.25rem', fontWeight: 800 }}>零件選取</h2>
@@ -773,7 +889,18 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) =
                             </div>
                         </div>
                         <input placeholder="搜尋零件號 / 品名 / 車型 / 品牌（支援片語）..." onChange={e => setPickerQuery({ ...pickerQuery, partNumber: e.target.value })} style={{ background: '#334155', color: 'white', padding: '0.6rem 1rem', width: '100%', marginBottom: '1rem', borderRadius: '6px', border: '1px solid #475569' }} />
-                        <div className="custom-scrollbar" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
+                        <DocProductHistoryDrawer
+                            open={historyDrawerOpen}
+                            onClose={() => setHistoryDrawerOpen(false)}
+                            focusPId={docHistoryFocusPId}
+                        />
+                        <div
+                            ref={pickerListRef}
+                            tabIndex={0}
+                            onKeyDown={handlePickerListKeyDown}
+                            className="custom-scrollbar"
+                            style={{ overflowY: 'auto', maxHeight: '60vh', outline: 'none' }}
+                        >
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead style={{ position: 'sticky', top: 0, backgroundColor: '#0f172a' }}>
                                     <tr style={{ textAlign: 'left', color: '#94a3b8', fontSize: '0.75rem' }}>
@@ -792,13 +919,19 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) =
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {pickerResults.map(p => (
-                                        <tr key={p.p_id} style={{ borderBottom: '1px solid #334155' }}>
+                                    {pickerResults.map((p, idx) => {
+                                        const isActive = idx === activePickerRowIndex;
+                                        return (
+                                        <tr key={p.p_id} data-picker-row-idx={idx} style={{ borderBottom: '1px solid #334155', backgroundColor: isActive ? 'rgba(59, 130, 246, 0.15)' : undefined }}>
                                             <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedPickerProductIds.includes(p.p_id)}
-                                                    onChange={(e) => togglePickerSelection(p.p_id, e.target.checked)}
+                                                    onChange={(e) => {
+                                                        togglePickerSelection(p.p_id, e.target.checked);
+                                                        setActivePickerRowIndex(idx);
+                                                        requestAnimationFrame(() => pickerListRef.current?.focus());
+                                                    }}
                                                 />
                                             </td>
                                             <td style={{ padding: '0.75rem', fontFamily: 'monospace', color: '#60a5fa' }}>{p.p_id}</td>
@@ -806,7 +939,8 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) =
                                             <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{p.stock}</td>
                                             <td style={{ padding: '0.75rem' }}><button onClick={() => handlePickProduct(p)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '4px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>選取</button></td>
                                         </tr>
-                                    ))}
+                                    );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -825,9 +959,18 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false }) =
 };
 
 // --- Main Exported Wrapper ---
-const DocumentDarkPreview = ({ doc, type, inline, onEdit, onSave, onClose, isEditing, canEdit = true }) => {
+const DocumentDarkPreview = ({ doc, type, inline, onEdit, onSave, onClose, isEditing, canEdit = true, docHistoryDrawerHostEl = null }) => {
     if (isEditing && canEdit) {
-        return <DocumentInnerEditor docId={doc.doc_id} type={type} onSave={onSave} onClose={onClose} inline={inline} />;
+        return (
+            <DocumentInnerEditor
+                docId={doc.doc_id}
+                type={type}
+                onSave={onSave}
+                onClose={onClose}
+                inline={inline}
+                docHistoryDrawerHostEl={docHistoryDrawerHostEl}
+            />
+        );
     }
     return <DocumentDarkPreviewView doc={doc} type={type} inline={inline} onEdit={onEdit} onClose={onClose} canEdit={canEdit} />;
 };

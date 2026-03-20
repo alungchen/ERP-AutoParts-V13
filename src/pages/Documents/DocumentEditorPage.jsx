@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useProductStore } from '../../store/useProductStore';
@@ -14,6 +14,8 @@ import AutocompleteInput from '../../components/AutocompleteInput';
 import PartMappingModal from '../PIM/PartMappingModal';
 import DocumentViewer from './DocumentViewer';
 import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
+import DocProductHistoryDrawer from '../../components/DocProductHistoryDrawer';
+import { isElementInDocPartEditingZone } from '../../utils/docHistoryFocusZones';
 import styles from './Documents.module.css';
 
 const DocumentEditorPage = () => {
@@ -106,9 +108,51 @@ const DocumentEditorPage = () => {
     const addPartBtnRef = useRef(null);
     const [selectedIndexes, setSelectedIndexes] = useState([]);
     const [activeItemIndex, setActiveItemIndex] = useState(0);
+    const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
     const [isAddPartFocused, setIsAddPartFocused] = useState(false);
     const itemTbodyRef = useRef(null);
     const docListKeyboardRef = useRef(null);
+    const setProductHistoryFocusPId = useAppStore((s) => s.setProductHistoryFocusPId);
+
+    const docHistoryFocusPId = useMemo(() => {
+        if (isPickerOpen && pickerResults.length > 0) {
+            return pickerResults[activePickerRowIndex]?.p_id || null;
+        }
+        if (doc?.items?.length) {
+            const item = doc.items[activeItemIndex];
+            return item?.p_id && String(item.p_id).trim() ? item.p_id : null;
+        }
+        return null;
+    }, [
+        isPickerOpen,
+        pickerResults.length,
+        activePickerRowIndex,
+        pickerResults[activePickerRowIndex]?.p_id,
+        doc?.items?.length,
+        activeItemIndex,
+        doc?.items?.[activeItemIndex]?.p_id,
+    ]);
+
+    useEffect(() => {
+        setProductHistoryFocusPId(docHistoryFocusPId);
+    }, [docHistoryFocusPId, setProductHistoryFocusPId]);
+
+    useEffect(() => () => setProductHistoryFocusPId(null), [setProductHistoryFocusPId]);
+
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.repeat || e.code !== 'F8') return;
+            if (!isElementInDocPartEditingZone(document.activeElement)) return;
+            e.preventDefault();
+            setHistoryDrawerOpen((v) => !v);
+        };
+        window.addEventListener('keydown', onKey, true);
+        return () => window.removeEventListener('keydown', onKey, true);
+    }, []);
+
+    useEffect(() => {
+        setHistoryDrawerOpen(false);
+    }, [isPickerOpen]);
 
     //
     useEffect(() => {
@@ -773,6 +817,14 @@ const DocumentEditorPage = () => {
         setActivePickerRowIndex((prev) => Math.min(prev, pickerResults.length - 1));
     }, [isPickerOpen, pickerResults.length]);
 
+    useEffect(() => {
+        if (!isPickerOpen || pickerResults.length === 0) return;
+        const list = pickerListRef.current;
+        if (!list?.contains(document.activeElement)) return;
+        const row = list.querySelector(`[data-picker-row-idx="${activePickerRowIndex}"]`);
+        row?.scrollIntoView({ block: 'nearest' });
+    }, [activePickerRowIndex, isPickerOpen, pickerResults.length]);
+
     return (
         <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {/* Header section (Basic Info) */}
@@ -1023,8 +1075,20 @@ const DocumentEditorPage = () => {
                 )}
             </div>
 
+            {!isPickerOpen && (
+                <DocProductHistoryDrawer
+                    open={historyDrawerOpen}
+                    onClose={() => setHistoryDrawerOpen(false)}
+                    focusPId={docHistoryFocusPId}
+                />
+            )}
+
             {/* Content Body (Table for parts) */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+            <div
+                className="custom-scrollbar"
+                data-doc-items-zone
+                style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', padding: '1.5rem' }}
+            >
                 <div
                     style={{ background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden' }}
                     ref={docListKeyboardRef}
@@ -1255,7 +1319,11 @@ const DocumentEditorPage = () => {
 
             {/* Product Picker Overlay */}
             {isPickerOpen && (
-                <div role="dialog" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.55)', zIndex: 1000, display: 'flex', flexDirection: 'column', padding: '1.5rem' }}>
+                <div
+                    role="dialog"
+                    data-doc-picker-zone
+                    style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.55)', zIndex: 1000, display: 'flex', flexDirection: 'column', padding: '1.5rem' }}
+                >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <Package size={24} style={{ color: '#3b82f6' }} />
@@ -1340,6 +1408,12 @@ const DocumentEditorPage = () => {
                         </form>
                     </div>
 
+                    <DocProductHistoryDrawer
+                        open={historyDrawerOpen}
+                        onClose={() => setHistoryDrawerOpen(false)}
+                        focusPId={docHistoryFocusPId}
+                    />
+
                     <div
                         ref={pickerListRef}
                         tabIndex={0}
@@ -1414,6 +1488,7 @@ const DocumentEditorPage = () => {
                                     return (
                                         <tr
                                             key={p.p_id}
+                                            data-picker-row-idx={idx}
                                             style={{
                                                 borderBottom: '1px solid var(--border-color)',
                                                 backgroundColor: isActive ? 'rgba(59, 130, 246, 0.15)' : undefined
@@ -1423,7 +1498,11 @@ const DocumentEditorPage = () => {
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedPickerProductIds.includes(p.p_id)}
-                                                    onChange={(e) => togglePickerSelection(p.p_id, e.target.checked)}
+                                                    onChange={(e) => {
+                                                        togglePickerSelection(p.p_id, e.target.checked);
+                                                        setActivePickerRowIndex(idx);
+                                                        requestAnimationFrame(() => pickerListRef.current?.focus());
+                                                    }}
                                                 />
                                             </td>
                                             <td style={{ padding: '1rem' }}>

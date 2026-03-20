@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Filter, Download, Upload, Layers, X, Eye, EyeOff, RotateCcw, Printer } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Plus, Filter, Download, Upload, Layers, Eye, EyeOff, RotateCcw, Printer, History, X } from 'lucide-react';
 import { useProductStore } from '../../store/useProductStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
@@ -9,7 +9,12 @@ import AutocompleteInput from '../../components/AutocompleteInput';
 import ProductDrawer from './ProductDrawer';
 import PartMappingModal from './PartMappingModal';
 import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
+import { collectCustomerSalesHistory, collectSupplierPurchaseHistory } from '../../utils/buildProductTransactionHistory';
+import ProductPriceHistoryBody from '../../components/ProductPriceHistoryBody';
 import styles from './ProductList.module.css';
+
+const getPrimaryPartNumber = (p) =>
+    p?.part_number || p?.part_numbers?.[0]?.part_number || '';
 
 const DEFAULT_QUERY = {
     partNumber: '',
@@ -94,11 +99,18 @@ const filterProductsByQuery = (sourceProducts, query) => {
 };
 
 const ProductList = () => {
-    const { products, setSelectedProduct, bulkUpdateProducts } = useProductStore();
-    const { purchaseOrders = [], addProductsToShortageBook } = useDocumentStore();
+    const { products, setSelectedProduct, bulkUpdateProducts, selectedProduct } = useProductStore();
+    const {
+        purchaseOrders = [],
+        salesOrders = [],
+        quotations = [],
+        inquiries = [],
+        addProductsToShortageBook
+    } = useDocumentStore();
     const { models, parts, brands } = useShorthandStore();
     const { t } = useTranslation();
-    const { showImportExport } = useAppStore();
+    const showImportExport = useAppStore((s) => s.showImportExport);
+    const setProductHistoryFocusPId = useAppStore((s) => s.setProductHistoryFocusPId);
 
     const [query, setQuery] = useState(() => {
         try {
@@ -130,6 +142,7 @@ const ProductList = () => {
     const [importResult, setImportResult] = useState({ processed: 0, updated: 0, added: 0, skipped: 0 });
     const [selectedProductIds, setSelectedProductIds] = useState([]);
     const [activeRowIndex, setActiveRowIndex] = useState(0);
+    const [historyInlineOpen, setHistoryInlineOpen] = useState(false);
     const [exportFields, setExportFields] = useState(() => {
         const defaultFields = {
             part_number: true, // mandatory key
@@ -273,7 +286,7 @@ const ProductList = () => {
             e.preventDefault();
             const activeItem = results[activeRowIndex];
             if (!activeItem) return;
-            setSelectedProduct(activeItem); // 等同滑鼠點擊列，開啟預覽/編輯抽屜
+            setSelectedProduct(activeItem); // 等同雙擊列，開啟檢視抽屜
         } else if (e.key === ' ' || e.code === 'Space') {
             e.preventDefault();
             const activeItem = results[activeRowIndex];
@@ -291,6 +304,47 @@ const ProductList = () => {
     };
 
     useSearchFormKeyboardNav(formRef, null, resetBtnRef);
+
+    const historyFocusPId = useMemo(() => {
+        if (selectedProduct && !selectedProduct.isNew && selectedProduct.p_id) {
+            return selectedProduct.p_id;
+        }
+        return results[activeRowIndex]?.p_id || null;
+    }, [selectedProduct?.p_id, selectedProduct?.isNew, activeRowIndex, results[activeRowIndex]?.p_id]);
+
+    useEffect(() => {
+        setProductHistoryFocusPId(historyFocusPId);
+        return () => setProductHistoryFocusPId(null);
+    }, [historyFocusPId, setProductHistoryFocusPId]);
+
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.repeat) return;
+            if (e.code !== 'F8') return;
+            e.preventDefault();
+            setHistoryInlineOpen((v) => !v);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
+
+    const historyContextProduct = useMemo(() => {
+        if (!historyFocusPId) return null;
+        const canonical = products.find((p) => p.p_id === historyFocusPId);
+        if (canonical) return canonical;
+        if (selectedProduct?.p_id === historyFocusPId) return selectedProduct;
+        return null;
+    }, [historyFocusPId, products, selectedProduct]);
+
+    const customerHistoryRows = useMemo(() => {
+        if (!historyContextProduct) return [];
+        return collectCustomerSalesHistory(historyContextProduct, salesOrders, quotations);
+    }, [historyContextProduct, salesOrders, quotations]);
+
+    const supplierHistoryRows = useMemo(() => {
+        if (!historyContextProduct) return [];
+        return collectSupplierPurchaseHistory(historyContextProduct, purchaseOrders, inquiries);
+    }, [historyContextProduct, purchaseOrders, inquiries]);
 
     const handleSearchFormKeyDown = (e) => {
         if (e.defaultPrevented) return;
@@ -603,6 +657,13 @@ const ProductList = () => {
                     : p.price_a;
             const displaySalePrice = showSalesPrices ? `售價${selectedPriceLevel}: NT$ ${(saleValue || 0).toLocaleString()}` : '***';
 
+            const stockNum = Number(p.stock) || 0;
+            const safetyNum = Number(p.safety_stock) || 0;
+            const belowSafetyPrint = safetyNum > 0 && stockNum < safetyNum;
+            const stockCellHtml = belowSafetyPrint
+                ? `${escapeHtml(String(stockNum))}<span style="color:#dc2626;font-weight:800;"> 現貨</span>`
+                : `${escapeHtml(String(stockNum))} 現貨`;
+
             return `
                 <tr>
                     <td>${idx + 1}</td>
@@ -610,7 +671,7 @@ const ProductList = () => {
                     <td>${escapeHtml(displayModel)} / ${escapeHtml(displayYear)}</td>
                     <td>${escapeHtml(p.name || '-')}<br><span class="muted">${escapeHtml(p.specifications || '-')}</span></td>
                     <td>${escapeHtml(p.brand || mainPN.brand || '-')}</td>
-                    <td>${escapeHtml((p.stock || 0).toString())} 現貨<br><span class="muted">安全庫存: ${escapeHtml((p.safety_stock || 0).toString())}</span></td>
+                    <td>${stockCellHtml}<br><span class="muted">安全庫存: ${escapeHtml(String(safetyNum))}</span></td>
                     <td>${showPrices ? `NT$ ${(p.base_cost || 0).toLocaleString()}` : '***'}</td>
                     <td>${escapeHtml(displaySalePrice)}</td>
                     <td>${escapeHtml(p.notes || '-')}</td>
@@ -787,6 +848,64 @@ const ProductList = () => {
                         />
                     </div>
                 </form>
+                <div style={{ marginTop: '0.55rem', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    <History size={14} style={{ flexShrink: 0, opacity: 0.85 }} aria-hidden />
+                    <span>
+                        按 <strong style={{ color: 'var(--text-secondary)' }}>F8</strong> 於搜尋區塊下方滑出／收合「客戶前價／廠商前價」沿革抽屜（列表反白列；若已開啟產品抽屜則以該品為主）。
+                    </span>
+                </div>
+
+                <div
+                    className={`${styles.historyDrawerShell} ${historyInlineOpen ? styles.historyDrawerShellOpen : ''}`}
+                    aria-hidden={!historyInlineOpen}
+                >
+                    <div className={styles.historyDrawerShellInner}>
+                        <div className={styles.historyDrawer}>
+                            <div className={styles.historyDrawerHeader}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                    <History size={18} style={{ marginTop: '2px', opacity: 0.85 }} aria-hidden />
+                                    <div>
+                                        <div className={styles.historyDrawerTitle}>
+                                            {historyContextProduct
+                                                ? `客戶前價 · 廠商前價沿革｜${historyContextProduct.name || '未命名'}（${getPrimaryPartNumber(historyContextProduct) || historyContextProduct.p_id || '—'}）`
+                                                : '客戶前價 · 廠商前價沿革'}
+                                        </div>
+                                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                                            左欄：銷貨單與報價單；右欄：進貨單與詢價單。
+                                            {(!historyFocusPId || !historyContextProduct) && (
+                                                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}> 目前無對應產品 p_id。</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setHistoryInlineOpen(false)}
+                                    style={{
+                                        border: '1px solid var(--border-color)',
+                                        background: 'var(--bg-tertiary)',
+                                        color: 'var(--text-secondary)',
+                                        padding: '0.35rem 0.6rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem'
+                                    }}
+                                >
+                                    <X size={14} /> 收合（F8）
+                                </button>
+                            </div>
+                            <ProductPriceHistoryBody
+                                contextProduct={historyContextProduct}
+                                customerHistoryRows={customerHistoryRows}
+                                supplierHistoryRows={supplierHistoryRows}
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div
@@ -884,6 +1003,16 @@ const ProductList = () => {
                     <tbody ref={productTbodyRef}>
                         {results.map((p, idx) => {
                             const mainPN = p?.part_numbers?.[0] || {};
+                            const stockNum = Number(p.stock) || 0;
+                            const safetyNum = Number(p.safety_stock) || 0;
+                            const belowSafety = safetyNum > 0 && stockNum < safetyNum;
+                            const stockBadgeClass = belowSafety
+                                ? 'bg-danger-subtle text-primary'
+                                : stockNum > safetyNum
+                                    ? 'bg-success-subtle text-success'
+                                    : stockNum > 0
+                                        ? 'bg-warning-subtle text-warning'
+                                        : 'bg-danger-subtle text-danger';
                             return (
                                 <tr
                                     key={p.p_id}
@@ -895,29 +1024,37 @@ const ProductList = () => {
                                         setActiveRowIndex(idx);
                                         focusProductRow(idx);
                                     }}
+                                    onDoubleClick={(e) => {
+                                        e.preventDefault();
+                                        setSelectedProduct(p);
+                                    }}
                                 >
                                     <td className={styles.tdList} style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                                         <input
                                             type="checkbox"
                                             checked={selectedProductIds.includes(p.p_id)}
-                                            onChange={(e) => toggleSelection(p.p_id, e.target.checked)}
+                                            onChange={(e) => {
+                                                toggleSelection(p.p_id, e.target.checked);
+                                                setActiveRowIndex(idx);
+                                                requestAnimationFrame(() => focusProductRow(idx));
+                                            }}
                                         />
                                     </td>
-                                    <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>{idx + 1}</td>
+                                    <td className={styles.tdList}>{idx + 1}</td>
 
-                                    <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
-                                        <div className="font-mono text-accent-hover font-bold hover:underline" onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }}>
+                                    <td className={styles.tdList}>
+                                        <div className="font-mono text-accent-hover font-bold hover:underline" onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }} onDoubleClick={(e) => e.stopPropagation()}>
                                             {p.part_number || mainPN.part_number || '-'}
                                         </div>
                                         <div className="text-xs text-muted mt-1">{p?.p_id}</div>
                                         {(p?.part_numbers?.length || 0) > 0 && (
-                                            <div className="mt-1 text-[10px] bg-bg-tertiary px-1.5 py-0.5 inline-block rounded border border-border-color text-secondary cursor-pointer hover:bg-border-color" onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }}>
+                                            <div className="mt-1 text-[10px] bg-bg-tertiary px-1.5 py-0.5 inline-block rounded border border-border-color text-secondary cursor-pointer hover:bg-border-color" onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }} onDoubleClick={(e) => e.stopPropagation()}>
                                                 +{(p?.part_numbers?.length || 0)} 適用
                                             </div>
                                         )}
                                     </td>
 
-                                    <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
+                                    <td className={styles.tdList}>
                                         <div className="font-semibold text-primary">
                                             {(() => {
                                                 const activeCar = (p.part_numbers || []).find(pn => pn.car_model);
@@ -942,31 +1079,32 @@ const ProductList = () => {
                                         </div>
                                     </td>
 
-                                    <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
+                                    <td className={styles.tdList}>
                                         <div className="font-bold text-primary max-w-[180px] truncate" title={p.name}>{p.name || '-'}</div>
                                         <div className="text-xs text-muted mt-1 max-w-[180px] truncate" title={p.specifications}>{p.specifications || '-'}</div>
                                     </td>
 
-                                    <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
+                                    <td className={styles.tdList}>
                                         <span className="font-bold text-accent-primary">{p.brand || mainPN.brand || '-'}</span>
                                     </td>
 
-                                    <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
+                                    <td className={styles.tdList}>
                                         <div className="flex flex-col gap-1 items-start">
-                                            <span className={`text-xs px-2 py-0.5 rounded-sm font-bold ${p.stock > p.safety_stock ? 'bg-success-subtle text-success' : p.stock > 0 ? 'bg-warning-subtle text-warning' : 'bg-danger-subtle text-danger'}`}>
-                                                {p.stock || 0} 現貨
+                                            <span className={`text-xs px-2 py-0.5 rounded-sm font-bold ${stockBadgeClass}`}>
+                                                {stockNum}
+                                                <span className={belowSafety ? 'text-danger' : undefined}> 現貨</span>
                                             </span>
-                                            <span className="text-[10px] text-muted font-mono">安全庫存: {p.safety_stock || 0}</span>
+                                            <span className="text-[10px] text-muted font-mono">安全庫存: {safetyNum}</span>
                                         </div>
                                     </td>
 
-                                    <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
+                                    <td className={styles.tdList}>
                                         <span className="font-mono font-semibold text-muted">
                                             {showPrices ? `NT$ ${p.base_cost?.toLocaleString() || 0}` : '***'}
                                         </span>
                                     </td>
 
-                                    <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
+                                    <td className={styles.tdList}>
                                         {showSalesPrices ? (
                                             <select
                                                 className="bg-bg-secondary border border-border-color text-primary text-xs rounded px-1 py-1 w-[120px] outline-none cursor-pointer"
@@ -986,11 +1124,11 @@ const ProductList = () => {
                                         )}
                                     </td>
 
-                                    <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
+                                    <td className={styles.tdList}>
                                         <div className="max-w-[120px] truncate text-xs text-muted" title={p.notes}>{p.notes || '-'}</div>
                                     </td>
 
-                                    <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
+                                    <td className={styles.tdList}>
                                         {(p?.images?.length || 0) > 0 ? (
                                             <span className="text-xs text-accent-primary bg-accent-subtle px-2 py-1 rounded border border-accent-primary flex items-center gap-1 max-w-fit">
                                                 <Layers size={10} /> {(p?.images?.length || 0)} 張

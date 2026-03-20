@@ -32,6 +32,7 @@ const ProductDrawer = () => {
     const cancelBtnRef = useRef(null);
     const closeBtnRef = useRef(null);
     const partNumberInputRef = useRef(null);
+    const drawerRef = useRef(null);
 
     const handleImageUpload = (e) => {
         const files = Array.from(e.target.files);
@@ -103,6 +104,19 @@ const ProductDrawer = () => {
     }, [enlargedImageIndex, formData?.images, selectedProduct?.images]);
 
     useEffect(() => {
+        if (!selectedProduct) return;
+        const onKeyDown = (e) => {
+            if (e.key !== 'Escape') return;
+            if (enlargedImageIndex !== null) return;
+            if (drawerRef.current?.querySelector('[data-dropdown-open]')) return;
+            e.preventDefault();
+            setSelectedProduct(null);
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [selectedProduct, enlargedImageIndex, setSelectedProduct]);
+
+    useEffect(() => {
         if (!pendingFocusPnId) return;
         const targetInput = partNumberInputRefs.current[pendingFocusPnId];
         if (!targetInput) return;
@@ -167,7 +181,7 @@ const ProductDrawer = () => {
 
     const handleSaveBtnKeyDown = (e) => {
         if (e.key === 'Enter') {
-            // 依需求：Esc -> 儲存後，再按 Enter 先執行儲存，然後聚焦關閉
+            // Enter：儲存後聚焦關閉鈕（Esc 為關閉整個抽屜，見全域 keydown）
             e.preventDefault();
             e.stopPropagation();
             handleSave();
@@ -181,12 +195,6 @@ const ProductDrawer = () => {
 
     const handleDrawerEnterNavigation = (e) => {
         if (!isEditing) return;
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            e.stopPropagation();
-            saveBtnRef.current?.focus();
-            return;
-        }
         if (e.key !== 'Enter') return;
         if (e.defaultPrevented) return;
 
@@ -241,7 +249,7 @@ const ProductDrawer = () => {
 
     return (
         <div className={`${styles.overlay} ${selectedProduct ? styles.open : ''}`} onClick={() => setSelectedProduct(null)}>
-            <div className={styles.drawer} data-enter-nav-textarea="true" onClick={(e) => e.stopPropagation()} onKeyDown={handleDrawerEnterNavigation}>
+            <div ref={drawerRef} className={styles.drawer} data-enter-nav-textarea="true" onClick={(e) => e.stopPropagation()} onKeyDown={handleDrawerEnterNavigation}>
                 {!hasData ? (
                     <div />
                 ) : (
