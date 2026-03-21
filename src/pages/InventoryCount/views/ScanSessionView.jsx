@@ -2,6 +2,7 @@ import React, { useCallback, useId, useRef, useState } from 'react';
 import ScannerPanel from '../components/ScannerPanel';
 import CameraPermissionHint from '../components/CameraPermissionHint';
 import { useHtml5QrcodeScanner } from '../hooks/useHtml5QrcodeScanner';
+import { playScanSuccessBeep } from '../utils/playScanSuccessBeep';
 import styles from './ScanSessionView.module.css';
 
 const DEBOUNCE_MS = 1400;
@@ -25,6 +26,7 @@ const ScanSessionView = ({ sheetTitle, onScanText }) => {
 
             const result = onScanText(raw);
             if (result?.ok) {
+                playScanSuccessBeep();
                 setFeedback({
                     type: 'ok',
                     text: `已掃描：${result.label || raw}（+1）`,
