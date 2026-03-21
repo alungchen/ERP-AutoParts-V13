@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Layers, Globe, Users, FileText, Settings, Keyboard, Search, Package, BarChart3 } from 'lucide-react';
+import { Layers, Globe, Users, FileText, Settings, Keyboard, Search, Package, BarChart3, ClipboardList } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Topnav from '../components/Topnav';
 import { DEFAULT_NAV_ORDER, useAppStore } from '../store/useAppStore';
@@ -37,6 +37,7 @@ const AppLayout = () => {
             inquiry: '詢價單',
             purchase: '進貨單',
             purchaseReturn: '進貨退回',
+            shortageBook: '缺貨簿',
         };
         if (operationMode === 'tabbed' && !isStandalonePage) {
             document.title = '新分頁模式';
@@ -114,6 +115,7 @@ const AppLayout = () => {
                 links: [
                     { key: 'inquiry', label: '詢價單', icon: Search, path: '/documents?tab=inquiry', color: '#8b5cf6' },
                     { key: 'purchase', label: '進貨單', icon: Package, path: '/documents?tab=purchase', color: '#f59e0b' },
+                    { key: 'shortageBook', label: '缺貨簿', icon: ClipboardList, path: '/documents?tab=shortageBook', color: '#dc2626' },
                     { key: 'purchaseReturn', label: '進貨退回', icon: Package, path: '/documents?tab=purchaseReturn', color: '#f97316' },
                 ],
             },
