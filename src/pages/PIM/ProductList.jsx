@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Plus, Filter, Download, Upload, Layers, Eye, EyeOff, RotateCcw, Printer, History, X } from 'lucide-react';
+import { Plus, Filter, Download, Upload, Layers, Eye, EyeOff, RotateCcw, Printer, History, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ChevronDown, FileSpreadsheet } from 'lucide-react';
 import { useProductStore } from '../../store/useProductStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
@@ -15,6 +15,34 @@ import styles from './ProductList.module.css';
 
 const getPrimaryPartNumber = (p) =>
     p?.part_number || p?.part_numbers?.[0]?.part_number || '';
+
+/** 匯出 CSV 用：適用車種人類可讀（多筆換行；與 Part Numbers(JSON) 分開） */
+const formatApplicableVehicleTypesForCsv = (p) => {
+    const lines = [];
+    for (const pn of p.part_numbers || []) {
+        const pnStr = (pn.part_number || '').trim();
+        const cm = (pn.car_model || '').trim();
+        const yr = (pn.year || '').trim();
+        const br = (pn.brand || '').trim();
+        const nt = (pn.note || '').trim();
+        if (!pnStr && !cm && !yr && !br && !nt) continue;
+        const segs = [];
+        if (cm) segs.push(`車型 ${cm}`);
+        if (yr) segs.push(`年 ${yr}`);
+        if (br) segs.push(`品牌 ${br}`);
+        if (pnStr) segs.push(`料號 ${pnStr}`);
+        if (nt) segs.push(`註 ${nt}`);
+        lines.push(segs.join(' · '));
+    }
+    for (const car of p.car_models || []) {
+        if (typeof car === 'string' && car.trim()) lines.push(car.trim());
+        else if (car && (car.model || car.year)) {
+            const s = [car.model, car.year].filter(Boolean).join(' ').trim();
+            if (s) lines.push(s);
+        }
+    }
+    return lines.join('\n');
+};
 
 const DEFAULT_QUERY = {
     partNumber: '',
@@ -143,6 +171,12 @@ const ProductList = () => {
     const [selectedProductIds, setSelectedProductIds] = useState([]);
     const [activeRowIndex, setActiveRowIndex] = useState(0);
     const [historyInlineOpen, setHistoryInlineOpen] = useState(false);
+    /** 產品列表 F9：浮層預覽實體照片（僅有 images 時） */
+    const [imagePreviewProduct, setImagePreviewProduct] = useState(null);
+    const [imagePreviewEnlargedIndex, setImagePreviewEnlargedIndex] = useState(null);
+    const [imagePreviewZoom, setImagePreviewZoom] = useState(1);
+    const [outputMenuOpen, setOutputMenuOpen] = useState(false);
+    const outputMenuRef = useRef(null);
     const [exportFields, setExportFields] = useState(() => {
         const defaultFields = {
             part_number: true, // mandatory key
@@ -160,6 +194,7 @@ const ProductList = () => {
             price_b: true,
             price_c: true,
             part_numbers: false,
+            applicable_vehicle_types: false,
             images: false,
         };
         try {
@@ -221,6 +256,21 @@ const ProductList = () => {
         selectAllRef.current.indeterminate = isPartiallySelected;
     }, [isPartiallySelected]);
 
+    useEffect(() => {
+        if (!outputMenuOpen) return;
+        const onDown = (e) => {
+            if (outputMenuRef.current && !outputMenuRef.current.contains(e.target)) setOutputMenuOpen(false);
+        };
+        const onKey = (e) => {
+            if (e.key === 'Escape') setOutputMenuOpen(false);
+        };
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [outputMenuOpen]);
 
     const focusProductRow = (rowIdx) => {
         const rowEl = productTbodyRef.current?.querySelector(`[data-product-row-idx="${rowIdx}"]`);
@@ -293,6 +343,11 @@ const ProductList = () => {
             if (!activeItem) return;
             const checked = selectedProductIds.includes(activeItem.p_id);
             toggleSelection(activeItem.p_id, !checked);
+        } else if (e.code === 'F9') {
+            e.preventDefault();
+            const activeItem = results[activeRowIndex];
+            if (!activeItem?.images?.length) return;
+            setImagePreviewProduct((cur) => (cur?.p_id === activeItem.p_id ? null : activeItem));
         }
     };
 
@@ -328,6 +383,51 @@ const ProductList = () => {
         return () => window.removeEventListener('keydown', onKey);
     }, []);
 
+    useEffect(() => {
+        if (!imagePreviewProduct) return;
+        const images = imagePreviewProduct.images || [];
+        const onKey = (ev) => {
+            if (imagePreviewEnlargedIndex !== null && images.length > 0) {
+                if (ev.key === 'Escape') {
+                    ev.preventDefault();
+                    setImagePreviewEnlargedIndex(null);
+                    setImagePreviewZoom(1);
+                    return;
+                }
+                if (ev.code === 'F9') {
+                    ev.preventDefault();
+                    setImagePreviewEnlargedIndex(null);
+                    setImagePreviewZoom(1);
+                    return;
+                }
+                if (images.length > 1 && ev.key === 'ArrowRight') {
+                    ev.preventDefault();
+                    setImagePreviewEnlargedIndex((prev) => ((prev ?? 0) + 1) % images.length);
+                    setImagePreviewZoom(1);
+                    return;
+                }
+                if (images.length > 1 && ev.key === 'ArrowLeft') {
+                    ev.preventDefault();
+                    setImagePreviewEnlargedIndex((prev) => ((prev ?? 0) - 1 + images.length) % images.length);
+                    setImagePreviewZoom(1);
+                    return;
+                }
+                return;
+            }
+            if (ev.key === 'Escape' || ev.code === 'F9') {
+                ev.preventDefault();
+                setImagePreviewProduct(null);
+            }
+        };
+        window.addEventListener('keydown', onKey, true);
+        return () => window.removeEventListener('keydown', onKey, true);
+    }, [imagePreviewProduct, imagePreviewEnlargedIndex]);
+
+    useEffect(() => {
+        setImagePreviewEnlargedIndex(null);
+        setImagePreviewZoom(1);
+    }, [imagePreviewProduct?.p_id]);
+
     const historyContextProduct = useMemo(() => {
         if (!historyFocusPId) return null;
         const canonical = products.find((p) => p.p_id === historyFocusPId);
@@ -345,6 +445,13 @@ const ProductList = () => {
         if (!historyContextProduct) return [];
         return collectSupplierPurchaseHistory(historyContextProduct, purchaseOrders, inquiries);
     }, [historyContextProduct, purchaseOrders, inquiries]);
+
+    const bumpImagePreviewZoom = (delta) => {
+        setImagePreviewZoom((z) => {
+            const n = Math.round((z + delta) * 100) / 100;
+            return Math.min(3, Math.max(0.5, n));
+        });
+    };
 
     const handleSearchFormKeyDown = (e) => {
         if (e.defaultPrevented) return;
@@ -452,6 +559,7 @@ const ProductList = () => {
         { key: 'price_b', label: 'Price B', getter: (p) => p.price_b || 0 },
         { key: 'price_c', label: 'Price C', getter: (p) => p.price_c || 0 },
         { key: 'part_numbers', label: 'Part Numbers(JSON)', getter: (p) => JSON.stringify(p.part_numbers || []) },
+        { key: 'applicable_vehicle_types', label: '適用車種', getter: (p) => formatApplicableVehicleTypesForCsv(p) },
         { key: 'images', label: 'Images(JSON)', getter: (p) => JSON.stringify(p.images || []) },
     ];
 
@@ -622,6 +730,59 @@ const ProductList = () => {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 
+    /** 列印用：每筆適用車型一列，排在該產品主列下方（勾選「列印適用車型」時顯示） */
+    const buildApplicableModelSubRowsHtml = (p) => {
+        const dash = '—';
+        const emptyCell = `<td class="muted">${dash}</td>`;
+        const rows = [];
+        for (const pn of p.part_numbers || []) {
+            const pnStr = (pn.part_number || '').trim();
+            const cm = (pn.car_model || '').trim();
+            const yr = (pn.year || '').trim();
+            const br = (pn.brand || '').trim();
+            const nt = (pn.note || '').trim();
+            if (!pnStr && !cm && !yr && !br && !nt) continue;
+            const modelYear = cm && yr ? `${cm} / ${yr}` : cm || yr || dash;
+            rows.push(`
+                <tr class="applicable-print-row">
+                    <td class="applicable-indent"></td>
+                    <td>${escapeHtml(pnStr || dash)}</td>
+                    <td>${escapeHtml(modelYear)}</td>
+                    <td><span class="muted">${escapeHtml(nt || dash)}</span></td>
+                    <td>${escapeHtml(br || dash)}</td>
+                    ${emptyCell.repeat(4)}
+                </tr>
+            `);
+        }
+        for (const car of p.car_models || []) {
+            if (typeof car === 'string' && car.trim()) {
+                rows.push(`
+                    <tr class="applicable-print-row">
+                        <td class="applicable-indent"></td>
+                        <td class="muted">${dash}</td>
+                        <td>${escapeHtml(car.trim())}</td>
+                        <td class="muted">${dash}</td>
+                        <td class="muted">${dash}</td>
+                        ${emptyCell.repeat(4)}
+                    </tr>
+                `);
+            } else if (car && (car.model || car.year)) {
+                const my = [car.model, car.year].filter(Boolean).join(' / ') || dash;
+                rows.push(`
+                    <tr class="applicable-print-row">
+                        <td class="applicable-indent"></td>
+                        <td class="muted">${dash}</td>
+                        <td>${escapeHtml(my)}</td>
+                        <td class="muted">${dash}</td>
+                        <td class="muted">${dash}</td>
+                        ${emptyCell.repeat(4)}
+                    </tr>
+                `);
+            }
+        }
+        return rows.join('');
+    };
+
     const handlePrint = () => {
         const printWindow = window.open('', '_blank', 'width=1200,height=800');
         if (!printWindow) {
@@ -664,8 +825,9 @@ const ProductList = () => {
                 ? `${escapeHtml(String(stockNum))}<span style="color:#dc2626;font-weight:800;"> 現貨</span>`
                 : `${escapeHtml(String(stockNum))} 現貨`;
 
+            const subRows = buildApplicableModelSubRowsHtml(p);
             return `
-                <tr>
+                <tr class="product-main-row">
                     <td>${idx + 1}</td>
                     <td>${escapeHtml(p.part_number || mainPN.part_number || '-')}</td>
                     <td>${escapeHtml(displayModel)} / ${escapeHtml(displayYear)}</td>
@@ -675,7 +837,7 @@ const ProductList = () => {
                     <td>${showPrices ? `NT$ ${(p.base_cost || 0).toLocaleString()}` : '***'}</td>
                     <td>${escapeHtml(displaySalePrice)}</td>
                     <td>${escapeHtml(p.notes || '-')}</td>
-                </tr>
+                </tr>${subRows}
             `;
         }).join('');
 
@@ -694,33 +856,153 @@ const ProductList = () => {
                     th, td { border: 1px solid #d1d5db; padding: 6px; font-size: 11px; vertical-align: top; word-break: break-word; }
                     th { background: #f3f4f6; font-weight: 700; text-align: left; }
                     .muted { color: #6b7280; font-size: 10px; }
+                    .print-toolbar {
+                        position: sticky;
+                        top: 0;
+                        z-index: 9999;
+                        background: #ffffff;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        padding: 10px 12px;
+                        margin: 0 0 16px 0;
+                        display: flex;
+                        flex-wrap: wrap;
+                        align-items: center;
+                        gap: 8px 12px;
+                        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+                    }
+                    .print-toolbar button {
+                        padding: 6px 12px;
+                        border-radius: 6px;
+                        border: 1px solid #d1d5db;
+                        background: #f9fafb;
+                        font-size: 13px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        color: #111827;
+                    }
+                    .print-toolbar button:hover { background: #f3f4f6; }
+                    .print-toolbar button.print-primary {
+                        background: #2563eb;
+                        color: #fff;
+                        border-color: #1d4ed8;
+                    }
+                    .print-toolbar button.print-primary:hover { background: #1d4ed8; }
+                    .print-toolbar input[type="range"] { width: 140px; vertical-align: middle; }
+                    .print-toolbar .zoom-label { font-weight: 700; min-width: 3rem; font-size: 13px; }
+                    .print-toolbar .hint { font-size: 11px; color: #6b7280; flex-basis: 100%; margin: 0; }
+                    .print-toolbar label.print-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #111827; cursor: pointer; user-select: none; }
+                    .print-toolbar label.print-opt input { width: 16px; height: 16px; cursor: pointer; }
+                    .print-toolbar label.print-opt input[type="radio"] { width: 15px; height: 15px; }
+                    .print-toolbar .orient-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-left: 8px; margin-left: 4px; border-left: 1px solid #e5e7eb; }
+                    #print-root { transform-origin: top left; }
+                    .applicable-print-row { display: none; background: #f9fafb; }
+                    .applicable-print-row td { font-size: 10px; }
+                    .applicable-indent { background: linear-gradient(90deg, #e5e7eb 0, #e5e7eb 3px, transparent 3px); }
+                    #print-root.show-models .applicable-print-row { display: table-row; }
                     @media print {
+                        .no-print { display: none !important; }
                         body { margin: 0; }
                     }
                 </style>
+                <style id="print-page-dynamic"></style>
             </head>
             <body>
-                <h1>產品資料庫（目前顯示資料）</h1>
-                <p class="meta">列印時間: ${new Date().toLocaleString('zh-TW')} | 筆數: ${results.length}</p>
-                <p class="filters">搜尋條件: ${escapeHtml(activeFilters.length > 0 ? activeFilters.join('、') : '無（顯示全部）')}</p>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:40px;">#</th>
-                            <th style="width:120px;">零件號碼</th>
-                            <th style="width:160px;">車型 / 年份</th>
-                            <th style="width:180px;">品名 / 規格</th>
-                            <th style="width:90px;">品牌</th>
-                            <th style="width:110px;">庫存</th>
-                            <th style="width:90px;">進價</th>
-                            <th style="width:130px;">售價</th>
-                            <th>備註</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
-                </table>
+                <div class="print-toolbar no-print">
+                    <strong>預覽大小</strong>
+                    <button type="button" id="zoomOutBtn" title="縮小">－</button>
+                    <input type="range" id="zoomRange" min="50" max="150" value="100" step="5" aria-label="預覽縮放比例" />
+                    <span class="zoom-label" id="zoomPct">100%</span>
+                    <button type="button" id="zoomInBtn" title="放大">＋</button>
+                    <button type="button" id="zoomResetBtn">重設 100%</button>
+                    <span class="orient-group no-print">
+                        <strong>紙張</strong>
+                        <label class="print-opt"><input type="radio" name="pageOrient" value="portrait" checked /> A4 直式</label>
+                        <label class="print-opt"><input type="radio" name="pageOrient" value="landscape" /> A4 橫式</label>
+                    </span>
+                    <label class="print-opt no-print"><input type="checkbox" id="printModelsChk" /> 列印適用車型</label>
+                    <button type="button" class="print-primary" id="doPrintBtn">列印／PDF</button>
+                    <p class="hint">請選擇 A4 直式或 A4 橫式（影響列印對話框紙張方向）。勾選「列印適用車型」時，每一適用車型各一列、緊接在該產品主列下方（庫存／價格以主列為準）。拖曳滑桿調整預覽比例後按「列印／PDF」；在列印對話框可選「另存 PDF」。亦可用 Ctrl+P。</p>
+                </div>
+                <div id="print-root">
+                    <h1>產品資料庫（目前顯示資料）</h1>
+                    <p class="meta">列印時間: ${new Date().toLocaleString('zh-TW')} | 筆數: ${results.length}</p>
+                    <p class="filters">搜尋條件: ${escapeHtml(activeFilters.length > 0 ? activeFilters.join('、') : '無（顯示全部）')}</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:40px;">#</th>
+                                <th style="width:120px;">零件號碼</th>
+                                <th style="width:160px;">車型 / 年份</th>
+                                <th style="width:180px;">品名 / 規格</th>
+                                <th style="width:90px;">品牌</th>
+                                <th style="width:110px;">庫存</th>
+                                <th style="width:90px;">進價</th>
+                                <th style="width:130px;">售價</th>
+                                <th>備註</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+                <script>
+                    (function () {
+                        var root = document.getElementById('print-root');
+                        var range = document.getElementById('zoomRange');
+                        var label = document.getElementById('zoomPct');
+                        var pageDyn = document.getElementById('print-page-dynamic');
+                        function applyPageOrientation() {
+                            var landscape = false;
+                            var radios = document.querySelectorAll('input[name="pageOrient"]');
+                            for (var i = 0; i < radios.length; i++) {
+                                if (radios[i].checked) landscape = radios[i].value === 'landscape';
+                            }
+                            var size = landscape ? 'A4 landscape' : 'A4 portrait';
+                            pageDyn.textContent = '@page { size: ' + size + '; margin: 10mm; } @media print { @page { size: ' + size + '; margin: 10mm; } }';
+                        }
+                        document.querySelectorAll('input[name="pageOrient"]').forEach(function (r) {
+                            r.addEventListener('change', applyPageOrientation);
+                        });
+                        applyPageOrientation();
+                        function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+                        function applyZoom(percent) {
+                            var p = clamp(parseInt(percent, 10) || 100, 50, 150);
+                            range.value = String(p);
+                            label.textContent = p + '%';
+                            var s = p / 100;
+                            var supportsZoom = 'zoom' in root.style;
+                            if (supportsZoom) {
+                                root.style.zoom = String(s);
+                                root.style.transform = '';
+                                root.style.width = '';
+                            } else {
+                                root.style.zoom = '';
+                                root.style.transform = 'scale(' + s + ')';
+                                root.style.transformOrigin = 'top left';
+                                root.style.width = (100 / s) + '%';
+                            }
+                        }
+                        range.addEventListener('input', function () { applyZoom(range.value); });
+                        document.getElementById('zoomOutBtn').addEventListener('click', function () {
+                            applyZoom(parseInt(range.value, 10) - 5);
+                        });
+                        document.getElementById('zoomInBtn').addEventListener('click', function () {
+                            applyZoom(parseInt(range.value, 10) + 5);
+                        });
+                        document.getElementById('zoomResetBtn').addEventListener('click', function () { applyZoom(100); });
+                        document.getElementById('doPrintBtn').addEventListener('click', function () { window.print(); });
+                        var modelsChk = document.getElementById('printModelsChk');
+                        function syncModelsCol() {
+                            if (modelsChk.checked) root.classList.add('show-models');
+                            else root.classList.remove('show-models');
+                        }
+                        modelsChk.addEventListener('change', syncModelsCol);
+                        syncModelsCol();
+                        applyZoom(100);
+                    })();
+                </script>
             </body>
             </html>
         `;
@@ -729,9 +1011,6 @@ const ProductList = () => {
         printWindow.document.write(html);
         printWindow.document.close();
         printWindow.focus();
-        setTimeout(() => {
-            printWindow.print();
-        }, 200);
     };
 
     return (
@@ -753,9 +1032,47 @@ const ProductList = () => {
                             </button>
                         </>
                     )}
-                    <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handlePrint}>
-                        <Printer size={18} /> 列印
-                    </button>
+                    <div className={styles.outputMenuWrap} ref={outputMenuRef}>
+                        <button
+                            type="button"
+                            className={`${styles.btn} ${styles.btnSecondary} ${styles.outputMenuTrigger}`}
+                            onClick={() => setOutputMenuOpen((o) => !o)}
+                            aria-expanded={outputMenuOpen}
+                            aria-haspopup="menu"
+                        >
+                            <Printer size={18} />
+                            列印／PDF、CSV
+                            <ChevronDown size={16} strokeWidth={2.25} aria-hidden style={{ opacity: 0.75 }} />
+                        </button>
+                        {outputMenuOpen && (
+                            <div className={styles.outputMenu} role="menu" aria-label="輸出選項">
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    className={styles.outputMenuItem}
+                                    onClick={() => {
+                                        setOutputMenuOpen(false);
+                                        handlePrint();
+                                    }}
+                                >
+                                    <Printer size={16} strokeWidth={2.25} />
+                                    列印／PDF
+                                </button>
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    className={styles.outputMenuItem}
+                                    onClick={() => {
+                                        setOutputMenuOpen(false);
+                                        setIsExportDialogOpen(true);
+                                    }}
+                                >
+                                    <FileSpreadsheet size={16} strokeWidth={2.25} />
+                                    匯出 Excel (CSV)
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleAddProduct}>
                         <Plus size={18} /> {t('pim.add')}
                     </button>
@@ -852,6 +1169,8 @@ const ProductList = () => {
                     <History size={14} style={{ flexShrink: 0, opacity: 0.85 }} aria-hidden />
                     <span>
                         按 <strong style={{ color: 'var(--text-secondary)' }}>F8</strong> 於搜尋區塊下方滑出／收合「客戶前價／廠商前價」沿革抽屜（列表反白列；若已開啟產品抽屜則以該品為主）。
+                        {' '}
+                        有實體照片之列，列表聚焦時按 <strong style={{ color: 'var(--text-secondary)' }}>F9</strong> 可預覽並點圖放大。
                     </span>
                 </div>
 
@@ -1130,9 +1449,23 @@ const ProductList = () => {
 
                                     <td className={styles.tdList}>
                                         {(p?.images?.length || 0) > 0 ? (
-                                            <span className="text-xs text-accent-primary bg-accent-subtle px-2 py-1 rounded border border-accent-primary flex items-center gap-1 max-w-fit">
-                                                <Layers size={10} /> {(p?.images?.length || 0)} 張
-                                            </span>
+                                            <div className="flex flex-col gap-1 items-start">
+                                                <span className="text-xs text-accent-primary bg-accent-subtle px-2 py-1 rounded border border-accent-primary flex items-center gap-1 max-w-fit">
+                                                    <Layers size={10} /> {(p?.images?.length || 0)} 張
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    title="預覽實體照片（列表聚焦時亦可按 F9）"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setActiveRowIndex(idx);
+                                                        setImagePreviewProduct((cur) => (cur?.p_id === p.p_id ? null : p));
+                                                    }}
+                                                    style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                                                >
+                                                    F9
+                                                </button>
+                                            </div>
                                         ) : (
                                             <span className="text-[10px] text-muted bg-bg-secondary px-2 py-1 rounded border border-border-color">無照片</span>
                                         )}
@@ -1147,6 +1480,369 @@ const ProductList = () => {
 
             <ProductDrawer />
 
+            {imagePreviewProduct && (imagePreviewProduct.images || []).length > 0 && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="實體照片預覽"
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 10050,
+                        background: 'rgba(15, 23, 42, 0.72)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                        boxSizing: 'border-box'
+                    }}
+                    onClick={() => {
+                        setImagePreviewEnlargedIndex(null);
+                        setImagePreviewZoom(1);
+                        setImagePreviewProduct(null);
+                    }}
+                >
+                    <div
+                        style={{
+                            width: '100%',
+                            maxWidth: 'min(960px, 96vw)',
+                            maxHeight: 'min(90vh, 880px)',
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '12px',
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.45)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'hidden'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div
+                            style={{
+                                flexShrink: 0,
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                justifyContent: 'space-between',
+                                gap: '0.75rem',
+                                padding: '0.85rem 1rem',
+                                borderBottom: '1px solid var(--border-color)',
+                                background: 'var(--bg-tertiary)'
+                            }}
+                        >
+                            <div>
+                                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                                    實體照片 · {imagePreviewProduct.name || '未命名'}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                    {getPrimaryPartNumber(imagePreviewProduct) || imagePreviewProduct.p_id || '—'} · 共 {(imagePreviewProduct.images || []).length} 張 · 縮圖可點擊放大 · Esc／F9 或點遮罩關閉
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setImagePreviewEnlargedIndex(null);
+                                    setImagePreviewZoom(1);
+                                    setImagePreviewProduct(null);
+                                }}
+                                style={{
+                                    border: '1px solid var(--border-color)',
+                                    background: 'var(--bg-secondary)',
+                                    color: 'var(--text-secondary)',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '8px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    flexShrink: 0
+                                }}
+                            >
+                                <X size={14} /> 關閉
+                            </button>
+                        </div>
+                        <div
+                            className="custom-scrollbar"
+                            style={{
+                                flex: 1,
+                                minHeight: 0,
+                                overflowY: 'auto',
+                                padding: '1rem',
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                                gap: '0.85rem',
+                                alignContent: 'start'
+                            }}
+                        >
+                            {(imagePreviewProduct.images || []).map((src, i) => (
+                                <div
+                                    key={`${imagePreviewProduct.p_id}-img-${i}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(ev) => {
+                                        if (ev.key === 'Enter' || ev.key === ' ') {
+                                            ev.preventDefault();
+                                            setImagePreviewEnlargedIndex(i);
+                                            setImagePreviewZoom(1);
+                                        }
+                                    }}
+                                    onClick={(ev) => {
+                                        ev.stopPropagation();
+                                        setImagePreviewEnlargedIndex(i);
+                                        setImagePreviewZoom(1);
+                                    }}
+                                    style={{
+                                        borderRadius: '8px',
+                                        overflow: 'hidden',
+                                        border: '1px solid var(--border-color)',
+                                        background: 'var(--bg-tertiary)',
+                                        cursor: 'pointer',
+                                        outline: 'none'
+                                    }}
+                                >
+                                    <img
+                                        src={src}
+                                        alt={`${imagePreviewProduct.name || '產品'} 照片 ${i + 1}`}
+                                        style={{ width: '100%', height: 'auto', maxHeight: '320px', objectFit: 'contain', display: 'block', pointerEvents: 'none' }}
+                                        loading="lazy"
+                                    />
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            gap: '0.35rem',
+                                            padding: '0.35rem 0.5rem',
+                                            fontSize: '10px',
+                                            color: 'var(--text-muted)',
+                                            borderTop: '1px solid var(--border-color)',
+                                            background: 'var(--bg-secondary)'
+                                        }}
+                                    >
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontWeight: 700, color: 'var(--accent-hover)' }}>
+                                            <ZoomIn size={12} aria-hidden /> 點擊放大
+                                        </span>
+                                        <a
+                                            href={src}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(ev) => ev.stopPropagation()}
+                                            style={{ color: 'var(--accent-primary)', fontWeight: 600 }}
+                                        >
+                                            原圖
+                                        </a>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {imagePreviewProduct &&
+                imagePreviewEnlargedIndex !== null &&
+                (imagePreviewProduct.images || [])[imagePreviewEnlargedIndex] != null && (
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="放大檢視照片"
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            zIndex: 10060,
+                            background: 'rgba(0, 0, 0, 0.9)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0.75rem',
+                            boxSizing: 'border-box'
+                        }}
+                        onClick={() => {
+                            setImagePreviewEnlargedIndex(null);
+                            setImagePreviewZoom(1);
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.5rem',
+                                marginBottom: '0.5rem',
+                                flexShrink: 0
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => bumpImagePreviewZoom(-0.25)}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255,255,255,0.35)',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    color: '#f8fafc',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <ZoomOut size={14} /> 縮小
+                            </button>
+                            <span style={{ color: '#e2e8f0', fontSize: '0.8rem', fontWeight: 800, minWidth: '3.5rem', textAlign: 'center' }}>
+                                {Math.round(imagePreviewZoom * 100)}%
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => bumpImagePreviewZoom(0.25)}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255,255,255,0.35)',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    color: '#f8fafc',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <ZoomIn size={14} /> 放大
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setImagePreviewZoom(1)}
+                                style={{
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255,255,255,0.35)',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    color: '#f8fafc',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                重設比例
+                            </button>
+                            {(imagePreviewProduct.images || []).length > 1 && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const imgs = imagePreviewProduct.images || [];
+                                            setImagePreviewEnlargedIndex((prev) => ((prev ?? 0) - 1 + imgs.length) % imgs.length);
+                                            setImagePreviewZoom(1);
+                                        }}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.2rem',
+                                            padding: '0.35rem 0.65rem',
+                                            borderRadius: '8px',
+                                            border: '1px solid rgba(255,255,255,0.35)',
+                                            background: 'rgba(255,255,255,0.1)',
+                                            color: '#f8fafc',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <ChevronLeft size={16} /> 上一張
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const imgs = imagePreviewProduct.images || [];
+                                            setImagePreviewEnlargedIndex((prev) => ((prev ?? 0) + 1) % imgs.length);
+                                            setImagePreviewZoom(1);
+                                        }}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.2rem',
+                                            padding: '0.35rem 0.65rem',
+                                            borderRadius: '8px',
+                                            border: '1px solid rgba(255,255,255,0.35)',
+                                            background: 'rgba(255,255,255,0.1)',
+                                            color: '#f8fafc',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        下一張 <ChevronRight size={16} />
+                                    </button>
+                                </>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setImagePreviewEnlargedIndex(null);
+                                    setImagePreviewZoom(1);
+                                }}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255,255,255,0.35)',
+                                    background: 'rgba(220,38,38,0.35)',
+                                    color: '#fff',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <X size={14} /> 關閉放大
+                            </button>
+                        </div>
+                        <div
+                            className="custom-scrollbar"
+                            style={{
+                                flex: 1,
+                                minHeight: 0,
+                                width: '100%',
+                                maxWidth: '96vw',
+                                maxHeight: 'calc(100vh - 5.5rem)',
+                                overflow: 'auto',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '0.5rem'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <img
+                                src={(imagePreviewProduct.images || [])[imagePreviewEnlargedIndex]}
+                                alt={`${imagePreviewProduct.name || '產品'} 放大 ${imagePreviewEnlargedIndex + 1}`}
+                                style={{
+                                    maxWidth: 'min(92vw, 1400px)',
+                                    maxHeight: '75vh',
+                                    width: 'auto',
+                                    height: 'auto',
+                                    objectFit: 'contain',
+                                    transform: `scale(${imagePreviewZoom})`,
+                                    transformOrigin: 'center center',
+                                    transition: 'transform 0.12s ease-out'
+                                }}
+                            />
+                        </div>
+                        <div style={{ marginTop: '0.35rem', fontSize: '0.7rem', color: 'rgba(226,232,240,0.75)', flexShrink: 0, textAlign: 'center' }}>
+                            ← → 切換照片 · Esc／F9 結束放大 · 點擊背景結束放大
+                        </div>
+                    </div>
+                )}
+
             {mappingProduct && (
                 <PartMappingModal
                     product={mappingProduct}
@@ -1158,7 +1854,7 @@ const ProductList = () => {
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
                     <div style={{ width: '100%', maxWidth: '460px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1rem 1.1rem' }}>
                         <div style={{ fontWeight: 800, marginBottom: '0.4rem' }}>下載欄位選擇</div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.8rem' }}>包含編輯視窗欄位。以「零件號碼」為唯一 key，固定必下載（已記憶上次勾選）。</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.8rem' }}>包含編輯視窗欄位。以「零件號碼」為唯一 key，固定必下載（已記憶上次勾選）。「適用車種」為可讀文字（多筆換行），與 Part Numbers(JSON) 可擇一或併用；匯入仍以 JSON 欄為準。</div>
                         <div style={{ display: 'grid', gap: '0.45rem' }}>
                             {fieldMeta.map((f) => (
                                 <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: f.mandatory ? '#60a5fa' : 'var(--text-primary)' }}>
