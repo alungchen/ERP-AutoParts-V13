@@ -1,18 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useInventoryCountStore } from '../../store/useInventoryCountStore';
+import { useProductStore } from '../../store/useProductStore';
+import { enrichInventorySheet } from './inventoryCountUtils';
 import CountSheetListView from './views/CountSheetListView';
 import CountSheetDetailView from './views/CountSheetDetailView';
 import ScanSessionView from './views/ScanSessionView';
 import styles from './InventoryCountPage.module.css';
 
 const InventoryCountPage = () => {
+    const products = useProductStore((s) => s.products);
     const sheets = useInventoryCountStore((s) => s.sheets);
     const setLineQty = useInventoryCountStore((s) => s.setLineQty);
     const bumpLineQty = useInventoryCountStore((s) => s.bumpLineQty);
-    const matchScan = useInventoryCountStore((s) => s.matchScan);
+    const resolveProductToLine = useInventoryCountStore((s) => s.resolveProductToLine);
     const submitSheet = useInventoryCountStore((s) => s.submitSheet);
     const startSheet = useInventoryCountStore((s) => s.startSheet);
+    const addSheet = useInventoryCountStore((s) => s.addSheet);
 
     const [view, setView] = useState('list');
     const [sheetId, setSheetId] = useState(null);
@@ -21,6 +25,11 @@ const InventoryCountPage = () => {
     const sheet = useMemo(
         () => sheets.find((s) => s.id === sheetId) || null,
         [sheets, sheetId]
+    );
+
+    const sheetForView = useMemo(
+        () => enrichInventorySheet(sheet, products),
+        [sheet, products]
     );
 
     const readOnly = sheet?.status === 'submitted';
@@ -42,6 +51,14 @@ const InventoryCountPage = () => {
         setView('detail');
     };
 
+    const handleCreateSheet = useCallback(
+        ({ title, warehouse }) => {
+            const id = addSheet({ title, warehouse });
+            openSheet(id);
+        },
+        [addSheet]
+    );
+
     const goList = () => {
         setView('list');
         setSheetId(null);
@@ -60,38 +77,66 @@ const InventoryCountPage = () => {
         [sheetId, readOnly, setLineQty]
     );
 
-    const applyScanOrCode = useCallback(
+    /** 手動：可新增不在單上的產品；已存在則 +1 */
+    const applyManualCode = useCallback(
         (text) => {
             if (!sheetId || readOnly) return null;
-            const hit = matchScan(sheetId, text);
+            const hit = resolveProductToLine(sheetId, text, 'manual');
             if (!hit) return null;
-            bumpLineQty(sheetId, hit.lineId, 1);
+            if (!hit.isNew) {
+                bumpLineQty(sheetId, hit.lineId, 1);
+            }
             setActiveLineId(hit.lineId);
-            const line = sheet?.lines.find((l) => l.lineId === hit.lineId);
-            return { ok: true, label: line?.sku || line?.productName };
+            const p = products.find((x) => x.p_id === hit.p_id);
+            const label =
+                p?.part_number || p?.part_numbers?.[0]?.part_number || hit.p_id || '';
+            return { ok: true, label };
         },
-        [sheetId, readOnly, matchScan, bumpLineQty, sheet?.lines]
+        [sheetId, readOnly, resolveProductToLine, bumpLineQty, products]
+    );
+
+    /** 掃碼：可新增；新列預設盤點量 1，已存在則 +1 */
+    const applyScanCode = useCallback(
+        (text) => {
+            if (!sheetId || readOnly) return null;
+            const hit = resolveProductToLine(sheetId, text, 'scan');
+            if (!hit) return null;
+            if (!hit.isNew) {
+                bumpLineQty(sheetId, hit.lineId, 1);
+            }
+            setActiveLineId(hit.lineId);
+            const p = products.find((x) => x.p_id === hit.p_id);
+            const label =
+                p?.part_number || p?.part_numbers?.[0]?.part_number || hit.p_id || '';
+            return { ok: true, label };
+        },
+        [sheetId, readOnly, resolveProductToLine, bumpLineQty, products]
     );
 
     const handleScanText = useCallback(
         (text) => {
-            const r = applyScanOrCode(text);
+            const r = applyScanCode(text);
             if (r?.ok) return r;
             return { ok: false };
         },
-        [applyScanOrCode]
+        [applyScanCode]
     );
 
     const handleManualLookup = useCallback(
         (code) => {
-            const r = applyScanOrCode(code);
+            const r = applyManualCode(code);
             return Boolean(r?.ok);
         },
-        [applyScanOrCode]
+        [applyManualCode]
     );
 
     const handleSubmit = () => {
         if (!sheetId || readOnly) return;
+        const sh = sheets.find((s) => s.id === sheetId);
+        if (!sh?.lines?.length) {
+            window.alert('請至少新增一筆盤點明細（手動輸入或掃碼）再提交。');
+            return;
+        }
         const ok = window.confirm('確定提交此張盤點單？提交後將無法再修改。');
         if (!ok) return;
         submitSheet(sheetId);
@@ -133,11 +178,15 @@ const InventoryCountPage = () => {
 
             <div className={styles.body}>
                 {view === 'list' && (
-                    <CountSheetListView sheets={sheets} onOpenSheet={openSheet} />
+                    <CountSheetListView
+                        sheets={sheets}
+                        onOpenSheet={openSheet}
+                        onCreateSheet={handleCreateSheet}
+                    />
                 )}
-                {view === 'detail' && sheet && (
+                {view === 'detail' && sheetForView && (
                     <CountSheetDetailView
-                        sheet={sheet}
+                        sheet={sheetForView}
                         activeLineId={activeLineId}
                         readOnly={readOnly}
                         onQtyChange={handleQtyChange}

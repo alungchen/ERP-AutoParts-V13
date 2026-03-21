@@ -22,6 +22,19 @@
     color: var(--text-primary);
 }
 
+.stockHint {
+    margin: 0.35rem 0 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+    max-width: 42rem;
+}
+
+.stockHint strong {
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
 .panelMeta {
     margin: 0;
     font-size: 0.82rem;

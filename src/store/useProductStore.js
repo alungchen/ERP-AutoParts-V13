@@ -69,6 +69,22 @@ const initialProducts = [
     specifications: 'Aluminium Cast, L/R Compatible',
     safety_stock: 20,
     base_cost: 1450
+  },
+  {
+    p_id: 'P-1005',
+    part_number: 'COM-B006',
+    name: 'COM-B006 範例料（盤點測試）',
+    car_models: [],
+    category: 'Demo',
+    images: [],
+    part_numbers: [
+      { pn_id: 'PN-900', part_number: 'COM-B006', brand: 'Demo', type: 'Internal' }
+    ],
+    brand: 'Demo',
+    stock: 10,
+    specifications: '',
+    safety_stock: 2,
+    base_cost: 100
   }
 ];
 

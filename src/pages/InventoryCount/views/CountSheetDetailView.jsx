@@ -45,7 +45,7 @@ const CountSheetDetailView = ({
                 </button>
                 <div className={styles.manualBox}>
                     <label className={styles.manualLabel} htmlFor="inv-manual-code">
-                        手動輸入條碼／料號（無相機時）
+                        手動輸入條碼／料號／P-ID（可新增尚未列在單上的產品）
                     </label>
                     <input
                         id="inv-manual-code"
@@ -55,7 +55,7 @@ const CountSheetDetailView = ({
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') handleManual();
                         }}
-                        placeholder="例如 4710012345678 或 BRK-F-001"
+                        placeholder="例如 P-1001、04465-02220 或 17220-5AA-A00"
                         disabled={readOnly}
                         autoComplete="off"
                     />
@@ -72,9 +72,14 @@ const CountSheetDetailView = ({
 
             <div className={styles.panel}>
                 <div className={styles.panelHead}>
-                    <h3 className={styles.panelTitle} style={{ fontSize: '0.88rem' }}>
-                        盤點明細
-                    </h3>
+                    <div>
+                        <h3 className={styles.panelTitle} style={{ fontSize: '0.88rem' }}>
+                            盤點明細
+                        </h3>
+                        <p className={styles.stockHint}>
+                            帳載數量與品名來自<strong>產品資料庫（PIM）庫存</strong>；提交盤點後會將盤點量寫回庫存。
+                        </p>
+                    </div>
                 </div>
                 <div className={styles.lines}>
                     {sheet.lines.map((line) => (
@@ -95,7 +100,7 @@ const CountSheetDetailView = ({
                 totalLines={sheet.lines.length}
                 readOnly={readOnly}
                 onSubmit={onSubmit}
-                submitDisabled={readOnly}
+                submitDisabled={readOnly || sheet.lines.length === 0}
             />
         </>
     );
