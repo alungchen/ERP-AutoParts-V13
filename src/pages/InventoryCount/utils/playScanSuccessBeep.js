@@ -1,23 +1,41 @@
 /**
  * 掃碼成功時播放短促嗶聲（Web Audio，無需音檔）。
- * 部分瀏覽器需使用者曾與頁面互動後才可播放。
+ * iOS / 部分 Android 須先經使用者點擊／觸控解鎖 AudioContext，請搭配「試播嗶聲」按鈕。
  */
 let sharedCtx = null;
 
-export function playScanSuccessBeep() {
-    if (typeof window === 'undefined') return;
+function getOrCreateContext() {
+    if (typeof window === 'undefined') return null;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!sharedCtx) {
+        sharedCtx = new AC();
+    }
+    return sharedCtx;
+}
 
+/** 在使用者點按時呼叫，解鎖後掃碼回呼才能播音 */
+export async function unlockAudioContext() {
+    const ctx = getOrCreateContext();
+    if (!ctx) return false;
     try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
-
-        if (!sharedCtx) {
-            sharedCtx = new AC();
+        if (ctx.state === 'suspended') {
+            await ctx.resume();
         }
-        const ctx = sharedCtx;
+        return ctx.state === 'running';
+    } catch {
+        return false;
+    }
+}
 
-        const resume = ctx.state === 'suspended' ? ctx.resume() : Promise.resolve();
-        resume.catch(() => {});
+/**
+ * 播放成功嗶聲（內部會嘗試 resume，但若未先解鎖可能仍無聲）。
+ */
+export async function playScanSuccessBeep() {
+    try {
+        await unlockAudioContext();
+        const ctx = getOrCreateContext();
+        if (!ctx || ctx.state !== 'running') return;
 
         const t0 = ctx.currentTime;
         const osc = ctx.createOscillator();
@@ -35,6 +53,6 @@ export function playScanSuccessBeep() {
         osc.start(t0);
         osc.stop(t0 + 0.12);
     } catch {
-        /* 忽略不支援或權限問題 */
+        /* 忽略 */
     }
 }
