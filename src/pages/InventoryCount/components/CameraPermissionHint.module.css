@@ -1,0 +1,25 @@
+.box {
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--warning-subtle);
+    background: rgba(255, 149, 0, 0.08);
+    color: var(--text-secondary);
+    font-size: 0.84rem;
+    line-height: 1.5;
+}
+
+.title {
+    margin: 0 0 0.35rem;
+    font-weight: 700;
+    color: var(--warning);
+    font-size: 0.88rem;
+}
+
+.list {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.list li {
+    margin-bottom: 0.25rem;
+}

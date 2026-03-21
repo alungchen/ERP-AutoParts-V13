@@ -1,0 +1,71 @@
+.card {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: border-color var(--trans-fast), box-shadow var(--trans-fast), transform var(--trans-fast);
+}
+
+.card:hover {
+    border-color: var(--border-focus);
+    box-shadow: var(--shadow-sm);
+}
+
+.card:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+.row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.title {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.meta {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.badge {
+    flex-shrink: 0;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.badgeDraft {
+    background: var(--warning-subtle);
+    color: var(--warning);
+}
+
+.badgeProgress {
+    background: var(--accent-subtle);
+    color: var(--accent-primary);
+}
+
+.badgeDone {
+    background: var(--success-subtle);
+    color: var(--success);
+}
+
+.chevron {
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+}

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Layers, Globe, Users, FileText, Settings, Keyboard, Search, Package, BarChart3, ClipboardList } from 'lucide-react';
+import { Layers, Globe, Users, FileText, Settings, Keyboard, Search, Package, BarChart3, ClipboardList, ScanLine } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Topnav from '../components/Topnav';
 import { DEFAULT_NAV_ORDER, useAppStore } from '../store/useAppStore';
@@ -21,6 +21,7 @@ const AppLayout = () => {
         '/employees': t('sidebar.contacts'),
         '/documents': t('sidebar.documents'),
         '/reports': t('sidebar.reports'),
+        '/inventory-count': t('sidebar.inventoryCount'),
         '/settings': t('sidebar.config'),
         '/shorthand-config': t('sidebar.shorthand'),
     }), [t]);
@@ -63,6 +64,7 @@ const AppLayout = () => {
             { path: '/suppliers', label: t('sidebar.contacts'), icon: Users },
             { path: '/documents', label: t('sidebar.documents'), icon: FileText },
             { path: '/reports', label: t('sidebar.reports'), icon: BarChart3 },
+            { path: '/inventory-count', label: t('sidebar.inventoryCount'), icon: ScanLine },
             { path: '/settings', label: t('sidebar.config'), icon: Settings },
             { path: '/shorthand-config', label: t('sidebar.shorthand'), icon: Keyboard },
         ];

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Layers, Search, BarChart3, Settings, ShieldAlert, Users, FileText, Globe, Keyboard, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Layers, Search, BarChart3, Settings, ShieldAlert, Users, FileText, Globe, Keyboard, ChevronLeft, ChevronRight, ScanLine } from 'lucide-react';
 import { useTranslation } from '../i18n';
 import { DEFAULT_NAV_ORDER, useAppStore } from '../store/useAppStore';
 import styles from './Sidebar.module.css';
@@ -19,6 +19,7 @@ const Sidebar = () => {
         { name: t('sidebar.contacts'), path: '/suppliers', icon: Users },
         { name: t('sidebar.documents'), path: '/documents', icon: FileText },
         { name: t('sidebar.reports'), path: '/reports', icon: BarChart3 },
+        { name: t('sidebar.inventoryCount'), path: '/inventory-count', icon: ScanLine },
         { name: t('sidebar.config'), path: '/settings', icon: Settings },
         { name: t('sidebar.shorthand'), path: '/shorthand-config', icon: Keyboard },
     ];

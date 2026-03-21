@@ -16,6 +16,7 @@ import SystemSettings from './pages/Config/SystemSettings';
 import ShorthandConfig from './pages/Config/ShorthandConfig';
 import ReportsPage from './pages/Reports/ReportsPage';
 import LoginPage from './pages/Auth/LoginPage';
+import InventoryCountPage from './pages/InventoryCount/InventoryCountPage';
 import { usePriceInputSelectOnFocus } from './hooks/usePriceInputSelectOnFocus';
 // import useGlobalEnterNavigation from './hooks/useGlobalEnterNavigation';
 
@@ -82,6 +83,7 @@ function App() {
           <Route path="employees" element={<ContactManager />} />
           <Route path="documents" element={<DocumentHub />} />
           <Route path="reports" element={<ReportsPage />} />
+          <Route path="inventory-count" element={<InventoryCountPage />} />
           <Route path="settings" element={<SystemSettings />} />
           <Route path="shorthand-config" element={<ShorthandConfig />} />
         </Route>
