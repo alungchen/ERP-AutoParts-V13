@@ -6,6 +6,7 @@ import { useProductStore } from './store/useProductStore';
 import { useSupplierStore } from './store/useSupplierStore';
 import { useCustomerStore } from './store/useCustomerStore';
 import { useEmployeeStore } from './store/useEmployeeStore';
+import { useSettlementStore } from './store/useSettlementStore';
 import { useAppStore } from './store/useAppStore';
 import ProductList from './pages/PIM/ProductList';
 import SourcingList from './pages/Sourcing/SourcingList';
@@ -17,6 +18,7 @@ import ShorthandConfig from './pages/Config/ShorthandConfig';
 import ReportsPage from './pages/Reports/ReportsPage';
 import LoginPage from './pages/Auth/LoginPage';
 import InventoryCountPage from './pages/InventoryCount/InventoryCountPage';
+import SettlementPage from './pages/Settlement/SettlementPage';
 import { usePriceInputSelectOnFocus } from './hooks/usePriceInputSelectOnFocus';
 // import useGlobalEnterNavigation from './hooks/useGlobalEnterNavigation';
 
@@ -34,6 +36,7 @@ function App() {
       if (e.key === 'erp-customer-store') useCustomerStore.persist.rehydrate();
       if (e.key === 'erp-employee-store') useEmployeeStore.persist.rehydrate();
       if (e.key === 'erp-app-store') useAppStore.persist.rehydrate();
+      if (e.key === 'erp-settlement-store') useSettlementStore.persist.rehydrate();
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -84,6 +87,7 @@ function App() {
           <Route path="documents" element={<DocumentHub />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="inventory-count" element={<InventoryCountPage />} />
+          <Route path="settlement" element={<SettlementPage />} />
           <Route path="settings" element={<SystemSettings />} />
           <Route path="shorthand-config" element={<ShorthandConfig />} />
         </Route>

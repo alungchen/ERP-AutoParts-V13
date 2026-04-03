@@ -7,6 +7,7 @@ import { useCustomerStore } from '../../store/useCustomerStore';
 import { useEmployeeStore } from '../../store/useEmployeeStore';
 import { useAppStore } from '../../store/useAppStore';
 import { useTranslation } from '../../i18n';
+import { sortedCustomersForSelect, sortedSuppliersForSelect } from '../../utils/sortContactsForSelect';
 import { canEditDocType } from '../../utils/permissions';
 import { FileText, Plus, Printer, Eye, Search, RotateCcw, Trash2, ArrowRightLeft } from 'lucide-react';
 import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
@@ -85,6 +86,8 @@ const DocumentHub = () => {
     const setProductHistoryFocusPId = useAppStore((s) => s.setProductHistoryFocusPId);
     const { suppliers } = useSupplierStore();
     const { customers } = useCustomerStore();
+    const supplierOptions = useMemo(() => sortedSuppliersForSelect(suppliers), [suppliers]);
+    const customerOptions = useMemo(() => sortedCustomersForSelect(customers), [customers]);
     const { employees } = useEmployeeStore();
     const { t, language } = useTranslation();
     const initialTab = searchParams.get('tab');
@@ -185,11 +188,11 @@ const DocumentHub = () => {
         if (doc.supplier_name) return doc.supplier_name;
         if (doc.customer_name) return doc.customer_name;
         if (doc.supplier_id) {
-            const s = suppliers.find(sup => sup.sup_id === doc.supplier_id);
+            const s = supplierOptions.find((sup) => sup.sup_id === doc.supplier_id);
             if (s) return s.name;
         }
         if (doc.customer_id) {
-            const c = customers.find(cust => cust.cust_id === doc.customer_id);
+            const c = customerOptions.find((cust) => cust.cust_id === doc.customer_id);
             if (c) return c.name;
         }
         return '-';
@@ -233,8 +236,10 @@ const DocumentHub = () => {
         // Date search
         if (appliedSearchFilters.date && !doc.date.includes(appliedSearchFilters.date)) return false;
 
-        // Status search
-        if (appliedSearchFilters.status && doc.status !== appliedSearchFilters.status) return false;
+        // Status search（銷貨單狀態已屏蔽，不依狀態篩選）
+        if (activeTab !== 'sales' && appliedSearchFilters.status && doc.status !== appliedSearchFilters.status) {
+            return false;
+        }
 
         // Party (Customer/Supplier) search
         if (appliedSearchFilters.party) {
@@ -249,7 +254,7 @@ const DocumentHub = () => {
         }
 
         return true;
-    }), [docs, isShortageTab, appliedSearchFilters, suppliers, customers, employees]);
+    }), [docs, isShortageTab, activeTab, appliedSearchFilters, suppliers, customers, employees]);
 
     // 僅在切換分頁時重置 activeDocIndex，避免 filteredDocs 變動導致無法移動到第 2 項
     useEffect(() => {
@@ -774,6 +779,7 @@ const DocumentHub = () => {
                             style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
                         />
                     </div>
+                    {activeTab !== 'sales' && (
                     <div className={styles.searchField} data-search-field data-search-field-index="3" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '130px', flex: 1 }}>
                         <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>狀態</label>
                         <select
@@ -789,6 +795,7 @@ const DocumentHub = () => {
                             <option value="sent">已送出</option>
                         </select>
                     </div>
+                    )}
                     <div className={styles.searchField} data-search-field data-search-field-index="4" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '150px', flex: 1 }}>
                         <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>開單人員</label>
                         <input
@@ -1050,7 +1057,9 @@ const DocumentHub = () => {
                                     <th style={{ width: '100px' }}>{t('docs.thItems')}</th>
                                     <th style={{ width: '150px' }}>{t('docs.thTotal')}</th>
                                     <th style={{ width: '180px' }}>{t('docs.thCreator')}</th>
+                                    {activeTab !== 'sales' && (
                                     <th style={{ width: '120px' }}>{t('docs.thStatus')}</th>
+                                    )}
                                     <th style={{ width: '220px' }}></th>
                                 </tr>
                             )}
@@ -1103,7 +1112,7 @@ const DocumentHub = () => {
                                             <select
                                                 value={item.supplier_id || ''}
                                                 onChange={(e) => {
-                                                    const selectedSupplier = suppliers.find((s) => s.sup_id === e.target.value);
+                                                    const selectedSupplier = supplierOptions.find((s) => s.sup_id === e.target.value);
                                                     updateShortageSupplier(item.p_id, selectedSupplier || null);
                                                 }}
                                                 style={{
@@ -1116,7 +1125,7 @@ const DocumentHub = () => {
                                                 }}
                                             >
                                                 <option value="">-- 選擇進貨廠商 --</option>
-                                                {suppliers.map((s) => (
+                                                {supplierOptions.map((s) => (
                                                     <option key={s.sup_id} value={s.sup_id}>{s.sup_id} | {s.name}</option>
                                                 ))}
                                             </select>
@@ -1154,11 +1163,13 @@ const DocumentHub = () => {
                                             }
                                         </td>
                                         <td className="text-sm text-muted">{getOpenerName(doc)}</td>
+                                        {activeTab !== 'sales' && (
                                         <td>
                                             <span className={styles.statusBadge} style={{ color: getStatusColor(doc.status), background: getStatusColor(doc.status) + '22' }}>
                                                 {STATUS_LABEL[doc.status]?.[language === 'zh' ? 'zh' : 'en'] || doc.status}
                                             </span>
                                         </td>
+                                        )}
                                         <td>
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                 <button tabIndex={-1} className={styles.editRowBtn} onClick={(e) => { e.stopPropagation(); openEditor(activeTab, doc.doc_id); }} onDoubleClick={(e) => e.stopPropagation()} title={t('docs.inspect')}>
@@ -1174,7 +1185,7 @@ const DocumentHub = () => {
                             )}
                             {filteredDocs.length === 0 && (
                                 <tr>
-                                    <td colSpan={isShortageTab ? 9 : 8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                                    <td colSpan={isShortageTab ? 9 : activeTab === 'sales' ? 7 : 8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                                         {isShortageTab ? '目前沒有低於安全庫存的零件' : (docs.length === 0 ? t('docs.empty') : '找不到符合條件的單據')}
                                     </td>
                                 </tr>

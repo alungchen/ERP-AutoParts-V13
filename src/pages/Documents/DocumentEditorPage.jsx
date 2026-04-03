@@ -16,6 +16,15 @@ import DocumentViewer from './DocumentViewer';
 import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
 import DocProductHistoryDrawer from '../../components/DocProductHistoryDrawer';
 import { isElementInDocPartEditingZone } from '../../utils/docHistoryFocusZones';
+import { sortedCustomersForSelect, sortedSuppliersForSelect } from '../../utils/sortContactsForSelect';
+import {
+    productCarModelsSearchText,
+    productPurchaseUnitPrice,
+    productSalesUnitPrice,
+    productLineCarModel,
+    productLineYear,
+    productYearSearchBlob
+} from '../../utils/productPickerSync';
 import styles from './Documents.module.css';
 
 const DocumentEditorPage = () => {
@@ -34,6 +43,8 @@ const DocumentEditorPage = () => {
     const mode = searchParams.get('mode'); // 'intl' if international
     const isEdit = !!id;
     const isIntl = mode === 'intl';
+    const customerOptions = useMemo(() => sortedCustomersForSelect(customers), [customers]);
+    const supplierOptions = useMemo(() => sortedSuppliersForSelect(suppliers), [suppliers]);
     const docTypeMeta = {
         quotation: { label: '\u5831\u50f9\u55ae', color: '#2563eb' },
         sales: { label: '\u92b7\u8ca8\u55ae', color: '#16a34a' },
@@ -169,14 +180,14 @@ const DocumentEditorPage = () => {
         if (existingDoc) {
             let updatedDoc = { ...existingDoc };
             if (!updatedDoc.supplier_name && updatedDoc.supplier_id) {
-                updatedDoc.supplier_name = suppliers.find(s => s.sup_id === updatedDoc.supplier_id)?.name || '';
+                updatedDoc.supplier_name = supplierOptions.find(s => s.sup_id === updatedDoc.supplier_id)?.name || '';
             }
             if (!updatedDoc.customer_name && updatedDoc.customer_id) {
-                updatedDoc.customer_name = customers.find(c => c.cust_id === updatedDoc.customer_id)?.name || '';
+                updatedDoc.customer_name = customerOptions.find(c => c.cust_id === updatedDoc.customer_id)?.name || '';
             }
             setDoc(updatedDoc);
         }
-    }, [isEdit, id, type]);
+    }, [isEdit, id, type, customerOptions, supplierOptions]);
 
     useEffect(() => {
         if (!isEdit && currentUser && (!doc.opener_emp_id || !doc.opener_emp_name)) {
@@ -616,16 +627,17 @@ const DocumentEditorPage = () => {
 
     const handlePickProduct = (p) => {
         const pnObj = p.part_numbers?.[0] || {};
+        const isPurch = type === 'purchase' || type === 'purchaseReturn';
         const newItem = {
             p_id: p.p_id,
             name: p.name,
             part_number: pnObj.part_number || p.part_number || '',
-            car_model: pnObj.car_model || p.car_model || '',
+            car_model: productLineCarModel(p),
             brand: pnObj.brand || p.brand || '',
-            year: pnObj.year || p.year || '',
+            year: productLineYear(p),
             spec: p.specifications || '',
             qty: 1,
-            unit_price: (type === 'purchase' || type === 'purchaseReturn') ? (p.base_cost || 0) : (p.price_a || 0),
+            unit_price: isPurch ? productPurchaseUnitPrice(p) : productSalesUnitPrice(p),
             unit: 'PCS',
             stock: p.stock,
             // Attach original product info for "Applicability" link in main list
@@ -659,18 +671,19 @@ const DocumentEditorPage = () => {
     const handlePickSelectedProducts = () => {
         if (selectedPickerProductIds.length === 0) return;
         const selectedProducts = pickerResults.filter((p) => selectedPickerProductIds.includes(p.p_id));
+        const isPurch = type === 'purchase' || type === 'purchaseReturn';
         const newItems = selectedProducts.map((p) => {
             const pnObj = p.part_numbers?.[0] || {};
             return {
                 p_id: p.p_id,
                 name: p.name,
                 part_number: pnObj.part_number || p.part_number || '',
-                car_model: pnObj.car_model || p.car_model || '',
+                car_model: productLineCarModel(p),
                 brand: pnObj.brand || p.brand || '',
-                year: pnObj.year || p.year || '',
+                year: productLineYear(p),
                 spec: p.specifications || '',
                 qty: 1,
-                unit_price: (type === 'purchase' || type === 'purchaseReturn') ? (p.base_cost || 0) : (p.price_a || 0),
+                unit_price: isPurch ? productPurchaseUnitPrice(p) : productSalesUnitPrice(p),
                 unit: 'PCS',
                 stock: p.stock,
                 _full_product: p
@@ -742,17 +755,19 @@ const DocumentEditorPage = () => {
 
         if (pickerQuery.model) {
             const q = pickerQuery.model.toLowerCase();
-            filtered = filtered.filter(p =>
-                (p.car_model || '').toLowerCase().includes(q) ||
-                (p.part_numbers || []).some(pn => (pn.car_model || '').toLowerCase().includes(q))
-            );
+            filtered = filtered.filter((p) => {
+                const cm = productCarModelsSearchText(p).toLowerCase();
+                return cm.includes(q) ||
+                    (p.part_numbers || []).some((pn) => (pn.car_model || '').toLowerCase().includes(q));
+            });
         }
 
         if (pickerQuery.part) {
             const q = pickerQuery.part.toLowerCase();
             filtered = filtered.filter(p =>
                 (p.name || '').toLowerCase().includes(q) ||
-                (p.notes || '').toLowerCase().includes(q)
+                (p.notes || '').toLowerCase().includes(q) ||
+                (p.specifications || '').toLowerCase().includes(q)
             );
         }
 
@@ -766,10 +781,8 @@ const DocumentEditorPage = () => {
         }
 
         if (pickerQuery.year) {
-            filtered = filtered.filter(p =>
-                (p.year || '').includes(pickerQuery.year) ||
-                (p.part_numbers || []).some(pn => (pn.year || '').includes(pickerQuery.year))
-            );
+            const y = pickerQuery.year.trim();
+            filtered = filtered.filter((p) => productYearSearchBlob(p).includes(y));
         }
 
         if (pickerQuery.spec) {
@@ -938,7 +951,7 @@ const DocumentEditorPage = () => {
                                 value={doc.supplier_id || ''}
                                 disabled={isReadOnly}
                                 onChange={e => {
-                                    const sup = suppliers.find(s => s.sup_id === e.target.value);
+                                    const sup = supplierOptions.find(s => s.sup_id === e.target.value);
                                     setDoc({
                                         ...doc,
                                         supplier_id: sup?.sup_id,
@@ -958,14 +971,14 @@ const DocumentEditorPage = () => {
                                 }}
                             >
                                 <option value="">-- {'\u8acb\u9078\u64c7\u4f9b\u61c9\u5546'} --</option>
-                                {suppliers.map(s => <option key={s.sup_id} value={s.sup_id}>{s.sup_id} | {s.name}</option>)}
+                                {supplierOptions.map(s => <option key={s.sup_id} value={s.sup_id}>{s.sup_id} | {s.name}</option>)}
                             </select>
                         ) : (
                             <select
                                 value={doc.customer_id || ''}
                                 disabled={isReadOnly}
                                 onChange={e => {
-                                    const cust = customers.find(c => c.cust_id === e.target.value);
+                                    const cust = customerOptions.find(c => c.cust_id === e.target.value);
                                     setDoc({
                                         ...doc,
                                         customer_id: cust?.cust_id,
@@ -985,31 +998,51 @@ const DocumentEditorPage = () => {
                                 }}
                             >
                                 <option value="">-- {'\u8acb\u9078\u64c7\u5ba2\u6236'} --</option>
-                                {customers.map(c => <option key={c.cust_id} value={c.cust_id}>{c.cust_id} | {c.name}</option>)}
+                                {customerOptions.map(c => <option key={c.cust_id} value={c.cust_id}>{c.cust_id} | {c.name}</option>)}
                             </select>
                         )}
                     </div>
                     <div>
-                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{'\u72c0\u614b'}</label>
-                        <select
-                            disabled={isReadOnly}
-                            value={doc.status}
-                            onChange={e => setDoc({ ...doc, status: e.target.value })}
-                            style={{
-                                width: '100%',
-                                padding: '0.5rem',
-                                backgroundColor: isReadOnly ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '4px',
-                                color: 'var(--text-primary)',
-                                fontSize: '1rem',
-                                fontWeight: 700
-                            }}
-                        >
-                            <option value="pending">{'\u5f85\u8655\u7406'}</option>
-                            <option value="accepted">{'\u5df2\u6838\u51c6'}</option>
-                            <option value="received">{'\u5df2\u5165\u5eab'}</option>
-                        </select>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>
+                            {type === 'sales' ? '狀態（暫不開放）' : '狀態'}
+                        </label>
+                        {type === 'sales' ? (
+                            <div
+                                title="銷貨單開單即入應收；狀態日後處理"
+                                style={{
+                                    width: '100%',
+                                    padding: '0.5rem',
+                                    backgroundColor: 'var(--bg-secondary)',
+                                    border: '1px dashed var(--border-color)',
+                                    borderRadius: '4px',
+                                    color: 'var(--text-muted)',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 600,
+                                }}
+                            >
+                                銷貨單開單即入帳；狀態選項日後開放
+                            </div>
+                        ) : (
+                            <select
+                                disabled={isReadOnly}
+                                value={doc.status}
+                                onChange={(e) => setDoc({ ...doc, status: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.5rem',
+                                    backgroundColor: isReadOnly ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '4px',
+                                    color: 'var(--text-primary)',
+                                    fontSize: '1rem',
+                                    fontWeight: 700,
+                                }}
+                            >
+                                <option value="pending">{'\u5f85\u8655\u7406'}</option>
+                                <option value="accepted">{'\u5df2\u6838\u51c6'}</option>
+                                <option value="received">{'\u5df2\u5165\u5eab'}</option>
+                            </select>
+                        )}
                     </div>
                     <div>
                         <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{'\u5e63\u5225'}</label>
@@ -1484,6 +1517,7 @@ const DocumentEditorPage = () => {
                             <tbody>
                                 {pickerResults.map((p, idx) => {
                                     const pnObj = p.part_numbers?.[0] || {};
+                                    const isPurch = type === 'purchase' || type === 'purchaseReturn';
                                     const isActive = idx === activePickerRowIndex;
                                     return (
                                         <tr
@@ -1518,8 +1552,8 @@ const DocumentEditorPage = () => {
                                                 )}
                                             </td>
                                             <td style={{ padding: '1rem' }}>
-                                                <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{p.car_model || pnObj.car_model || '-'}</div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.year || pnObj.year || '\u5e74\u4efd\u672a\u77e5'}</div>
+                                                <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{productLineCarModel(p) || '-'}</div>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{productLineYear(p) || '\u5e74\u4efd\u672a\u77e5'}</div>
                                             </td>
                                             <td style={{ padding: '1rem' }}>
                                                 <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{p.name}</div>
@@ -1532,7 +1566,7 @@ const DocumentEditorPage = () => {
                                                 <div style={{ fontWeight: 700, color: p.stock > 0 ? '#10b981' : '#ef4444' }}>{p.stock ?? 0}</div>
                                             </td>
                                             <td style={{ padding: '1rem' }}>
-                                                <div style={{ fontWeight: 800 }}>NT$ {((type === 'purchase' || type === 'purchaseReturn') ? p.base_cost : p.price_a)?.toLocaleString()}</div>
+                                                <div style={{ fontWeight: 800 }}>NT$ {(isPurch ? productPurchaseUnitPrice(p) : productSalesUnitPrice(p)).toLocaleString()}</div>
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'center' }}>
                                                 <button

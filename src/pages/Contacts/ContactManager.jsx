@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Truck, Users, Plus, Search, Star, Edit2, Download, Upload, UserRound } from 'lucide-react';
 import { useSupplierStore } from '../../store/useSupplierStore';
@@ -11,6 +11,7 @@ import CountryFlag from '../../components/CountryFlag';
 import SupplierDrawer from './SupplierDrawer';
 import CustomerDrawer from './CustomerDrawer';
 import EmployeeDrawer from './EmployeeDrawer';
+import { sortedCustomersForSelect, sortedSuppliersForSelect } from '../../utils/sortContactsForSelect';
 
 const ContactManager = () => {
     const { t } = useTranslation();
@@ -69,16 +70,26 @@ const ContactManager = () => {
         }
     }, [location.pathname]);
 
-    const filteredSuppliers = suppliers.filter(s =>
-        (s.name || '').toLowerCase().includes(supSearch.toLowerCase()) ||
-        (s.country || '').toLowerCase().includes(supSearch.toLowerCase())
-    );
+    const filteredSuppliers = useMemo(() => {
+        const q = supSearch.toLowerCase();
+        return sortedSuppliersForSelect(suppliers).filter(
+            (s) =>
+                (s.name || '').toLowerCase().includes(q) ||
+                (s.country || '').toLowerCase().includes(q) ||
+                (s.sup_id || '').toLowerCase().includes(q)
+        );
+    }, [suppliers, supSearch]);
 
-    const filteredCustomers = customers.filter(c =>
-        (c.name || '').toLowerCase().includes(custSearch.toLowerCase()) ||
-        (c.country || '').toLowerCase().includes(custSearch.toLowerCase()) ||
-        (c.contact_name || '').toLowerCase().includes(custSearch.toLowerCase())
-    );
+    const filteredCustomers = useMemo(() => {
+        const q = custSearch.toLowerCase();
+        return sortedCustomersForSelect(customers).filter(
+            (c) =>
+                (c.name || '').toLowerCase().includes(q) ||
+                (c.country || '').toLowerCase().includes(q) ||
+                (c.contact_name || '').toLowerCase().includes(q) ||
+                (c.cust_id || '').toLowerCase().includes(q)
+        );
+    }, [customers, custSearch]);
 
     const filteredEmployees = employees.filter(e =>
         (e.name || '').toLowerCase().includes(empSearch.toLowerCase()) ||

@@ -17,6 +17,7 @@ const translations = {
             config: "System Settings",
             reports: "Reports",
             inventoryCount: "Mobile Stock Count",
+            settlement: "Settlement (AR / AP)",
             query: "Quick Query",
             shorthand: "Shorthand Config"
         },
@@ -187,6 +188,7 @@ const translations = {
             config: "系統設定",
             reports: "報表",
             inventoryCount: "手機端庫存盤點",
+            settlement: "結帳沖銷（應收／應付）",
             query: "產品查詢",
             shorthand: "自定義片語設定"
         },

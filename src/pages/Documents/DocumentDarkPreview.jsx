@@ -12,6 +12,14 @@ import { FileText, Printer, Edit2, X, Trash2, Save, Package, RotateCcw, Plus, Se
 import PartMappingModal from '../PIM/PartMappingModal';
 import DocProductHistoryDrawer from '../../components/DocProductHistoryDrawer';
 import { isElementInDocPartEditingZone } from '../../utils/docHistoryFocusZones';
+import { sortedCustomersForSelect, sortedSuppliersForSelect } from '../../utils/sortContactsForSelect';
+import {
+    productCarModelsSearchText,
+    productPurchaseUnitPrice,
+    productSalesUnitPrice,
+    productLineCarModel,
+    productLineYear
+} from '../../utils/productPickerSync';
 
 // --- Viewing Mode Component ---
 const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, canEdit = true }) => {
@@ -19,6 +27,8 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
     const { defaultCurrency, isMultiCountryMode, vatEnabled, vatRate } = useAppStore();
     const { suppliers } = useSupplierStore();
     const { customers } = useCustomerStore();
+    const customerOptions = useMemo(() => sortedCustomersForSelect(customers), [customers]);
+    const supplierOptions = useMemo(() => sortedSuppliersForSelect(suppliers), [suppliers]);
     const { employees } = useEmployeeStore();
     const { products } = useProductStore();
     const [mappingProduct, setMappingProduct] = useState(null);
@@ -59,10 +69,10 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
 
     const getPartyName = () => {
         if (isSupplier) {
-            const s = suppliers.find(sup => sup.sup_id === doc.supplier_id);
+            const s = supplierOptions.find((sup) => sup.sup_id === doc.supplier_id);
             return s ? `${s.sup_id} | ${s.name}` : doc.supplier_name || '-';
         } else {
-            const c = customers.find(cust => cust.cust_id === doc.customer_id);
+            const c = customerOptions.find((cust) => cust.cust_id === doc.customer_id);
             return c ? `${c.cust_id} | ${c.name}` : doc.customer_name || '-';
         }
     };
@@ -161,9 +171,11 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
                         </div>
                     </div>
                     <div>
-                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>狀態</label>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>
+                            {type === 'sales' ? '狀態（暫不開放）' : '狀態'}
+                        </label>
                         <div style={{ padding: '0.5rem', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 700 }}>
-                            {STATUS_MAP[doc.status] || doc.status}
+                            {type === 'sales' ? '—' : (STATUS_MAP[doc.status] || doc.status)}
                         </div>
                     </div>
                     <div>
@@ -481,16 +493,17 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
 
     const handlePickProduct = (p) => {
         const pnObj = p.part_numbers?.[0] || {};
+        const isPurch = type === 'purchase' || type === 'purchaseReturn';
         const newItem = {
             p_id: p.p_id,
             name: p.name,
             part_number: pnObj.part_number || p.part_number || '',
-            car_model: pnObj.car_model || p.car_model || '',
+            car_model: productLineCarModel(p),
             brand: pnObj.brand || p.brand || '',
-            year: pnObj.year || p.year || '',
+            year: productLineYear(p),
             spec: p.specifications || '',
             qty: 1,
-            unit_price: (type === 'purchase' || type === 'purchaseReturn') ? (p.base_cost || 0) : (p.price_a || 0),
+            unit_price: isPurch ? productPurchaseUnitPrice(p) : productSalesUnitPrice(p),
             unit: 'PCS'
         };
         setDoc({ ...doc, items: [...doc.items, newItem] });
@@ -515,18 +528,19 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
     const handlePickSelectedProducts = () => {
         if (selectedPickerProductIds.length === 0) return;
         const selectedProducts = pickerResults.filter((p) => selectedPickerProductIds.includes(p.p_id));
+        const isPurch = type === 'purchase' || type === 'purchaseReturn';
         const newItems = selectedProducts.map((p) => {
             const pnObj = p.part_numbers?.[0] || {};
             return {
                 p_id: p.p_id,
                 name: p.name,
                 part_number: pnObj.part_number || p.part_number || '',
-                car_model: pnObj.car_model || p.car_model || '',
+                car_model: productLineCarModel(p),
                 brand: pnObj.brand || p.brand || '',
-                year: pnObj.year || p.year || '',
+                year: productLineYear(p),
                 spec: p.specifications || '',
                 qty: 1,
-                unit_price: (type === 'purchase' || type === 'purchaseReturn') ? (p.base_cost || 0) : (p.price_a || 0),
+                unit_price: isPurch ? productPurchaseUnitPrice(p) : productSalesUnitPrice(p),
                 unit: 'PCS'
             };
         });
@@ -569,8 +583,9 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
             const pnText = (p.part_numbers || [])
                 .map((pn) => `${pn?.part_number || ''} ${pn?.car_model || ''} ${pn?.brand || ''} ${pn?.year || ''}`)
                 .join(' ');
+            const carModelsText = productCarModelsSearchText(p);
             const searchable = normalize(
-                `${p.p_id || ''} ${p.part_number || ''} ${p.name || ''} ${p.specifications || ''} ${p.brand || ''} ${p.car_model || ''} ${p.year || ''} ${pnText}`
+                `${p.p_id || ''} ${p.part_number || ''} ${p.name || ''} ${p.notes || ''} ${p.specifications || ''} ${p.brand || ''} ${carModelsText} ${p.year || ''} ${pnText}`
             );
             return tokenGroups.every((group) => group.some((candidate) => searchable.includes(candidate)));
         });
@@ -709,10 +724,32 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                             <div style={{ padding: '0.5rem', backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1rem', fontWeight: 700 }}>{isSupplier ? doc.supplier_name : doc.customer_name}</div>
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.85rem', color: '#2563eb', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>狀態</label>
-                            <select value={doc.status} onChange={e => setDoc({ ...doc, status: e.target.value })} style={{ width: '100%', padding: '0.5rem', backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1rem', fontWeight: 700 }}>
-                                <option value="pending">待處理</option><option value="accepted">已核准</option><option value="received">已入庫</option>
-                            </select>
+                            <label style={{ fontSize: '0.85rem', color: '#2563eb', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>
+                                {type === 'sales' ? '狀態（暫不開放）' : '狀態'}
+                            </label>
+                            {type === 'sales' ? (
+                                <div
+                                    title="銷貨單開單即入應收；狀態日後處理"
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.5rem',
+                                        backgroundColor: '#1e293b',
+                                        border: '1px dashed #475569',
+                                        borderRadius: '4px',
+                                        color: '#94a3b8',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    開單即入帳；狀態日後開放
+                                </div>
+                            ) : (
+                                <select value={doc.status} onChange={(e) => setDoc({ ...doc, status: e.target.value })} style={{ width: '100%', padding: '0.5rem', backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1rem', fontWeight: 700 }}>
+                                    <option value="pending">待處理</option>
+                                    <option value="accepted">已核准</option>
+                                    <option value="received">已入庫</option>
+                                </select>
+                            )}
                         </div>
                         <div>
                             <label style={{ fontSize: '0.85rem', color: '#2563eb', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>幣別</label>

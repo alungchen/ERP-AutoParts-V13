@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export const DEFAULT_NAV_ORDER = ['/documents', '/pim', '/suppliers', '/shorthand-config', '/sourcing', '/reports', '/inventory-count', '/settings'];
+export const DEFAULT_NAV_ORDER = ['/documents', '/pim', '/suppliers', '/shorthand-config', '/sourcing', '/reports', '/inventory-count', '/settlement', '/settings'];
 
 export const useAppStore = create(persist((set) => ({
     language: 'zh', // Default to Traditional Chinese
