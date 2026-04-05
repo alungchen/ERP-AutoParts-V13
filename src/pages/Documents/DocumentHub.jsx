@@ -93,7 +93,9 @@ const DocumentHub = () => {
     const initialTab = searchParams.get('tab');
     // 進入製單系統預設為 銷售業務/報價單
     const tabFromQuery = VALID_DOC_TABS.includes(initialTab) ? initialTab : 'quotation';
-    const isDocFocusMode = false; // 始終顯示銷售業務/採購進貨分頁，不再依 URL 隱藏
+    /** 新分頁模式（standalone=1）：只顯示當前單別，隱藏銷售/採購切換與同區其他子分頁 */
+    const isStandaloneDocHub = searchParams.get('standalone') === '1';
+    const isDocFocusMode = isStandaloneDocHub;
     const [activeTab, setActiveTab] = useState(tabFromQuery);
     const tabGroupMap = useMemo(() => ({
         quotation: 'sales',
@@ -156,10 +158,12 @@ const DocumentHub = () => {
 
     // 鍵盤切換分頁時同步 URL，與銷售業務行為一致
     useEffect(() => {
-        if (VALID_DOC_TABS.includes(activeTab) && searchParams.get('tab') !== activeTab) {
-            setSearchParams({ tab: activeTab }, { replace: true });
-        }
-    }, [activeTab]);
+        if (!VALID_DOC_TABS.includes(activeTab)) return;
+        if (searchParams.get('tab') === activeTab) return;
+        const next = new URLSearchParams(searchParams);
+        next.set('tab', activeTab);
+        setSearchParams(next, { replace: true });
+    }, [activeTab, searchParams, setSearchParams]);
 
     useEffect(() => {
         const nextGroup = tabGroupMap[activeTab];
@@ -231,10 +235,12 @@ const DocumentHub = () => {
         }
 
         // DocID search
-        if (appliedSearchFilters.docId && !doc.doc_id.toLowerCase().includes(appliedSearchFilters.docId.toLowerCase())) return false;
+        const docIdStr = String(doc.doc_id ?? '').toLowerCase();
+        if (appliedSearchFilters.docId && !docIdStr.includes(appliedSearchFilters.docId.toLowerCase())) return false;
 
         // Date search
-        if (appliedSearchFilters.date && !doc.date.includes(appliedSearchFilters.date)) return false;
+        const dateStr = String(doc.date ?? '');
+        if (appliedSearchFilters.date && !dateStr.includes(appliedSearchFilters.date)) return false;
 
         // Status search（銷貨單狀態已屏蔽，不依狀態篩選）
         if (activeTab !== 'sales' && appliedSearchFilters.status && doc.status !== appliedSearchFilters.status) {
@@ -426,6 +432,14 @@ const DocumentHub = () => {
             const lastType = localStorage.getItem('erp-last-doc-type');
             if (lastType) {
                 setActiveTab(lastType);
+                // 儲存後回到列表：避免沿用舊「已套用」篩選導致新單據被隱藏（銷貨單等）
+                setSearchFilters({ ...DEFAULT_SEARCH_FILTERS });
+                setAppliedSearchFilters({ ...DEFAULT_SEARCH_FILTERS });
+                try {
+                    localStorage.removeItem(DOC_HUB_SEARCH_STATE_KEY);
+                } catch {
+                    /* ignore */
+                }
                 localStorage.removeItem('erp-last-doc-type');
             }
             setTick(prev => prev + 1);
@@ -435,9 +449,16 @@ const DocumentHub = () => {
     }, []);
 
     const openEditor = (type, id = null) => {
+        try {
+            sessionStorage.setItem(
+                'erp-doc-hub-return',
+                `${window.location.pathname}${window.location.search}`
+            );
+        } catch {
+            /* ignore */
+        }
         let url = `/document-editor?type=${type}`;
-        if (id) url += `&id=${id}`;
-        // Open in a normal browser tab instead of popup window
+        if (id) url += `&id=${encodeURIComponent(id)}`;
         window.open(url, '_blank');
     };
 
@@ -501,6 +522,7 @@ const DocumentHub = () => {
 
     /** 子分頁列（詢價單/進貨單/缺貨簿/進貨退回、或報價單/銷貨單/銷貨退回）左/右鍵切換 */
     const handleTabBarKeyDown = (e) => {
+        if (isStandaloneDocHub) return;
         if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
         const keyboardTabs = KEYBOARD_TAB_GROUPS[activeBusinessGroup] || KEYBOARD_TAB_GROUPS.sales;
         const currentTabIndex = keyboardTabs.indexOf(activeTab);
@@ -526,24 +548,26 @@ const DocumentHub = () => {
         const keyboardTabs = KEYBOARD_TAB_GROUPS[activeBusinessGroup] || KEYBOARD_TAB_GROUPS.sales;
         const currentTabIndex = keyboardTabs.indexOf(activeTab);
 
-        if (e.key === 'ArrowRight' && currentTabIndex !== -1) {
-            e.preventDefault();
-            e.stopPropagation();
-            const nextIndex = Math.min(currentTabIndex + 1, keyboardTabs.length - 1);
-            const nextTab = keyboardTabs[nextIndex];
-            setActiveBusinessGroup(tabGroupMap[nextTab] || activeBusinessGroup);
-            setActiveTab(nextTab);
-            return;
-        }
+        if (!isStandaloneDocHub) {
+            if (e.key === 'ArrowRight' && currentTabIndex !== -1) {
+                e.preventDefault();
+                e.stopPropagation();
+                const nextIndex = Math.min(currentTabIndex + 1, keyboardTabs.length - 1);
+                const nextTab = keyboardTabs[nextIndex];
+                setActiveBusinessGroup(tabGroupMap[nextTab] || activeBusinessGroup);
+                setActiveTab(nextTab);
+                return;
+            }
 
-        if (e.key === 'ArrowLeft' && currentTabIndex !== -1) {
-            e.preventDefault();
-            e.stopPropagation();
-            const nextIndex = Math.max(currentTabIndex - 1, 0);
-            const nextTab = keyboardTabs[nextIndex];
-            setActiveBusinessGroup(tabGroupMap[nextTab] || activeBusinessGroup);
-            setActiveTab(nextTab);
-            return;
+            if (e.key === 'ArrowLeft' && currentTabIndex !== -1) {
+                e.preventDefault();
+                e.stopPropagation();
+                const nextIndex = Math.max(currentTabIndex - 1, 0);
+                const nextTab = keyboardTabs[nextIndex];
+                setActiveBusinessGroup(tabGroupMap[nextTab] || activeBusinessGroup);
+                setActiveTab(nextTab);
+                return;
+            }
         }
 
         if (e.key === 'ArrowDown') {
@@ -581,6 +605,7 @@ const DocumentHub = () => {
         // 缺貨簿：僅註冊左/右鍵切換分頁（當焦點不在 input 時），其餘由 handleShortageListKeyDown 處理
         if (isShortageTab) {
             const handleShortageTabSwitch = (e) => {
+                if (isStandaloneDocHub) return;
                 if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
                 if (isTypingTarget(e.target)) return;
                 const procurementTabs = KEYBOARD_TAB_GROUPS.procurement;
@@ -649,24 +674,26 @@ const DocumentHub = () => {
             const keyboardTabs = KEYBOARD_TAB_GROUPS[activeBusinessGroup] || KEYBOARD_TAB_GROUPS.sales;
             const currentTabIndex = keyboardTabs.indexOf(activeTab);
 
-            if (e.key === 'ArrowRight' && currentTabIndex !== -1) {
-                e.preventDefault();
-                e.stopPropagation();
-                const nextIndex = Math.min(currentTabIndex + 1, keyboardTabs.length - 1);
-                const nextTab = keyboardTabs[nextIndex];
-                setActiveBusinessGroup(tabGroupMap[nextTab] || activeBusinessGroup);
-                setActiveTab(nextTab);
-                return;
-            }
+            if (!isStandaloneDocHub) {
+                if (e.key === 'ArrowRight' && currentTabIndex !== -1) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const nextIndex = Math.min(currentTabIndex + 1, keyboardTabs.length - 1);
+                    const nextTab = keyboardTabs[nextIndex];
+                    setActiveBusinessGroup(tabGroupMap[nextTab] || activeBusinessGroup);
+                    setActiveTab(nextTab);
+                    return;
+                }
 
-            if (e.key === 'ArrowLeft' && currentTabIndex !== -1) {
-                e.preventDefault();
-                e.stopPropagation();
-                const nextIndex = Math.max(currentTabIndex - 1, 0);
-                const nextTab = keyboardTabs[nextIndex];
-                setActiveBusinessGroup(tabGroupMap[nextTab] || activeBusinessGroup);
-                setActiveTab(nextTab);
-                return;
+                if (e.key === 'ArrowLeft' && currentTabIndex !== -1) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const nextIndex = Math.max(currentTabIndex - 1, 0);
+                    const nextTab = keyboardTabs[nextIndex];
+                    setActiveBusinessGroup(tabGroupMap[nextTab] || activeBusinessGroup);
+                    setActiveTab(nextTab);
+                    return;
+                }
             }
 
             if (e.key === 'ArrowDown') {
@@ -706,7 +733,7 @@ const DocumentHub = () => {
 
         window.addEventListener('keydown', handleGlobalDocFlowKeyDown, true);
         return () => window.removeEventListener('keydown', handleGlobalDocFlowKeyDown, true);
-    }, [isShortageTab, selectedDoc, isQuickPreview, filteredDocs, activeTab, activeDocIndex, activeBusinessGroup, tabGroupMap]);
+    }, [isShortageTab, isStandaloneDocHub, selectedDoc, isQuickPreview, filteredDocs, activeTab, activeDocIndex, activeBusinessGroup, tabGroupMap]);
 
     const calcTotal = (doc) => {
         if (!doc.items) return 0;
@@ -726,18 +753,52 @@ const DocumentHub = () => {
         <div className={styles.container}>
             <div className={styles.docHubTop}>
             <div className={styles.header} style={{ alignItems: 'center', minHeight: '64px' }}>
-                {/* Left: Title Zone */}
                 <div style={{ flex: 1 }}>
-                    <h1 className={styles.title} style={isDocFocusMode ? { color: focusedMeta.color } : {}}>
+                    <h1
+                        className={`${styles.title} ${isStandaloneDocHub ? styles.titleStandalone : ''}`}
+                        style={isDocFocusMode ? { color: focusedMeta.color } : {}}
+                    >
                         {isDocFocusMode ? focusedMeta.label : t('docs.title')}
                     </h1>
                     <p className={styles.subtitle}>
-                        {isDocFocusMode ? `目前顯示：${focusedMeta.label} 列表` : t('docs.subtitle')}
+                        {isDocFocusMode
+                            ? isStandaloneDocHub
+                                ? '單據列表、查詢與新增'
+                                : `目前顯示：${focusedMeta.label} 列表`
+                            : t('docs.subtitle')}
                     </p>
                 </div>
 
-                {/* Right: Actions Zone - 新增單據已移至左下角 */}
-                <div className={styles.actions} style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }} />
+                <div
+                    className={styles.actions}
+                    style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}
+                >
+                    {isStandaloneDocHub && !isShortageTab && (
+                        <button
+                            type="button"
+                            className={styles.btn}
+                            onClick={handleQuickPreviewToggle}
+                            title={isQuickPreview ? '關閉快速預覽' : '開啟快速預覽'}
+                            style={{
+                                height: '36px',
+                                minWidth: '120px',
+                                padding: '0 20px',
+                                borderRadius: '8px',
+                                fontWeight: 600,
+                                background: 'var(--accent-primary)',
+                                color: 'white',
+                                border: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.4rem',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            {isQuickPreview ? '退出預覽' : '快速預覽'}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Search Panel aligned with ProductList style */}
@@ -825,7 +886,8 @@ const DocumentHub = () => {
 
             {/* Low stock alert banner removed */}
 
-            {/* Tab navigation grouped - 始終顯示銷售業務/採購進貨分頁 */}
+            {/* 新分頁模式不顯示業務區／子分頁（由網址 tab 固定單別） */}
+            {!isStandaloneDocHub && (
             <div className={styles.tabsContainer} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.65rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.65rem' }}>
                         <div style={{ display: 'flex', gap: '0.65rem' }}>
@@ -944,32 +1006,6 @@ const DocumentHub = () => {
                         </div>
                     </div>
                 </div>
-
-            {isDocFocusMode && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.4rem' }}>
-                    <button
-                        className={styles.btn}
-                        onClick={handleQuickPreviewToggle}
-                        disabled={isShortageTab}
-                        title={isQuickPreview ? "關閉快速預覽" : "開啟快速預覽"}
-                        style={{
-                            height: '36px',
-                            minWidth: '120px',
-                            padding: '0 20px',
-                            borderRadius: '8px',
-                            fontWeight: 600,
-                            background: 'var(--accent-primary)',
-                            color: 'white',
-                            border: 'none',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.4rem'
-                        }}
-                    >
-                        {isShortageTab ? "缺貨簿不適用" : (isQuickPreview ? "退出預覽" : "快速預覽")}
-                    </button>
-                </div>
             )}
 
             {!isQuickPreview && isShortageTab && (
@@ -1012,6 +1048,7 @@ const DocumentHub = () => {
                     </button>
                 </div>
             )}
+
             </div>
 
             {!isQuickPreview ? (

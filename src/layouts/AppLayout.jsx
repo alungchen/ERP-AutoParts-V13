@@ -63,7 +63,6 @@ const AppLayout = () => {
             { path: '/pim', label: t('sidebar.pim'), icon: Layers },
             { path: '/sourcing', label: t('sidebar.sourcing'), icon: Globe },
             { path: '/suppliers', label: t('sidebar.contacts'), icon: Users },
-            { path: '/documents', label: t('sidebar.documents'), icon: FileText },
             { path: '/reports', label: t('sidebar.reports'), icon: BarChart3 },
             { path: '/inventory-count', label: t('sidebar.inventoryCount'), icon: ScanLine },
             { path: '/settlement', label: t('sidebar.settlement'), icon: Wallet },

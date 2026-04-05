@@ -49,6 +49,14 @@
     color: var(--text-primary);
 }
 
+/* 新分頁模式（standalone）：單別為頁面主標題 */
+.titleStandalone {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+}
+
 .subtitle {
     color: var(--text-secondary);
     font-size: 0.875rem;

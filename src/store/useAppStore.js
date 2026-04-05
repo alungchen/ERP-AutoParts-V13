@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware';
 
 export const DEFAULT_NAV_ORDER = ['/documents', '/pim', '/suppliers', '/shorthand-config', '/sourcing', '/reports', '/inventory-count', '/settlement', '/settings'];
 
+/** 系統設定「顯示模式」字卡預設順序（可拖曳自訂，見 displayModeCardOrder） */
+export const DEFAULT_DISPLAY_MODE_CARD_ORDER = ['nightclub', 'light', 'warm', 'system'];
+
 export const useAppStore = create(persist((set) => ({
     language: 'zh', // Default to Traditional Chinese
     setLanguage: (lang) => set({ language: lang }),
@@ -20,6 +23,9 @@ export const useAppStore = create(persist((set) => ({
     }),
     displayMode: 'nightclub', // 'nightclub' | 'light' | 'warm' | 'system'
     setDisplayMode: (mode) => set({ displayMode: mode }),
+
+    displayModeCardOrder: DEFAULT_DISPLAY_MODE_CARD_ORDER,
+    setDisplayModeCardOrder: (order) => set({ displayModeCardOrder: order }),
 
     /** 全站 F8 沿革視窗：目前選取之零件 p_id（由各頁面同步） */
     productHistoryFocusPId: null,

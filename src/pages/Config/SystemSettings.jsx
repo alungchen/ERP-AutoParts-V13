@@ -1,7 +1,34 @@
-import React, { useEffect, useState } from 'react';
-import { useAppStore } from '../../store/useAppStore';
+import React, { useEffect, useMemo, useState } from 'react';
+import { DEFAULT_DISPLAY_MODE_CARD_ORDER, useAppStore } from '../../store/useAppStore';
 import { useTranslation } from '../../i18n';
 import { Settings, Globe, CircleDollarSign, Database, LayoutPanelTop, ShieldCheck, LockKeyhole, Palette } from 'lucide-react';
+
+const DISPLAY_MODE_CARDS = {
+    nightclub: {
+        key: 'nightclub',
+        title: '選項1：夜店風',
+        desc: '深色高對比，適合長時間看螢幕與夜間作業。',
+        swatches: ['#0A0A0B', '#0070F3', '#FF9500']
+    },
+    light: {
+        key: 'light',
+        title: '選項2：白底商務風',
+        desc: '白底搭配藍灰字色，文件感更強，列印視覺更一致。',
+        swatches: ['#ffffff', '#2563eb', '#16a34a']
+    },
+    warm: {
+        key: 'warm',
+        title: '選項3：暖白護眼風',
+        desc: '米白底與暖棕重點色，降低刺眼感，閱讀更柔和。',
+        swatches: ['#fffdf6', '#8b5e34', '#b7791f']
+    },
+    system: {
+        key: 'system',
+        title: '選項4：跟隨系統',
+        desc: '自動依照 Windows 深色/淺色模式切換（深色=夜店風，淺色=白底商務風）。',
+        swatches: ['#0A0A0B', '#f8fafc', '#2563eb']
+    }
+};
 
 const SystemSettings = () => {
     const { t } = useTranslation();
@@ -14,8 +41,10 @@ const SystemSettings = () => {
         enablePermissionRole, setEnablePermissionRole,
         enableLoginSystem, setEnableLoginSystem,
         operationMode, setOperationMode,
-        displayMode, setDisplayMode
+        displayMode, setDisplayMode,
+        displayModeCardOrder, setDisplayModeCardOrder
     } = useAppStore();
+    const [draggingDisplayModeIndex, setDraggingDisplayModeIndex] = useState(null);
     const [pendingOperationMode, setPendingOperationMode] = useState(operationMode);
     const [systemThemeLabel, setSystemThemeLabel] = useState(() => (
         window.matchMedia('(prefers-color-scheme: dark)').matches ? '深色' : '淺色'
@@ -24,6 +53,36 @@ const SystemSettings = () => {
     useEffect(() => {
         setPendingOperationMode(operationMode);
     }, [operationMode]);
+
+    const normalizedDisplayModeOrder = useMemo(() => [
+        ...displayModeCardOrder.filter((k) => DEFAULT_DISPLAY_MODE_CARD_ORDER.includes(k)),
+        ...DEFAULT_DISPLAY_MODE_CARD_ORDER.filter((k) => !displayModeCardOrder.includes(k)),
+    ], [displayModeCardOrder]);
+
+    const displayModesInOrder = useMemo(
+        () => normalizedDisplayModeOrder.map((k) => DISPLAY_MODE_CARDS[k]).filter(Boolean),
+        [normalizedDisplayModeOrder]
+    );
+
+    const handleDisplayModeCardDragStart = (e, index) => {
+        setDraggingDisplayModeIndex(index);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDisplayModeCardDragOver = (e, index) => {
+        e.preventDefault();
+        if (draggingDisplayModeIndex === null || draggingDisplayModeIndex === index) return;
+        const next = [...normalizedDisplayModeOrder];
+        const dragged = next[draggingDisplayModeIndex];
+        next.splice(draggingDisplayModeIndex, 1);
+        next.splice(index, 0, dragged);
+        setDraggingDisplayModeIndex(index);
+        setDisplayModeCardOrder(next);
+    };
+
+    const handleDisplayModeCardDragEnd = () => {
+        setDraggingDisplayModeIndex(null);
+    };
 
     useEffect(() => {
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -156,41 +215,42 @@ const SystemSettings = () => {
                         <Palette className="text-accent-primary" />
                         <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: 800 }}>顯示模式</div>
-                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem', marginBottom: '0.9rem' }}>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem', marginBottom: '0.35rem' }}>
                                 依照操作環境切換整體配色，立即生效。
                             </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.65rem' }}>
+                                字卡可拖曳調整順序（會一併儲存於此瀏覽器）。
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.55rem' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setDisplayModeCardOrder([...DEFAULT_DISPLAY_MODE_CARD_ORDER])}
+                                    style={{
+                                        border: '1px solid var(--border-color)',
+                                        background: 'var(--bg-tertiary)',
+                                        color: 'var(--text-secondary)',
+                                        padding: '0.35rem 0.65rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    重設字卡順序
+                                </button>
+                            </div>
                             <div style={{ display: 'grid', gap: '0.6rem' }}>
-                                {[
-                                    {
-                                        key: 'nightclub',
-                                        title: '選項1：夜店風',
-                                        desc: '深色高對比，適合長時間看螢幕與夜間作業。',
-                                        swatches: ['#0A0A0B', '#0070F3', '#FF9500']
-                                    },
-                                    {
-                                        key: 'light',
-                                        title: '選項2：白底商務風',
-                                        desc: '白底搭配藍灰字色，文件感更強，列印視覺更一致。',
-                                        swatches: ['#ffffff', '#2563eb', '#16a34a']
-                                    },
-                                    {
-                                        key: 'warm',
-                                        title: '選項3：暖白護眼風',
-                                        desc: '米白底與暖棕重點色，降低刺眼感，閱讀更柔和。',
-                                        swatches: ['#fffdf6', '#8b5e34', '#b7791f']
-                                    },
-                                    {
-                                        key: 'system',
-                                        title: '選項4：跟隨系統',
-                                        desc: '自動依照 Windows 深色/淺色模式切換（深色=夜店風，淺色=白底商務風）。',
-                                        swatches: ['#0A0A0B', '#f8fafc', '#2563eb']
-                                    }
-                                ].map((mode) => {
+                                {displayModesInOrder.map((mode, cardIndex) => {
                                     const active = displayMode === mode.key;
                                     return (
                                         <button
                                             key={mode.key}
                                             type="button"
+                                            draggable
+                                            onDragStart={(e) => handleDisplayModeCardDragStart(e, cardIndex)}
+                                            onDragOver={(e) => handleDisplayModeCardDragOver(e, cardIndex)}
+                                            onDragEnd={handleDisplayModeCardDragEnd}
+                                            title="拖曳以調整順序；點選套用顯示模式"
                                             onClick={() => setDisplayMode(mode.key)}
                                             style={{
                                                 textAlign: 'left',
@@ -199,7 +259,8 @@ const SystemSettings = () => {
                                                 border: `1px solid ${active ? 'var(--accent-primary)' : 'var(--border-color)'}`,
                                                 background: active ? 'var(--accent-subtle)' : 'var(--bg-tertiary)',
                                                 color: 'var(--text-primary)',
-                                                cursor: 'pointer'
+                                                cursor: 'grab',
+                                                opacity: draggingDisplayModeIndex === cardIndex ? 0.65 : 1
                                             }}
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.8rem' }}>

@@ -365,9 +365,24 @@ const DocumentEditorPage = () => {
                 return;
             }
         }
+        // 回到列表時保留 standalone 等查詢參數（與製單列表開啟來源一致）
+        let fallbackUrl = `/documents?tab=${encodeURIComponent(type)}`;
+        let returnFromHub = false;
+        try {
+            const ret = sessionStorage.getItem('erp-doc-hub-return');
+            if (ret && ret.startsWith('/documents')) {
+                const u = new URL(ret, window.location.origin);
+                u.searchParams.set('tab', type);
+                fallbackUrl = `${u.pathname}?${u.searchParams.toString()}`;
+                returnFromHub = true;
+                sessionStorage.removeItem('erp-doc-hub-return');
+            }
+        } catch {
+            /* ignore */
+        }
+
         // Browsers may block window.close() for tabs not opened by script.
         // Fallback to route navigation so user is never stuck.
-        const fallbackUrl = `/documents?tab=${encodeURIComponent(type)}`;
         try {
             if (window.opener && !window.opener.closed) {
                 window.close();
@@ -376,7 +391,8 @@ const DocumentEditorPage = () => {
                 }, 80);
                 return;
             }
-            if (window.history.length > 1) {
+            // 由列表開啟編輯器時已記錄回傳 URL，勿用 history.back() 以免回到錯誤分頁或看不到新單據
+            if (!returnFromHub && window.history.length > 1) {
                 window.history.back();
                 return;
             }
