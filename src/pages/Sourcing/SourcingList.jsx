@@ -1,754 +1,1439 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '../../i18n';
 import { useSourcingStore } from '../../store/useSourcingStore';
-import { useDocumentStore } from '../../store/useDocumentStore';
+import { useProductStore } from '../../store/useProductStore';
 import { useSupplierStore } from '../../store/useSupplierStore';
+import { useDocumentStore } from '../../store/useDocumentStore';
 import { useEmployeeStore } from '../../store/useEmployeeStore';
 import { useAppStore } from '../../store/useAppStore';
-import { canEditDocType } from '../../utils/permissions';
-import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
-import { Globe, Plus, Search, FileText, Printer, Eye, Zap, RotateCcw, Download, Upload } from 'lucide-react';
+import { useImportEstimateStore, createDefaultEstimateLine } from '../../store/useImportEstimateStore';
+import {
+    Calculator,
+    Search,
+    AlertTriangle,
+    Plus,
+    Trash2,
+    Layers,
+    Package,
+    ArrowLeft,
+    FileOutput,
+    Download,
+    Upload,
+} from 'lucide-react';
+import {
+    loadTariffTable,
+    findByHsCode,
+    searchTariffByKeyword,
+    normalizeHsCode,
+    hasSpecialImportRestriction,
+} from '../../utils/tariffService';
+import { computeMultiLineLandedCost, IMPORT_CURRENCIES } from '../../utils/importCostEstimation';
+import ProductPickerModal from '../../components/ProductPickerModal';
+import { formatSupplierSelectLabel } from '../../utils/contactDisplay';
+import {
+    DEFAULT_LINES_CSV_KEYS,
+    LINE_CSV_ALL_EXPORT_KEYS,
+    buildEstimateLinesCsv,
+    downloadLinesCsv,
+    parseEstimateLinesCsv,
+    processImportedEstimateLine,
+} from '../../utils/importEstimateLinesCsv';
 import styles from './SourcingList.module.css';
-import docStyles from '../Documents/Documents.module.css';
-import DocumentViewer from '../Documents/DocumentViewer';
-import DocumentDarkPreview from '../Documents/DocumentDarkPreview';
-import CountryFlag from '../../components/CountryFlag';
 
-const STATUS_LABEL = {
-    pending: { zh: '待處理', en: 'Pending' },
-    replied: { zh: '已回覆', en: 'Replied' },
-    sent: { zh: '已送出', en: 'Sent' },
-    accepted: { zh: '已接受', en: 'Accepted' },
-    received: { zh: '已入庫', en: 'Received' },
-    in_transit: { zh: '運輸中', en: 'In Transit' },
-    shipped: { zh: '已出貨', en: 'Shipped' },
-    pending_payment: { zh: '待付款', en: 'Pending Payment' },
-    cancelled: { zh: '已取消', en: 'Cancelled' },
+const LinesCsvExportModal = ({ lineItems, products, onClose, t }) => {
+    const [sel, setSel] = useState(() => new Set(DEFAULT_LINES_CSV_KEYS));
+    const toggle = (key) => {
+        setSel((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    };
+    const label = (key) =>
+        (key.startsWith('pim_') ? t(`importCost.linesCsv.pimField.${key}`) : null) ||
+        t(`importCost.backup.field.${key}`) ||
+        key;
+    const doDownload = () => {
+        if (sel.size === 0) return;
+        const csvText = buildEstimateLinesCsv(lineItems, [...sel], products);
+        downloadLinesCsv(`import-estimate-lines.csv`, csvText);
+        onClose();
+    };
+    return (
+        <div className={styles.hubModalBackdrop} role="presentation" onClick={onClose}>
+            <div
+                className={styles.hubModal}
+                role="dialog"
+                aria-labelledby="lines-csv-export-title"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className={styles.hubModalHeader}>
+                    <h2 id="lines-csv-export-title" className={styles.hubModalTitle}>
+                        {t('importCost.linesCsv.modalTitle')}
+                    </h2>
+                </div>
+                <div className={styles.hubModalBody}>
+                    <p className={styles.hubModalHint}>{t('importCost.linesCsv.pickColumns')}</p>
+                    <div className={styles.hubExportGroupBtns} style={{ marginBottom: '0.5rem' }}>
+                        <button
+                            type="button"
+                            className={styles.hubExportMiniBtn}
+                            onClick={() => setSel(new Set(LINE_CSV_ALL_EXPORT_KEYS))}
+                        >
+                            {t('importCost.backup.selectAll')}
+                        </button>
+                        <button type="button" className={styles.hubExportMiniBtn} onClick={() => setSel(new Set())}>
+                            {t('importCost.backup.selectNone')}
+                        </button>
+                    </div>
+                    <div className={styles.hubExportChecks} style={{ maxHeight: 360 }}>
+                        {LINE_CSV_ALL_EXPORT_KEYS.map((key) => (
+                            <label key={key} className={styles.hubExportCheckLabel}>
+                                <input type="checkbox" checked={sel.has(key)} onChange={() => toggle(key)} />
+                                <span>{label(key)}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+                <div className={styles.hubModalFooter}>
+                    <button type="button" className={styles.secondaryBtn} onClick={onClose}>
+                        {t('importCost.linesCsv.cancel')}
+                    </button>
+                    <button type="button" className={styles.primaryLinkBtn} onClick={doDownload} disabled={sel.size === 0}>
+                        <Download size={16} /> {t('importCost.linesCsv.download')}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 };
 
-const DEFAULT_SEARCH_FILTERS = { docId: '', date: '', status: '', party: '', opener: '' };
-const SOURCING_SEARCH_STATE_KEY = 'erp-sourcing-search-state';
+const num = (v, fallback = 0) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+};
 
-const isTypingTarget = (target) => {
-    if (!target) return false;
-    const tag = target.tagName;
-    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+/** 品項列進口試算欄位順序（Enter 往下一欄） */
+const IMPORT_GRID_FIELDS = ['hs', 'qty', 'exw', 'vol', 'wt', 'duty', 'excise'];
+
+const displayCarModel = (p) => {
+    if (!p) return '-';
+    const activeCar = (p.part_numbers || []).find((pn) => pn.car_model);
+    if (activeCar) return activeCar.car_model;
+    const c0 = (p.car_models || [])[0];
+    return p.car_model || (typeof c0 === 'string' ? c0 : c0?.model) || '-';
+};
+
+const displayCarYear = (p) => {
+    if (!p) return '不限年份';
+    const activeCar = (p.part_numbers || []).find((pn) => pn.year);
+    if (activeCar) return activeCar.year;
+    const c0 = (p.car_models || [])[0];
+    const cStr = typeof c0 === 'string' ? c0 : c0?.year;
+    return p.year || (cStr?.match(/\d{4}-\d{4}/) ? cStr.match(/\d{4}-\d{4}/)[0] : cStr) || '不限年份';
 };
 
 const SourcingList = () => {
-    const { t, language } = useTranslation();
+    const { t } = useTranslation();
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const { rates } = useSourcingStore();
-    const { inquiries = [], statusColors = {}, bulkUpdateInquiries } = useDocumentStore();
+    const { products } = useProductStore();
     const { suppliers } = useSupplierStore();
     const { employees } = useEmployeeStore();
-    const { showImportExport, enableLoginSystem, enablePermissionRole, currentUserEmpId } = useAppStore();
-    const [searchFilters, setSearchFilters] = React.useState(() => {
-        try {
-            const raw = localStorage.getItem(SOURCING_SEARCH_STATE_KEY);
-            if (!raw) return DEFAULT_SEARCH_FILTERS;
-            const saved = JSON.parse(raw);
-            return { ...DEFAULT_SEARCH_FILTERS, ...(saved?.searchFilters || {}) };
-        } catch {
-            return DEFAULT_SEARCH_FILTERS;
-        }
-    });
-    const [appliedSearchFilters, setAppliedSearchFilters] = React.useState(() => {
-        try {
-            const raw = localStorage.getItem(SOURCING_SEARCH_STATE_KEY);
-            if (!raw) return DEFAULT_SEARCH_FILTERS;
-            const saved = JSON.parse(raw);
-            return { ...DEFAULT_SEARCH_FILTERS, ...(saved?.appliedSearchFilters || saved?.searchFilters || {}) };
-        } catch {
-            return DEFAULT_SEARCH_FILTERS;
-        }
-    });
-    const [selectedDoc, setSelectedDoc] = React.useState(null);
-    const [isQuickPreview, setIsQuickPreview] = React.useState(false);
-    const [previewIndex, setPreviewIndex] = React.useState(0);
-    const [isEditingInline, setIsEditingInline] = React.useState(false);
-    const sourcingFileRef = React.useRef(null);
-    const searchFormRef = React.useRef(null);
-    const searchBtnRef = React.useRef(null);
-    const searchResetBtnRef = React.useRef(null);
-    const docListKeyboardRef = React.useRef(null);
-    const addDocBtnRef = React.useRef(null);
-    const [activeDocIndex, setActiveDocIndex] = React.useState(0);
+    const { currentUserEmpId } = useAppStore();
+    const addDocument = useDocumentStore((s) => s.addDocument);
+    const addImportEstimate = useImportEstimateStore((s) => s.addImportEstimate);
+    const getImportEstimate = useImportEstimateStore((s) => s.getImportEstimate);
+    const updateImportEstimate = useImportEstimateStore((s) => s.updateImportEstimate);
 
-    React.useEffect(() => {
-        localStorage.setItem(SOURCING_SEARCH_STATE_KEY, JSON.stringify({ searchFilters, appliedSearchFilters }));
-    }, [searchFilters, appliedSearchFilters]);
+    const [tariffIndex, setTariffIndex] = useState(null);
+    const [tariffLoadError, setTariffLoadError] = useState(null);
 
-    const getOpenerName = (doc) => {
-        if (doc.opener_emp_name) return `${doc.opener_emp_name} (${doc.opener_emp_id || '-'})`;
-        if (doc.opener_emp_id) {
-            const emp = employees.find((e) => e.emp_id === doc.opener_emp_id);
-            if (emp) return `${emp.name} (${emp.emp_id})`;
-            return doc.opener_emp_id;
-        }
-        return '-';
-    };
+    const [hydrated, setHydrated] = useState(false);
+    const [estimateId, setEstimateId] = useState('');
+    const [docDate, setDocDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [supplierId, setSupplierId] = useState('');
+    const [supplierName, setSupplierName] = useState('');
+    const [estimateNotes, setEstimateNotes] = useState('');
+    const [saveStatus, setSaveStatus] = useState('');
+    const creatingEstimateRef = useRef(false);
 
-    const handleSearchSubmit = (e) => {
-        if (e) e.preventDefault();
-        setAppliedSearchFilters(searchFilters);
-    };
+    const [lineItems, setLineItems] = useState(() => []);
+    const lineItemsRef = useRef(lineItems);
+    lineItemsRef.current = lineItems;
+    const [activeLineId, setActiveLineId] = useState(() => null);
+    const [sharedCostSplit, setSharedCostSplit] = useState('equal');
 
-    const handleClearSearch = () => {
-        setSearchFilters(DEFAULT_SEARCH_FILTERS);
-        setAppliedSearchFilters(DEFAULT_SEARCH_FILTERS);
-        localStorage.removeItem(SOURCING_SEARCH_STATE_KEY);
-    };
+    const [isPickerOpen, setIsPickerOpen] = useState(false);
+    const [linesCsvExportOpen, setLinesCsvExportOpen] = useState(false);
+    const [importLineConflicts, setImportLineConflicts] = useState({});
+    const linesCsvFileRef = useRef(null);
 
-    useSearchFormKeyboardNav(searchFormRef, searchBtnRef, searchResetBtnRef);
+    const [hsInput, setHsInput] = useState('');
+    const [keywordInput, setKeywordInput] = useState('');
+    const [searchHits, setSearchHits] = useState([]);
 
-    const currentUser = employees.find((e) => e.emp_id === currentUserEmpId);
-    const canEditSourcing = canEditDocType({
-        enableLoginSystem,
-        enablePermissionRole,
-        currentUser,
-        docType: 'inquiry',
-    });
+    const [currency, setCurrency] = useState('USD');
+    const [exchangeBuffer, setExchangeBuffer] = useState(0.01);
+    const [inlandDocTwd, setInlandDocTwd] = useState('0');
+    const [intlFreightTwd, setIntlFreightTwd] = useState('0');
+    const [insuranceCifFactor, setInsuranceCifFactor] = useState('1.1');
+    const [insuranceRate, setInsuranceRate] = useState('0.001');
+    const [customsFeeTwd, setCustomsFeeTwd] = useState('3500');
+    const [doFeeTwd, setDoFeeTwd] = useState('3500');
+    const [ediFeeTwd, setEdiFeeTwd] = useState('600');
+    const [lclFeeTwd, setLclFeeTwd] = useState('0');
+    const [terminalFeeTwd, setTerminalFeeTwd] = useState('0');
+    const [domesticFreightTwd, setDomesticFreightTwd] = useState('0');
+    const [vatRatePct, setVatRatePct] = useState('5');
+    const [miscBudgetPct, setMiscBudgetPct] = useState('5');
+    const [retailMarginPct, setRetailMarginPct] = useState('20');
 
-    const appliedSearchKey = React.useMemo(() => JSON.stringify(appliedSearchFilters), [appliedSearchFilters]);
+    const [breakdown, setBreakdown] = useState(null);
 
-    const getStatusColor = (status) => {
-        const map = { success: '#34d399', warning: '#fbbf24', danger: '#ef4444', accent: '#60a5fa' };
-        return map[statusColors[status]] || '#94a3b8';
-    };
-
-    const calcTotal = (doc) => {
-        if (!doc.items) return 0;
-        return doc.items.reduce((sum, item) => sum + (item.qty * (item.unit_price || 0)), 0);
-    };
-
-    // Helper to calculate landed cost in TWD per unit
-    // Formula: (Price * ExchangeRate) * (1 + Tariff) + (TotalFreight / MOQ)
-
-    const openIntlEditor = (docId = null) => {
-        let url = `/document-editor?type=inquiry&mode=intl`;
-        if (docId) url += `&id=${docId}`;
-        window.open(url, '_blank');
-    };
-
-    const intlInquiries = React.useMemo(() => inquiries.filter((inq) => {
-        if (appliedSearchFilters.docId && !inq.doc_id.toLowerCase().includes(appliedSearchFilters.docId.toLowerCase())) return false;
-        if (appliedSearchFilters.date && !inq.date.includes(appliedSearchFilters.date)) return false;
-        if (appliedSearchFilters.status && inq.status !== appliedSearchFilters.status) return false;
-        if (appliedSearchFilters.party) {
-            const name = (inq.supplier_name || '').toLowerCase();
-            if (!name.includes(appliedSearchFilters.party.toLowerCase())) return false;
-        }
-        if (appliedSearchFilters.opener) {
-            const opener = getOpenerName(inq).toLowerCase();
-            if (!opener.includes(appliedSearchFilters.opener.toLowerCase())) return false;
-        }
-        return true;
-    }), [inquiries, appliedSearchFilters, employees]);
-
-    React.useEffect(() => {
-        if (isQuickPreview) return;
-        setActiveDocIndex(0);
-    }, [appliedSearchKey, isQuickPreview]);
-
-    React.useEffect(() => {
-        setActiveDocIndex((i) => {
-            if (intlInquiries.length === 0) return 0;
-            return Math.min(i, intlInquiries.length - 1);
-        });
-    }, [intlInquiries.length]);
-
-    const handleDocListKeyDown = (e) => {
-        if (isQuickPreview) return;
-        if (e.key === 'ArrowDown') {
-            if (intlInquiries.length === 0) return;
-            e.preventDefault();
-            if (activeDocIndex === intlInquiries.length - 1) {
-                addDocBtnRef.current?.focus();
-                return;
-            }
-            setActiveDocIndex((prev) => Math.min(prev + 1, intlInquiries.length - 1));
-        } else if (e.key === 'ArrowUp') {
-            if (intlInquiries.length === 0) return;
-            e.preventDefault();
-            setActiveDocIndex((prev) => Math.max(prev - 1, 0));
-        } else if (e.key === ' ' || e.code === 'Space' || e.key === 'Enter') {
-            if (intlInquiries.length === 0) return;
-            e.preventDefault();
-            e.stopPropagation();
-            const currentDoc = intlInquiries[activeDocIndex];
-            if (currentDoc) openIntlEditor(currentDoc.doc_id);
-        }
-    };
-
-    React.useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (!isQuickPreview || intlInquiries.length === 0 || isEditingInline) return;
-
-            if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                setPreviewIndex(prev => Math.max(0, prev - 1));
-            } else if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                setPreviewIndex(prev => Math.min(intlInquiries.length - 1, prev + 1));
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isQuickPreview, intlInquiries, isEditingInline]);
-
-    React.useEffect(() => {
-        if (isQuickPreview || selectedDoc || !docListKeyboardRef.current) return;
-        const focusList = () => docListKeyboardRef.current?.focus();
-        focusList();
-        const t = setTimeout(focusList, 80);
-        return () => clearTimeout(t);
-    }, [isQuickPreview, selectedDoc, intlInquiries.length]);
-
-    React.useEffect(() => {
-        const handleGlobalDocFlowKeyDown = (e) => {
-            if (e.key === 'Escape') {
-                if (selectedDoc) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSelectedDoc(null);
-                    return;
-                }
-                if (isQuickPreview) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsQuickPreview(false);
-                    setIsEditingInline(false);
-                    return;
-                }
-            }
-
-            if (e.target.closest('[data-search-form]')) return;
-            if (isTypingTarget(e.target)) return;
-
-            if (!selectedDoc && !isQuickPreview && intlInquiries.length > 0 && (e.key === ' ' || e.code === 'Space' || e.key === 'Enter')) {
-                if (e.target === addDocBtnRef.current) return;
-                e.preventDefault();
-                e.stopPropagation();
-                const currentDoc = intlInquiries[activeDocIndex];
-                if (currentDoc) openIntlEditor(currentDoc.doc_id);
-                return;
-            }
-
-            if (selectedDoc && !isQuickPreview) {
-                if (e.key === ' ' || e.code === 'Space' || e.key === 'Enter') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const tid = selectedDoc.doc_id;
-                    setSelectedDoc(null);
-                    openIntlEditor(tid);
-                }
-                return;
-            }
-
-            if (isQuickPreview) return;
-
-            if (e.key === 'ArrowDown') {
-                if (intlInquiries.length === 0) return;
-                e.preventDefault();
-                e.stopPropagation();
-                if (activeDocIndex === intlInquiries.length - 1) {
-                    addDocBtnRef.current?.focus();
-                } else {
-                    setActiveDocIndex((prev) => Math.min(prev + 1, intlInquiries.length - 1));
-                }
-                return;
-            }
-
-            if (e.key === 'ArrowUp') {
-                if (intlInquiries.length === 0) return;
-                e.preventDefault();
-                e.stopPropagation();
-                if (e.target === addDocBtnRef.current) {
-                    setActiveDocIndex(intlInquiries.length - 1);
-                    docListKeyboardRef.current?.focus();
-                } else {
-                    setActiveDocIndex((prev) => Math.max(prev - 1, 0));
-                }
-                return;
-            }
-
-            if (e.key === ' ' || e.code === 'Space' || e.key === 'Enter') {
-                if (intlInquiries.length === 0) return;
-                if (e.target === addDocBtnRef.current) return;
-                e.preventDefault();
-                e.stopPropagation();
-                const currentDoc = intlInquiries[activeDocIndex];
-                if (currentDoc) openIntlEditor(currentDoc.doc_id);
-            }
-        };
-
-        window.addEventListener('keydown', handleGlobalDocFlowKeyDown, true);
-        return () => window.removeEventListener('keydown', handleGlobalDocFlowKeyDown, true);
-    }, [selectedDoc, isQuickPreview, intlInquiries, activeDocIndex]);
-
-    const handleExport = async () => {
-        try {
-            const headers = ['Doc ID', 'Date', 'Supplier', 'Currency', 'Total', 'Status'];
-            const csvRows = [headers.join(',')];
-            intlInquiries.forEach(inq => {
-                const sName = (inq.supplier_name || '').replace(/"/g, '""');
-                csvRows.push([inq.doc_id, inq.date, `"${sName}"`, inq.currency || 'USD', calcTotal(inq), inq.status].join(','));
-            });
-            const csvContent = "\uFEFF" + csvRows.join('\n');
-            const fileName = `sourcing_export_${new Date().toISOString().slice(0, 10)}.csv`;
-
-            if ('showSaveFilePicker' in window) {
-                try {
-                    const handle = await window.showSaveFilePicker({
-                        suggestedName: fileName,
-                        types: [{ description: 'CSV File', accept: { 'text/csv': ['.csv'] } }],
-                    });
-                    const writable = await handle.createWritable();
-                    await writable.write(csvContent);
-                    await writable.close();
-                    alert("匯出成功！檔案已存入指定位置。");
-                } catch (pickerErr) {
-                    if (pickerErr.name === 'AbortError') return;
-                    throw pickerErr;
-                }
-            } else {
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                }, 100);
-                alert("匯出成功！檔案已存入您的下載資料夾。");
-            }
-        } catch (err) {
-            console.error("Export failed:", err);
-            alert("匯出發生錯誤。");
-        }
-    };
-
-    const handleImport = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
             try {
-                const text = event.target.result;
-                const rows = text.split('\n');
-                if (rows.length < 2) return;
-
-                const dataRows = rows.slice(1);
-                const updates = [];
-
-                dataRows.forEach(row => {
-                    const trimmedRow = row.trim();
-                    if (!trimmedRow) return;
-
-                    const parts = trimmedRow.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                    if (parts.length >= 6) {
-                        const [doc_id, date, supplier_name, currency, total, status] = parts.map(p =>
-                            p.replace(/^"|"$/g, '').replace(/""/g, '"').trim()
-                        );
-
-                        const existing = inquiries.find(d => d.doc_id === doc_id);
-                        if (existing) {
-                            updates.push({
-                                ...existing,
-                                date: date || existing.date,
-                                supplier_name: supplier_name || existing.supplier_name,
-                                currency: currency || existing.currency,
-                                status: status || existing.status
-                            });
-                        }
-                    }
-                });
-
-                if (updates.length > 0) {
-                    bulkUpdateInquiries(updates);
-                    alert(`匯入完成！成功處理 ${updates.length} 筆採購詢價單。`);
+                const idx = await loadTariffTable();
+                if (!cancelled) {
+                    setTariffIndex(idx);
+                    setTariffLoadError(null);
                 }
-            } catch (err) {
-                console.error("Import error:", err);
-                alert("解析檔案時發生錯誤。");
+            } catch (e) {
+                if (!cancelled) {
+                    setTariffLoadError(e?.message || String(e));
+                }
             }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    const idFromUrl = searchParams.get('id');
+    const shortageProcessedRef = useRef('');
+
+    useEffect(() => {
+        shortageProcessedRef.current = '';
+    }, [idFromUrl]);
+
+    useEffect(() => {
+            if (!idFromUrl) {
+                if (creatingEstimateRef.current) return;
+                creatingEstimateRef.current = true;
+                const spBoot = new URLSearchParams(window.location.search);
+                const shortageBoot = spBoot.get('shortage');
+                const doc = addImportEstimate();
+                const params = new URLSearchParams();
+                params.set('id', doc.estimate_id);
+                if (shortageBoot?.trim()) params.set('shortage', shortageBoot.trim());
+                navigate(`/sourcing/estimate?${params.toString()}`, { replace: true });
+                return;
+            }
+            creatingEstimateRef.current = false;
+            const saved = getImportEstimate(idFromUrl);
+            if (!saved) {
+                navigate('/sourcing', { replace: true });
+                return;
+            }
+            setHydrated(false);
+            setEstimateId(saved.estimate_id);
+            setDocDate(saved.date || new Date().toISOString().split('T')[0]);
+            setSupplierId(saved.supplier_id || '');
+            setSupplierName(saved.supplier_name || '');
+            setEstimateNotes(saved.notes || '');
+            setLineItems(Array.isArray(saved.lineItems) ? saved.lineItems : []);
+            setSharedCostSplit(saved.sharedCostSplit || 'equal');
+            setCurrency(saved.currency || 'USD');
+            setExchangeBuffer(saved.exchangeBuffer ?? 0.01);
+            setInlandDocTwd(String(saved.inlandDocTwd ?? '0'));
+            setIntlFreightTwd(String(saved.intlFreightTwd ?? '0'));
+            setInsuranceCifFactor(String(saved.insuranceCifFactor ?? '1.1'));
+            setInsuranceRate(String(saved.insuranceRate ?? '0.001'));
+            setCustomsFeeTwd(String(saved.customsFeeTwd ?? '3500'));
+            setDoFeeTwd(String(saved.doFeeTwd ?? '3500'));
+            setEdiFeeTwd(String(saved.ediFeeTwd ?? '600'));
+            setLclFeeTwd(String(saved.lclFeeTwd ?? '0'));
+            setTerminalFeeTwd(String(saved.terminalFeeTwd ?? '0'));
+            setDomesticFreightTwd(String(saved.domesticFreightTwd ?? '0'));
+            setVatRatePct(String(saved.vatRatePct ?? '5'));
+            setMiscBudgetPct(String(saved.miscBudgetPct ?? '5'));
+            setRetailMarginPct(String(saved.retailMarginPct ?? '20'));
+            setBreakdown(saved.breakdown ?? null);
+            setHydrated(true);
+            setSaveStatus('');
+    }, [idFromUrl, navigate, addImportEstimate, getImportEstimate]);
+
+    useEffect(() => {
+        if (!hydrated || !estimateId) return;
+        const handle = window.setTimeout(() => {
+            updateImportEstimate(estimateId, {
+                date: docDate,
+                supplier_id: supplierId,
+                supplier_name: supplierName,
+                notes: estimateNotes,
+                lineItems,
+                sharedCostSplit,
+                currency,
+                exchangeBuffer,
+                inlandDocTwd,
+                intlFreightTwd,
+                insuranceCifFactor,
+                insuranceRate,
+                customsFeeTwd,
+                doFeeTwd,
+                ediFeeTwd,
+                lclFeeTwd,
+                terminalFeeTwd,
+                domesticFreightTwd,
+                vatRatePct,
+                miscBudgetPct,
+                retailMarginPct,
+                breakdown,
+            });
+            setSaveStatus(`${t('importCost.autoSaved')} ${new Date().toLocaleTimeString()}`);
+        }, 480);
+        return () => window.clearTimeout(handle);
+    }, [
+        hydrated,
+        estimateId,
+        docDate,
+        supplierId,
+        supplierName,
+        estimateNotes,
+        lineItems,
+        sharedCostSplit,
+        currency,
+        exchangeBuffer,
+        inlandDocTwd,
+        intlFreightTwd,
+        insuranceCifFactor,
+        insuranceRate,
+        customsFeeTwd,
+        doFeeTwd,
+        ediFeeTwd,
+        lclFeeTwd,
+        terminalFeeTwd,
+        domesticFreightTwd,
+        vatRatePct,
+        miscBudgetPct,
+        retailMarginPct,
+        breakdown,
+        updateImportEstimate,
+        t,
+    ]);
+
+    useEffect(() => {
+        setActiveLineId((cur) => {
+            if (cur && lineItems.some((l) => l.id === cur)) return cur;
+            return lineItems[0]?.id ?? null;
+        });
+    }, [lineItems]);
+
+    const twdPerUnit = useMemo(() => {
+        const r = rates?.[currency];
+        if (currency === 'TWD') return 1;
+        return num(r, 1);
+    }, [rates, currency]);
+
+    const activeLine = useMemo(
+        () => lineItems.find((l) => l.id === activeLineId),
+        [lineItems, activeLineId],
+    );
+
+    const volWeightTotals = useMemo(() => {
+        let vol = 0;
+        let wt = 0;
+        lineItems.forEach((l) => {
+            const q = Math.max(0, num(l.quantity));
+            vol += q * num(l.volPerUnit);
+            wt += q * num(l.weightPerUnit);
+        });
+        return { vol, wt };
+    }, [lineItems]);
+
+    const lineResultByIndex = useMemo(() => {
+        if (!breakdown?.lineResults?.length) return [];
+        return lineItems.map((_, idx) => breakdown.lineResults[idx] ?? null);
+    }, [breakdown, lineItems]);
+
+    const applyTariffToLine = useCallback((lineId, row) => {
+        if (!row || !lineId) return;
+        setLineItems((prev) => prev.map((l) => (l.id === lineId ? {
+            ...l,
+            dutyRate: row.dutyRate,
+            exciseRate: 0,
+            hsCode: row.hsCode,
+            nameZh: row.nameZh,
+            inputRegulation: row.inputRegulation,
+            dutyRateText: row.dutyRateText,
+            goodsTaxRateHint: row.goodsTaxRateHint ?? 0,
+            tariffMiss: false,
+        } : l)));
+    }, []);
+
+    const updateLine = (lineId, patch) => {
+        setImportLineConflicts((prev) => {
+            if (!prev[lineId]) return prev;
+            const cleared = { ...prev[lineId] };
+            for (const k of Object.keys(patch)) delete cleared[k];
+            if (Object.keys(cleared).length === 0) {
+                const next = { ...prev };
+                delete next[lineId];
+                return next;
+            }
+            return { ...prev, [lineId]: cleared };
+        });
+        setLineItems((prev) => prev.map((l) => (l.id === lineId ? { ...l, ...patch } : l)));
+    };
+
+    const bindTariffIfHs = useCallback((lineId, hsRaw) => {
+        if (!lineId) return;
+        if (!tariffIndex) return;
+        const k = normalizeHsCode(hsRaw);
+        if (!k) {
+            setLineItems((prev) => prev.map((l) => (l.id === lineId ? { ...l, tariffMiss: false } : l)));
+            return;
+        }
+        const row = findByHsCode(tariffIndex, k);
+        if (row) {
+            applyTariffToLine(lineId, row);
+            return;
+        }
+        setLineItems((prev) => prev.map((l) => ( l.id === lineId ? {
+            ...l,
+            tariffMiss: true,
+            nameZh: '',
+            dutyRateText: '',
+            inputRegulation: '',
+            goodsTaxRateHint: 0,
+            dutyRate: 0,
+        } : l)));
+    }, [tariffIndex, applyTariffToLine]);
+
+    const focusImportField = useCallback((lineId, fieldKey) => {
+        requestAnimationFrame(() => {
+            const el = document.querySelector(`input[data-import-line="${lineId}"][data-import-field="${fieldKey}"]`);
+            el?.focus?.();
+        });
+    }, []);
+
+    const handleImportFieldKeyDown = useCallback((e, lineId, fieldKey) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const idx = IMPORT_GRID_FIELDS.indexOf(fieldKey);
+        const lineIds = lineItems.map((l) => l.id);
+        const pos = lineIds.indexOf(lineId);
+        if (idx < IMPORT_GRID_FIELDS.length - 1) {
+            focusImportField(lineId, IMPORT_GRID_FIELDS[idx + 1]);
+        } else if (pos >= 0 && pos < lineIds.length - 1) {
+            focusImportField(lineIds[pos + 1], IMPORT_GRID_FIELDS[0]);
+        } else if (lineIds.length > 0) {
+            focusImportField(lineIds[0], IMPORT_GRID_FIELDS[0]);
+        }
+    }, [lineItems, focusImportField]);
+
+    const addLine = () => {
+        const L = createDefaultEstimateLine();
+        setLineItems((prev) => [...prev, L]);
+        setActiveLineId(L.id);
+    };
+
+    const buildLineFromProduct = useCallback(
+        (product) => {
+            if (!product) return null;
+            const L = createDefaultEstimateLine();
+            const rawHs = String(product.hs_code || '').trim();
+            const digits = rawHs.replace(/\D/g, '');
+            const merged = {
+                ...L,
+                p_id: product.p_id || '',
+                productName: product.name || '',
+                note: product.name || '',
+                exwForeign:
+                    product.base_cost != null && product.base_cost !== '' ? String(product.base_cost) : '',
+                hsCode: digits.length >= 11 ? digits.slice(0, 11) : rawHs,
+            };
+            if (tariffIndex) {
+                const k = normalizeHsCode(merged.hsCode);
+                if (k) {
+                    const row = findByHsCode(tariffIndex, k);
+                    if (row) {
+                        merged.dutyRate = row.dutyRate;
+                        merged.nameZh = row.nameZh;
+                        merged.inputRegulation = row.inputRegulation;
+                        merged.dutyRateText = row.dutyRateText;
+                        merged.goodsTaxRateHint = row.goodsTaxRateHint ?? 0;
+                        merged.hsCode = row.hsCode;
+                        merged.tariffMiss = false;
+                    } else {
+                        merged.tariffMiss = true;
+                    }
+                }
+            }
+            return merged;
+        },
+        [tariffIndex],
+    );
+
+    const addProductLines = useCallback(
+        (productList) => {
+            if (!productList?.length) return;
+            const newLines = productList.map(buildLineFromProduct).filter(Boolean);
+            if (!newLines.length) return;
+            setLineItems((prev) => [...prev, ...newLines]);
+            setActiveLineId(newLines[newLines.length - 1].id);
+        },
+        [buildLineFromProduct],
+    );
+
+    const shortageKey = searchParams.get('shortage');
+    useEffect(() => {
+        const raw = (shortageKey || '').trim();
+        if (!raw || !hydrated || !estimateId || !tariffIndex) return;
+        if (shortageProcessedRef.current === raw) return;
+        shortageProcessedRef.current = raw;
+
+        const pids = [...new Set(raw.split(/[,\s]+/).map((x) => x.trim()).filter(Boolean))];
+        const shortageBook = useDocumentStore.getState().shortageBook || [];
+        const existingPids = new Set((lineItemsRef.current || []).map((l) => l.p_id).filter(Boolean));
+        const newLines = [];
+        for (const pid of pids) {
+            if (existingPids.has(pid)) continue;
+            const p = products.find((x) => x.p_id === pid);
+            if (!p) continue;
+            const line = buildLineFromProduct(p);
+            if (!line) continue;
+            const sb = shortageBook.find((s) => s.p_id === pid);
+            if (sb) {
+                const q = Math.max(1, Math.floor(num(sb.suggested_qty, 0) || num(sb.shortage_qty, 0) || 1));
+                line.quantity = String(q);
+            }
+            newLines.push(line);
+            existingPids.add(pid);
+        }
+        if (newLines.length) {
+            setLineItems((prev) => [...prev, ...newLines]);
+            setActiveLineId(newLines[newLines.length - 1].id);
+        }
+
+        const next = new URLSearchParams(window.location.search);
+        next.delete('shortage');
+        navigate(`/sourcing/estimate?${next.toString()}`, { replace: true });
+    }, [hydrated, estimateId, tariffIndex, shortageKey, products, buildLineFromProduct, navigate]);
+
+    const removeLine = (id) => {
+        setImportLineConflicts((prev) => {
+            if (!prev[id]) return prev;
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+        setLineItems((prev) => {
+            const next = prev.filter((l) => l.id !== id);
+            setActiveLineId((aid) => {
+                if (aid !== id) return aid;
+                return next[0]?.id ?? null;
+            });
+            return next;
+        });
+    };
+
+    const hasAnyLineConflict = useMemo(
+        () => Object.values(importLineConflicts).some((m) => m && Object.keys(m).length > 0),
+        [importLineConflicts],
+    );
+
+    const openLinesCsvImport = () => {
+        if (!window.confirm(t('importCost.linesCsv.importReplaceConfirm'))) return;
+        linesCsvFileRef.current?.click();
+    };
+
+    const onLinesCsvFileChange = useCallback(
+        (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const text = typeof reader.result === 'string' ? reader.result : '';
+                const parsed = parseEstimateLinesCsv(text);
+                if (parsed.error) {
+                    window.alert(t('importCost.linesCsv.importBadFile'));
+                    return;
+                }
+                const conflictsMap = {};
+                const newLines = parsed.rows.map((rowObj) => {
+                    const { line, conflicts } = processImportedEstimateLine(
+                        rowObj,
+                        parsed.headerKeys,
+                        tariffIndex,
+                        products,
+                    );
+                    if (Object.keys(conflicts).length > 0) {
+                        conflictsMap[line.id] = { ...conflicts };
+                    }
+                    return line;
+                });
+                setBreakdown(null);
+                setLineItems(newLines);
+                setImportLineConflicts(conflictsMap);
+                setActiveLineId(newLines[0]?.id ?? null);
+            };
+            reader.readAsText(file, 'UTF-8');
+        },
+        [tariffIndex, products, t],
+    );
+
+    const handleHsLookup = () => {
+        if (!tariffIndex || !activeLine) return;
+        const key = normalizeHsCode(hsInput);
+        if (!key) {
+            window.alert(t('importCost.invalidHs'));
+            return;
+        }
+        const row = findByHsCode(tariffIndex, key);
+        if (!row) {
+            setSearchHits([]);
+            window.alert(t('importCost.emptyResults'));
+            return;
+        }
+        setSearchHits([row]);
+        applyTariffToLine(activeLine.id, row);
+    };
+
+    const handleKeywordSearch = () => {
+        if (!tariffIndex || !activeLine) return;
+        const hits = searchTariffByKeyword(tariffIndex, keywordInput);
+        setSearchHits(hits);
+        if (hits.length === 1) applyTariffToLine(activeLine.id, hits[0]);
+    };
+
+    const handleCalc = () => {
+        const linesPayload = lineItems.map((l) => ({
+            label: l.productName || l.p_id || l.note || l.hsCode || undefined,
+            exwForeign: num(l.exwForeign),
+            quantity: Math.max(1, num(l.quantity, 1)),
+            dutyRate: num(l.dutyRate),
+            exciseRate: num(l.exciseRate),
+        }));
+
+        const result = computeMultiLineLandedCost({
+            lines: linesPayload,
+            currency,
+            twdPerUnit,
+            exchangeBuffer: num(exchangeBuffer, 0.01),
+            inlandAndDocTwd: num(inlandDocTwd),
+            intlFreightTwd: num(intlFreightTwd),
+            insuranceCifFactor: num(insuranceCifFactor, 1.1),
+            insuranceRate: num(insuranceRate, 0.001),
+            customsFeeTwd: num(customsFeeTwd),
+            doFeeTwd: num(doFeeTwd),
+            ediFeeTwd: num(ediFeeTwd),
+            lclFeeTwd: num(lclFeeTwd),
+            terminalFeeTwd: num(terminalFeeTwd),
+            domesticFreightTwd: num(domesticFreightTwd),
+            vatRate: num(vatRatePct) / 100,
+            miscBudgetRate: num(miscBudgetPct) / 100,
+            retailMarginRate: num(retailMarginPct) / 100,
+            sharedCostSplit: sharedCostSplit === 'exwValue' ? 'exwValue' : 'equal',
+        });
+        setBreakdown(result);
+    };
+
+    const handleConvertToPurchase = useCallback(() => {
+        if (!supplierId) {
+            window.alert(t('importCost.convertNeedSupplier'));
+            return;
+        }
+        const items = lineItems
+            .filter((l) => l.p_id && String(l.p_id).trim() && num(l.quantity, 0) > 0)
+            .map((l) => {
+                const p = products.find((x) => x.p_id === l.p_id);
+                const mainPN = p?.part_numbers?.[0] || {};
+                return {
+                    p_id: l.p_id,
+                    name: l.productName || p?.name || '',
+                    part_number: p?.part_number || mainPN?.part_number || '',
+                    qty: Math.max(1, num(l.quantity, 1)),
+                    unit_price: num(l.exwForeign, 0),
+                    unit: 'PCS',
+                    note: l.hsCode ? `HS ${l.hsCode}` : '',
+                };
+            });
+        if (!items.length) {
+            window.alert(t('importCost.convertNeedLines'));
+            return;
+        }
+        const exRate = currency === 'TWD' ? 1 : num(rates?.[currency], 1);
+        const emp = employees.find((e) => e.emp_id === currentUserEmpId);
+        const poDoc = {
+            supplier_id: supplierId,
+            supplier_name: supplierName,
+            opener_emp_id: currentUserEmpId || '',
+            opener_emp_name: emp?.name || '',
+            status: 'pending',
+            expected_date: '',
+            currency,
+            exchange_rate: exRate,
+            items,
+            freight_cost: num(intlFreightTwd),
+            tariff_rate: 0,
+            notes: `[${t('importCost.convertToPo')}] ${estimateId}${estimateNotes ? ` — ${estimateNotes}` : ''}`,
+            discount: 0,
         };
-        reader.readAsText(file);
-        e.target.value = '';
+        const newDoc = addDocument('purchase', poDoc);
+        navigate(`/document-editor?type=purchase&id=${encodeURIComponent(newDoc.doc_id)}`);
+    }, [
+        supplierId,
+        supplierName,
+        lineItems,
+        products,
+        currency,
+        rates,
+        employees,
+        currentUserEmpId,
+        addDocument,
+        navigate,
+        t,
+        intlFreightTwd,
+        estimateId,
+        estimateNotes,
+    ]);
+
+    const handleManualSave = useCallback(() => {
+        if (!estimateId) return;
+        updateImportEstimate(estimateId, {
+            date: docDate,
+            supplier_id: supplierId,
+            supplier_name: supplierName,
+            notes: estimateNotes,
+            lineItems,
+            sharedCostSplit,
+            currency,
+            exchangeBuffer,
+            inlandDocTwd,
+            intlFreightTwd,
+            insuranceCifFactor,
+            insuranceRate,
+            customsFeeTwd,
+            doFeeTwd,
+            ediFeeTwd,
+            lclFeeTwd,
+            terminalFeeTwd,
+            domesticFreightTwd,
+            vatRatePct,
+            miscBudgetPct,
+            retailMarginPct,
+            breakdown,
+        });
+        setSaveStatus(`${t('importCost.manualSave')} OK ${new Date().toLocaleTimeString()}`);
+    }, [
+        estimateId,
+        docDate,
+        supplierId,
+        supplierName,
+        estimateNotes,
+        lineItems,
+        sharedCostSplit,
+        currency,
+        exchangeBuffer,
+        inlandDocTwd,
+        intlFreightTwd,
+        insuranceCifFactor,
+        insuranceRate,
+        customsFeeTwd,
+        doFeeTwd,
+        ediFeeTwd,
+        lclFeeTwd,
+        terminalFeeTwd,
+        domesticFreightTwd,
+        vatRatePct,
+        miscBudgetPct,
+        retailMarginPct,
+        breakdown,
+        updateImportEstimate,
+        t,
+    ]);
+
+    const restrictionWarn = useMemo(
+        () => lineItems.some((l) => hasSpecialImportRestriction(l.inputRegulation)),
+        [lineItems],
+    );
+
+    const COL_MAIN = 11;
+
+    const renderStockCell = (p) => {
+        if (!p) return <span className="text-muted">—</span>;
+        const stockNum = Number(p.stock) || 0;
+        const safetyNum = Number(p.safety_stock) || 0;
+        const belowSafety = safetyNum > 0 && stockNum < safetyNum;
+        const stockBadgeClass = belowSafety
+            ? 'bg-danger-subtle text-primary'
+            : stockNum > safetyNum
+                ? 'bg-success-subtle text-success'
+                : stockNum > 0
+                    ? 'bg-warning-subtle text-warning'
+                    : 'bg-danger-subtle text-danger';
+        return (
+            <div className="flex flex-col gap-1 items-start">
+                <span className={`text-xs px-2 py-0.5 rounded-sm font-bold ${stockBadgeClass}`}>
+                    {stockNum}
+                    <span className={belowSafety ? 'text-danger' : undefined}> 現貨</span>
+                </span>
+                <span className="text-[10px] text-muted font-mono">安全庫存: {safetyNum}</span>
+            </div>
+        );
     };
 
     return (
-        <div className={styles.container}>
-            <div className={styles.sourcingTop}>
-                <div className={styles.header} style={{ alignItems: 'center', minHeight: '64px', marginBottom: 0 }}>
-                    <div style={{ flex: 1 }}>
-                        <h1 className={styles.title}>{t('sourcing.title')}</h1>
-                        <p className={styles.subtitle}>{t('sourcing.subtitle')}</p>
-                    </div>
-                    <div className="flex gap-4 items-center" style={{ flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                        <div className={styles.ratesPanel}>
-                            <div className="flex items-center gap-2 mr-2 text-muted">
-                                <Globe size={18} />
-                            </div>
-                            {Object.entries(rates).filter(([cur]) => cur !== 'TWD').map(([currency, rate]) => (
-                                <div key={currency} className={styles.rateCard}>
-                                    <span className={styles.rateLabel}>{currency}</span>
-                                    <span className={styles.rateValue}>{rate.toFixed(2)}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                className={styles.poButton}
-                                style={{ backgroundColor: isQuickPreview ? '#f59e0b' : 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
-                                onClick={() => { setIsQuickPreview(!isQuickPreview); setPreviewIndex(0); setIsEditingInline(false); }}
-                                title="快速預覽"
-                            >
-                                <Zap size={16} />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '1rem' }}>
-                    <form ref={searchFormRef} data-search-form onSubmit={handleSearchSubmit} style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', gap: '0.75rem', alignItems: 'flex-end' }}>
-                        <button ref={searchResetBtnRef} type="button" data-search-reset="true" className={docStyles.searchResetBtn} onClick={handleClearSearch} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0 12px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', height: '36px', transition: '0.2s' }} title="重設全部條件">
-                            <RotateCcw size={16} />
-                        </button>
-                        <div className={docStyles.searchField} data-search-field data-search-field-index="0" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '120px', flex: 1 }}>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>單據號碼</label>
-                            <input
-                                type="text"
-                                placeholder="單號"
-                                value={searchFilters.docId}
-                                onChange={(e) => setSearchFilters({ ...searchFilters, docId: e.target.value })}
-                                className={docStyles.searchInput}
-                                style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
-                            />
-                        </div>
-                        <div className={docStyles.searchField} data-search-field data-search-field-index="1" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '140px', flex: 1 }}>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>日期</label>
-                            <input
-                                type="text"
-                                placeholder="YYYY-MM-DD"
-                                value={searchFilters.date}
-                                onChange={(e) => setSearchFilters({ ...searchFilters, date: e.target.value })}
-                                className={docStyles.searchInput}
-                                style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
-                            />
-                        </div>
-                        <div className={docStyles.searchField} data-search-field data-search-field-index="2" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '170px', flex: 1.2 }}>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>交易對象</label>
-                            <input
-                                type="text"
-                                placeholder="供應商"
-                                value={searchFilters.party}
-                                onChange={(e) => setSearchFilters({ ...searchFilters, party: e.target.value })}
-                                className={docStyles.searchInput}
-                                style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
-                            />
-                        </div>
-                        <div className={docStyles.searchField} data-search-field data-search-field-index="3" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '130px', flex: 1 }}>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>狀態</label>
-                            <select
-                                value={searchFilters.status}
-                                onChange={(e) => setSearchFilters({ ...searchFilters, status: e.target.value })}
-                                className={docStyles.searchInput}
-                                style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
-                            >
-                                <option value="">所有狀態</option>
-                                <option value="pending">待處理</option>
-                                <option value="replied">已回覆</option>
-                                <option value="sent">已送出</option>
-                                <option value="accepted">已接受</option>
-                                <option value="received">已入庫</option>
-                                <option value="in_transit">運輸中</option>
-                                <option value="shipped">已出貨</option>
-                                <option value="pending_payment">待付款</option>
-                                <option value="cancelled">已取消</option>
-                            </select>
-                        </div>
-                        <div className={docStyles.searchField} data-search-field data-search-field-index="4" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '150px', flex: 1 }}>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>開單人員</label>
-                            <input
-                                type="text"
-                                placeholder="姓名 / 員編"
-                                value={searchFilters.opener}
-                                onChange={(e) => setSearchFilters({ ...searchFilters, opener: e.target.value })}
-                                className={docStyles.searchInput}
-                                style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
-                            />
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                            <button ref={searchBtnRef} type="submit" data-search-query className={docStyles.searchQueryBtn} style={{ background: 'var(--accent-primary)', color: 'white', padding: '0 20px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', border: 'none', height: '36px', whiteSpace: 'nowrap' }}>
-                                <Search size={16} /> 查詢
-                            </button>
-                        </div>
-                        <div style={{ minWidth: '70px', textAlign: 'right', fontSize: '0.8rem', color: 'var(--accent-primary)', fontWeight: 700, paddingBottom: '6px' }}>
-                            {intlInquiries.length} 筆
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            {/* 單據列表：操作方式比照製單系統；新增單據於表格最末列 */}
-            <div className={styles.sourcingListMain} style={isQuickPreview ? { flex: '0 0 auto' } : undefined}>
-                <div className="flex justify-between items-center mb-2 flex-wrap gap-2">
-                    <div className="flex-1" />
-                    <div className="flex gap-2">
-                        {showImportExport && (
-                            <>
-                                <input type="file" ref={sourcingFileRef} style={{ display: 'none' }} onChange={handleImport} accept=".csv" />
-                                <button type="button" className={styles.poButton} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }} onClick={() => sourcingFileRef.current?.click()}>
-                                    <Download size={16} /> {t('pim.import')}
-                                </button>
-                                <button type="button" className={styles.poButton} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }} onClick={handleExport}>
-                                    <Upload size={16} /> {t('pim.export')}
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                {!isQuickPreview ? (
-                    <div className={docStyles.docHubMain}>
-                        <div
-                            className={docStyles.card}
-                            ref={docListKeyboardRef}
-                            tabIndex={0}
-                            onKeyDown={handleDocListKeyDown}
-                        >
-                            <div className={`${docStyles.docTableScroll} custom-scrollbar`}>
-                                <table className={docStyles.table}>
-                                    <thead>
-                                        <tr>
-                                            <th style={{ width: '140px' }}>{t('docs.thDocId')}</th>
-                                            <th style={{ width: '120px' }}>{t('docs.thDate')}</th>
-                                            <th>{t('docs.thSupplier')}</th>
-                                            <th style={{ width: '100px' }}>{t('docs.thItems')}</th>
-                                            <th style={{ width: '150px' }}>{t('docs.thTotal')}</th>
-                                            <th style={{ width: '180px' }}>{t('docs.thCreator')}</th>
-                                            <th style={{ width: '120px' }}>{t('docs.thStatus')}</th>
-                                            <th style={{ width: '220px' }} />
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {intlInquiries.map((inq, idx) => (
-                                            <tr
-                                                key={inq.doc_id}
-                                                data-sourcing-row-idx={idx}
-                                                style={activeDocIndex === idx ? { backgroundColor: 'var(--bg-tertiary)' } : undefined}
-                                                onClick={() => {
-                                                    setActiveDocIndex(idx);
-                                                    docListKeyboardRef.current?.focus();
-                                                }}
-                                                onDoubleClick={(e) => {
-                                                    e.preventDefault();
-                                                    openIntlEditor(inq.doc_id);
-                                                }}
-                                            >
-                                                <td>
-                                                    <div className="flex items-center gap-2">
-                                                        <FileText size={16} className="text-muted" />
-                                                        <span className="font-mono font-semibold text-xs">{inq.doc_id}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="text-sm text-muted">{inq.date}</td>
-                                                <td className="font-semibold">
-                                                    <div className="flex items-center gap-2">
-                                                        {(() => {
-                                                            const sup = suppliers.find(s => s.sup_id === inq.supplier_id);
-                                                            return sup ? <CountryFlag country={sup.country} size={16} /> : null;
-                                                        })()}
-                                                        <span>{inq.supplier_name}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="text-sm text-muted">{inq.items?.length || 0} {t('docs.items')}</td>
-                                                <td>
-                                                    <span className="font-mono font-semibold text-sm">
-                                                        {inq.currency || 'USD'} {calcTotal(inq).toLocaleString()}
-                                                    </span>
-                                                </td>
-                                                <td className="text-sm text-muted">{getOpenerName(inq)}</td>
-                                                <td>
-                                                    <span className={docStyles.statusBadge} style={{ color: getStatusColor(inq.status), background: `${getStatusColor(inq.status)}22` }}>
-                                                        {STATUS_LABEL[inq.status]?.[language === 'zh' ? 'zh' : 'en'] || inq.status}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                        <button type="button" tabIndex={-1} className={docStyles.editRowBtn} onClick={(e) => { e.stopPropagation(); openIntlEditor(inq.doc_id); }} onDoubleClick={(e) => e.stopPropagation()} title={t('docs.inspect')}>
-                                                            <Eye size={14} /> {t('docs.inspect')}
-                                                        </button>
-                                                        <button type="button" tabIndex={-1} className={docStyles.viewBtn} onClick={(e) => { e.stopPropagation(); setSelectedDoc(inq); }} onDoubleClick={(e) => e.stopPropagation()}>
-                                                            <Printer size={14} /> {t('docs.view')}
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {intlInquiries.length === 0 && (
-                                            <tr>
-                                                <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                                                    {inquiries.length === 0 ? t('docs.empty') : '找不到符合條件的單據'}
-                                                </td>
-                                            </tr>
-                                        )}
-                                        <tr>
-                                            <td
-                                                colSpan={8}
-                                                style={{
-                                                    padding: '0.75rem 1.25rem',
-                                                    background: 'var(--bg-tertiary)',
-                                                    borderTop: '1px solid var(--border-color)',
-                                                    verticalAlign: 'middle',
-                                                }}
-                                            >
-                                                <button
-                                                    ref={addDocBtnRef}
-                                                    type="button"
-                                                    className={docStyles.addDocBtn}
-                                                    onClick={() => canEditSourcing && openIntlEditor()}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'ArrowUp' && intlInquiries.length > 0) {
-                                                            e.preventDefault();
-                                                            setActiveDocIndex(intlInquiries.length - 1);
-                                                            docListKeyboardRef.current?.focus();
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        height: '36px',
-                                                        minWidth: '120px',
-                                                        padding: '0 20px',
-                                                        borderRadius: '8px',
-                                                        fontWeight: 600,
-                                                        background: 'var(--accent-primary)',
-                                                        color: 'white',
-                                                        border: 'none',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        gap: '0.4rem',
-                                                        cursor: canEditSourcing ? 'pointer' : 'not-allowed',
-                                                        opacity: canEditSourcing ? 1 : 0.6,
-                                                    }}
-                                                    disabled={!canEditSourcing}
-                                                    title="新增國外詢價單"
-                                                >
-                                                    <Plus size={18} strokeWidth={3} />
-                                                    新增單據
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className={styles.sourcingCard} style={{ background: 'var(--bg-secondary)' }}>
-                        <table className={styles.quoteTable}>
-                            <thead>
-                                <tr>
-                                    <th>{t('docs.thDocId')}</th>
-                                    <th>{t('docs.thDate')}</th>
-                                    <th>{t('docs.thSupplier')}</th>
-                                    <th>{t('docs.thItems')}</th>
-                                    <th>{t('docs.thTotal')}</th>
-                                    <th>{t('docs.thCreator')}</th>
-                                    <th>{t('docs.thStatus')}</th>
-                                    <th />
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {[intlInquiries[previewIndex]].filter(Boolean).map((inq) => (
-                                    <tr key={inq.doc_id} style={{ background: '#3b82f611' }}>
-                                        <td style={{ width: '140px' }}>
-                                            <div className="flex items-center gap-2">
-                                                <FileText size={16} className="text-muted" />
-                                                <span className="font-mono font-semibold text-xs tracking-tighter">{inq.doc_id}</span>
-                                            </div>
-                                        </td>
-                                        <td className="text-sm text-muted">{inq.date}</td>
-                                        <td>
-                                            <div className="flex items-center gap-2">
-                                                {(() => {
-                                                    const sup = suppliers.find(s => s.sup_id === inq.supplier_id);
-                                                    return sup ? <CountryFlag country={sup.country} size={16} /> : null;
-                                                })()}
-                                                <span className="font-semibold">{inq.supplier_name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="text-sm text-muted">{inq.items?.length || 0} {t('docs.items')}</td>
-                                        <td>
-                                            <span className="font-mono font-semibold text-sm">
-                                                {inq.currency || 'USD'} {calcTotal(inq).toLocaleString()}
-                                            </span>
-                                        </td>
-                                        <td className="text-sm text-muted">{getOpenerName(inq)}</td>
-                                        <td>
-                                            <span className={styles.statusBadge} style={{ color: getStatusColor(inq.status), background: getStatusColor(inq.status) + '22', padding: '3px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                                                {STATUS_LABEL[inq.status]?.[language === 'zh' ? 'zh' : 'en'] || inq.status}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="flex gap-2 justify-end">
-                                                <button type="button" className={styles.editRowBtn} onClick={() => openIntlEditor(inq.doc_id)} title={t('docs.inspect')}>
-                                                    <Eye size={14} /> {t('docs.inspect')}
-                                                </button>
-                                                <button type="button" className={styles.viewRowBtn} onClick={() => setSelectedDoc(inq)}>
-                                                    <Printer size={14} /> {t('docs.view')}
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {intlInquiries.length > 0 && (
-                            <div style={{ padding: '0.5rem 1rem', background: '#0f172a', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', color: '#94a3b8', borderTop: '1px solid #334155', width: '100%' }}>
-                                <span>使用 <span style={{ color: '#60a5fa', fontWeight: 800 }}>↑ / ↓</span> 鍵快速切換單據</span>
-                                <div style={{ background: '#334155', padding: '2px 8px', borderRadius: '4px', color: 'white' }}>
-                                    {previewIndex + 1} / {intlInquiries.length}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {isQuickPreview && intlInquiries[previewIndex] && (
-                <div className={styles.sourcingPreviewPanel}>
-                    <DocumentDarkPreview
-                        doc={intlInquiries[previewIndex]}
-                        type="inquiry"
-                        inline={true}
-                        isEditing={isEditingInline}
-                        onEdit={() => setIsEditingInline(true)}
-                        onSave={() => setIsEditingInline(false)}
-                        onClose={() => { setIsQuickPreview(false); setIsEditingInline(false); }}
-                    />
-                </div>
-            )}
-
-            {selectedDoc && !isQuickPreview && (
-                <DocumentViewer
-                    doc={selectedDoc}
-                    type="inquiry"
-                    onClose={() => setSelectedDoc(null)}
-                    onEdit={() => {
-                        const tid = selectedDoc.doc_id;
-                        setSelectedDoc(null);
-                        openIntlEditor(tid);
-                    }}
+        <div className={`${styles.container} ${styles.estimatorPage}`}>
+            <input
+                ref={linesCsvFileRef}
+                type="file"
+                accept=".csv,text/csv"
+                className={styles.hubHiddenFile}
+                aria-hidden
+                onChange={onLinesCsvFileChange}
+            />
+            {linesCsvExportOpen && (
+                <LinesCsvExportModal
+                    lineItems={lineItems}
+                    products={products}
+                    onClose={() => setLinesCsvExportOpen(false)}
+                    t={t}
                 />
             )}
+            <Link to="/sourcing" className={styles.backLink}>
+                <ArrowLeft size={16} /> {t('importCost.backToList')}
+            </Link>
+            <div className={styles.sourcingTop}>
+                <div className={styles.header}>
+                    <div>
+                        <h1 className={styles.title}>{t('importCost.pageTitle')}</h1>
+                        <p className={styles.subtitle}>{t('importCost.pageSubtitle')}</p>
+                    </div>
+                    <div className={styles.estimatorHeadIcon} aria-hidden>
+                        <Calculator size={28} />
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles.docHeaderCard}>
+                <h2 className={styles.docTitle}>{t('importCost.docHeader')}</h2>
+                <div className={styles.docHeaderGrid}>
+                    <label className={styles.formField}>
+                        <span>{t('importCost.docNumber')}</span>
+                        <input className={styles.input} readOnly value={estimateId || '—'} />
+                    </label>
+                    <label className={styles.formField}>
+                        <span>{t('importCost.colDate')}</span>
+                        <input
+                            className={styles.input}
+                            type="date"
+                            value={docDate}
+                            onChange={(e) => setDocDate(e.target.value)}
+                        />
+                    </label>
+                    <label className={styles.formField} style={{ gridColumn: 'span 2' }}>
+                        <span>{t('importCost.supplierField')}</span>
+                        <select
+                            className={styles.select}
+                            value={supplierId}
+                            onChange={(e) => {
+                                const v = e.target.value;
+                                setSupplierId(v);
+                                const sup = suppliers.find((s) => s.sup_id === v);
+                                setSupplierName(sup?.name || '');
+                            }}
+                        >
+                            <option value="">—</option>
+                            {suppliers.map((s) => (
+                                <option key={s.sup_id} value={s.sup_id}>{formatSupplierSelectLabel(s)}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className={styles.formField} style={{ gridColumn: '1 / -1' }}>
+                        <span>{t('importCost.estimateNotes')}</span>
+                        <input
+                            className={styles.input}
+                            value={estimateNotes}
+                            onChange={(e) => setEstimateNotes(e.target.value)}
+                            placeholder=""
+                        />
+                    </label>
+                </div>
+                <div className={styles.docHeaderActions}>
+                    <button type="button" className={styles.secondaryBtn} onClick={handleManualSave}>
+                        {t('importCost.manualSave')}
+                    </button>
+                    <button type="button" className={styles.primaryBtn} onClick={handleConvertToPurchase}>
+                        <FileOutput size={16} /> {t('importCost.convertToPo')}
+                    </button>
+                    <span className={styles.saveStatus}>{saveStatus}</span>
+                </div>
+            </div>
+
+            {!tariffIndex && !tariffLoadError && (
+                <div className={styles.mutedPanel}>{t('importCost.loadTariff')}</div>
+            )}
+            {tariffLoadError && (
+                <div className={styles.errorPanel} role="alert">{t('importCost.tariffError')} {tariffLoadError}</div>
+            )}
+
+            {restrictionWarn && (
+                <div className={styles.restrictionAlert} role="alert">
+                    <AlertTriangle size={22} />
+                    <span>{t('importCost.warnRestriction')}</span>
+                </div>
+            )}
+
+            <div className={styles.estimatorLayout}>
+                <div className={styles.estimatorStack}>
+                    <section className={styles.estimatorCard}>
+                        <h2 className={styles.docTitle}>{t('importCost.estimateDocTitle')}</h2>
+                        <p className={styles.allocateNote}>{t('importCost.allocateNote')}</p>
+
+                        <label className={styles.formField} style={{ maxWidth: '22rem' }}>
+                            <span>{t('importCost.splitMode')}</span>
+                            <select
+                                className={styles.select}
+                                value={sharedCostSplit}
+                                onChange={(e) => setSharedCostSplit(e.target.value)}
+                            >
+                                <option value="equal">{t('importCost.splitEqual')}</option>
+                                <option value="exwValue">{t('importCost.splitExw')}</option>
+                            </select>
+                        </label>
+
+                        <div className={styles.ratesPanel}>
+                            <div className={styles.rateCard}>
+                                <span className={styles.rateLabel}>{t('importCost.ratesTitle')}</span>
+                                <div className={styles.rateRow}>
+                                    {['USD', 'EUR', 'JPY', 'CNY'].map((c) => (
+                                        <span key={c} className={styles.rateChip}>
+                                            {c} <b>{num(rates?.[c], 0).toFixed(c === 'JPY' ? 4 : 2)}</b>
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 className={styles.sectionHeading}>{t('importCost.costStructureSection')}</h3>
+                        <div className={styles.formGrid}>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.currency')}</span>
+                                <select className={styles.select} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                                    {IMPORT_CURRENCIES.map((c) => (
+                                        <option key={c} value={c}>{c}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.fxBuffer')} (0.01=1%)</span>
+                                <input className={styles.input} type="number" min={0} step="0.001" value={exchangeBuffer} onChange={(e) => setExchangeBuffer(num(e.target.value, 0))} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.inlandDoc')}</span>
+                                <input className={styles.input} type="number" min={0} step={1} value={inlandDocTwd} onChange={(e) => setInlandDocTwd(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.intlFreight')}</span>
+                                <input className={styles.input} type="number" min={0} step={1} value={intlFreightTwd} onChange={(e) => setIntlFreightTwd(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.insFactor')}</span>
+                                <input className={styles.input} type="number" min={0} step="0.01" value={insuranceCifFactor} onChange={(e) => setInsuranceCifFactor(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.insRate')}</span>
+                                <input className={styles.input} type="number" min={0} step="0.0001" value={insuranceRate} onChange={(e) => setInsuranceRate(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.customsFee')}</span>
+                                <input className={styles.input} type="number" min={0} value={customsFeeTwd} onChange={(e) => setCustomsFeeTwd(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.doFee')}</span>
+                                <input className={styles.input} type="number" min={0} value={doFeeTwd} onChange={(e) => setDoFeeTwd(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.ediFee')}</span>
+                                <input className={styles.input} type="number" min={0} value={ediFeeTwd} onChange={(e) => setEdiFeeTwd(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.lclFee')}</span>
+                                <input className={styles.input} type="number" min={0} value={lclFeeTwd} onChange={(e) => setLclFeeTwd(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.terminalFee')}</span>
+                                <input className={styles.input} type="number" min={0} value={terminalFeeTwd} onChange={(e) => setTerminalFeeTwd(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.domesticDelivery')}</span>
+                                <input className={styles.input} type="number" min={0} value={domesticFreightTwd} onChange={(e) => setDomesticFreightTwd(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.vatRate')} (%)</span>
+                                <input className={styles.input} type="number" min={0} max={100} value={vatRatePct} onChange={(e) => setVatRatePct(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.miscBudgetPct')} (%)</span>
+                                <input className={styles.input} type="number" min={0} max={100} value={miscBudgetPct} onChange={(e) => setMiscBudgetPct(e.target.value)} />
+                            </label>
+                            <label className={styles.formField}>
+                                <span>{t('importCost.retailMargin')} (%)</span>
+                                <input className={styles.input} type="number" min={0} max={500} value={retailMarginPct} onChange={(e) => setRetailMarginPct(e.target.value)} />
+                            </label>
+                        </div>
+
+                        <button type="button" className={styles.calcBtn} onClick={handleCalc}>
+                            <Calculator size={18} /> {t('importCost.calc')}
+                        </button>
+                    </section>
+
+                    <section className={styles.estimatorCard}>
+                        <h3 className={styles.sectionHeading}>{t('importCost.lineItemsSection')}</h3>
+
+                        <div className={styles.lineToolbar}>
+                            <button
+                                type="button"
+                                className={styles.secondaryBtn}
+                                onClick={() => setIsPickerOpen(true)}
+                            >
+                                <Package size={16} /> {t('importCost.addPartsFromCenter')}
+                            </button>
+                            <button type="button" className={styles.secondaryBtn} onClick={addLine}>
+                                <Plus size={16} /> {t('importCost.addLine')}
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.secondaryBtn}
+                                onClick={() => setLinesCsvExportOpen(true)}
+                            >
+                                <Upload size={16} /> {t('importCost.linesCsv.export')}
+                            </button>
+                            <button type="button" className={styles.secondaryBtn} onClick={openLinesCsvImport}>
+                                <Download size={16} /> {t('importCost.linesCsv.import')}
+                            </button>
+                            <span className={styles.tariffTargetHint}>{t('importCost.tariffTarget')}</span>
+                        </div>
+                        <p className={styles.linesCsvPimHint}>{t('importCost.linesCsv.pimHint')}</p>
+                        {hasAnyLineConflict && (
+                            <div className={styles.linesCsvConflictBanner} role="status">
+                                {t('importCost.linesCsv.conflictHint')}
+                            </div>
+                        )}
+
+                        <div className={styles.lineTableWrap}>
+                            <table className={styles.lineItemsTable}>
+                                <thead>
+                                    <tr>
+                                        <th className={styles.thNarrow}>{t('pim.thIndex')}</th>
+                                        <th>零件號碼 (ID)</th>
+                                        <th>車型 / 年份</th>
+                                        <th>品名 / 規格</th>
+                                        <th>品牌</th>
+                                        <th>庫存狀態</th>
+                                        <th>{t('pim.thCost')}</th>
+                                        <th>售價</th>
+                                        <th>備註</th>
+                                        <th>實體照片</th>
+                                        <th className={styles.thActions} aria-label="actions" />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {lineItems.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={COL_MAIN} className="py-8 text-center text-sm text-muted">
+                                                {t('importCost.lineItemsEmptyHint')}
+                                            </td>
+                                        </tr>
+                                    ) : lineItems.map((line, lineIdx) => {
+                                        const p = line.p_id ? products.find((x) => x.p_id === line.p_id) : null;
+                                        const mainPN = p?.part_numbers?.[0] || {};
+                                        const rowActive = line.id === activeLineId ? styles.lineRowActive : '';
+                                        const lr = lineResultByIndex[lineIdx];
+                                        const lc = importLineConflicts[line.id] || {};
+                                        const cf = (field) => (lc[field] ? styles.lineInputConflict : '');
+                                        return (
+                                            <React.Fragment key={line.id}>
+                                                <tr
+                                                    className={`${styles.lineBlockRow} ${rowActive}`}
+                                                    onClick={() => setActiveLineId(line.id)}
+                                                >
+                                                    <td className={styles.tdIndex}>{lineIdx + 1}</td>
+                                                    <td className={lc.p_id ? styles.tdCellConflict : undefined}>
+                                                        {p ? (
+                                                            <>
+                                                                <div className="font-mono text-accent-hover font-bold">
+                                                                    {p.part_number || mainPN.part_number || '-'}
+                                                                </div>
+                                                                <div className="text-xs text-muted mt-1">{p.p_id}</div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="text-xs text-muted">— {t('importCost.pickEmptyHint')}</div>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        {p ? (
+                                                            <>
+                                                                <div className="font-semibold text-primary">{displayCarModel(p)}</div>
+                                                                <div className="text-xs text-muted mt-1">{displayCarYear(p)}</div>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-muted">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className={lc.productName ? styles.tdCellConflict : undefined}>
+                                                        <div className="font-bold text-primary">{p?.name || line.productName || line.note || '—'}</div>
+                                                        <div className="text-xs text-muted mt-1">{p?.specifications || '—'}</div>
+                                                    </td>
+                                                    <td>
+                                                        <span className="font-bold text-accent-primary">{p?.brand || mainPN.brand || '—'}</span>
+                                                    </td>
+                                                    <td>{renderStockCell(p)}</td>
+                                                    <td>
+                                                        <span className="font-mono font-semibold text-muted">
+                                                            {p ? `NT$ ${p.base_cost?.toLocaleString() ?? 0}` : '—'}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {p ? (
+                                                            <div className="text-[10px] text-muted leading-tight">
+                                                                A {p.price_a?.toLocaleString() ?? 0}<br />
+                                                                B {p.price_b?.toLocaleString() ?? 0}<br />
+                                                                C {p.price_c?.toLocaleString() ?? 0}
+                                                            </div>
+                                                        ) : '—'}
+                                                    </td>
+                                                    <td>
+                                                        <div className="max-w-[90px] truncate text-xs text-muted" title={p?.notes}>{p?.notes || '—'}</div>
+                                                    </td>
+                                                    <td>
+                                                        {p && (p?.images?.length || 0) > 0 ? (
+                                                            <div className="flex items-center gap-1">
+                                                                {(p.images[0] || '').match(/^(data:|blob:|https?:)/) ? (
+                                                                    <img src={p.images[0]} alt="" className={styles.pimThumb} />
+                                                                ) : null}
+                                                                <span className="text-xs text-accent-primary flex items-center gap-0.5">
+                                                                    <Layers size={10} /> {p.images.length}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[10px] text-muted">無照片</span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <button
+                                                            type="button"
+                                                            className={styles.iconDangerBtn}
+                                                            onClick={(e) => { e.stopPropagation(); removeLine(line.id); }}
+                                                            title={t('importCost.removeLine')}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                <tr
+                                                    className={`${styles.lineBlockRow2} ${rowActive} ${line.tariffMiss ? styles.lineTariffRowError : ''}`}
+                                                    onClick={() => setActiveLineId(line.id)}
+                                                >
+                                                    <td colSpan={COL_MAIN}>
+                                                        <div className={styles.importFieldsGrid}>
+                                                            <label className={styles.inlineField}>
+                                                                <span>{t('importCost.hsCode')}</span>
+                                                                <input
+                                                                    className={`${styles.lineInput} ${line.tariffMiss ? styles.lineInputTariffMiss : ''} ${cf('hsCode')}`}
+                                                                    value={line.hsCode}
+                                                                    data-import-line={line.id}
+                                                                    data-import-field="hs"
+                                                                    onChange={(e) => updateLine(line.id, {
+                                                                        hsCode: e.target.value.replace(/\s/g, ''),
+                                                                        tariffMiss: false,
+                                                                    })}
+                                                                    onBlur={(e) => bindTariffIfHs(line.id, e.target.value)}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onFocus={() => setActiveLineId(line.id)}
+                                                                    onKeyDown={(e) => handleImportFieldKeyDown(e, line.id, 'hs')}
+                                                                />
+                                                            </label>
+                                                            <label className={styles.inlineField}>
+                                                                <span>{t('importCost.qty')}</span>
+                                                                <input
+                                                                    className={`${styles.lineInputNum} ${cf('quantity')}`}
+                                                                    type="number"
+                                                                    min={1}
+                                                                    step={1}
+                                                                    value={line.quantity}
+                                                                    data-import-line={line.id}
+                                                                    data-import-field="qty"
+                                                                    onChange={(e) => updateLine(line.id, { quantity: e.target.value })}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onFocus={() => setActiveLineId(line.id)}
+                                                                    onKeyDown={(e) => handleImportFieldKeyDown(e, line.id, 'qty')}
+                                                                />
+                                                            </label>
+                                                            <label className={styles.inlineField}>
+                                                                <span>{t('importCost.exwPrice')}</span>
+                                                                <input
+                                                                    className={`${styles.lineInputNum} ${cf('exwForeign')}`}
+                                                                    type="number"
+                                                                    min={0}
+                                                                    step="any"
+                                                                    value={line.exwForeign}
+                                                                    data-import-line={line.id}
+                                                                    data-import-field="exw"
+                                                                    onChange={(e) => updateLine(line.id, { exwForeign: e.target.value })}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onFocus={() => setActiveLineId(line.id)}
+                                                                    onKeyDown={(e) => handleImportFieldKeyDown(e, line.id, 'exw')}
+                                                                />
+                                                            </label>
+                                                            <label className={styles.inlineField}>
+                                                                <span>{t('importCost.volM3')}</span>
+                                                                <input
+                                                                    className={`${styles.lineInputNum} ${cf('volPerUnit')}`}
+                                                                    type="number"
+                                                                    min={0}
+                                                                    step="any"
+                                                                    value={line.volPerUnit}
+                                                                    data-import-line={line.id}
+                                                                    data-import-field="vol"
+                                                                    onChange={(e) => updateLine(line.id, { volPerUnit: e.target.value })}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onFocus={() => setActiveLineId(line.id)}
+                                                                    onKeyDown={(e) => handleImportFieldKeyDown(e, line.id, 'vol')}
+                                                                />
+                                                            </label>
+                                                            <label className={styles.inlineField}>
+                                                                <span>{t('importCost.weightKg')}</span>
+                                                                <input
+                                                                    className={`${styles.lineInputNum} ${cf('weightPerUnit')}`}
+                                                                    type="number"
+                                                                    min={0}
+                                                                    step="any"
+                                                                    value={line.weightPerUnit}
+                                                                    data-import-line={line.id}
+                                                                    data-import-field="wt"
+                                                                    onChange={(e) => updateLine(line.id, { weightPerUnit: e.target.value })}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onFocus={() => setActiveLineId(line.id)}
+                                                                    onKeyDown={(e) => handleImportFieldKeyDown(e, line.id, 'wt')}
+                                                                />
+                                                            </label>
+                                                            <label className={styles.inlineField}>
+                                                                <span>{t('importCost.dutyShort')}</span>
+                                                                <input
+                                                                    className={`${styles.lineInputNum} ${cf('dutyRate')}`}
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={1}
+                                                                    step="0.001"
+                                                                    value={line.dutyRate}
+                                                                    data-import-line={line.id}
+                                                                    data-import-field="duty"
+                                                                    onChange={(e) => updateLine(line.id, { dutyRate: num(e.target.value) })}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onFocus={() => setActiveLineId(line.id)}
+                                                                    onKeyDown={(e) => handleImportFieldKeyDown(e, line.id, 'duty')}
+                                                                />
+                                                            </label>
+                                                            <label className={styles.inlineField}>
+                                                                <span>{t('importCost.exciseRate')}</span>
+                                                                <input
+                                                                    className={`${styles.lineInputNum} ${cf('exciseRate')}`}
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={1}
+                                                                    step="0.001"
+                                                                    value={line.exciseRate}
+                                                                    data-import-line={line.id}
+                                                                    data-import-field="excise"
+                                                                    onChange={(e) => updateLine(line.id, { exciseRate: num(e.target.value) })}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onFocus={() => setActiveLineId(line.id)}
+                                                                    onKeyDown={(e) => handleImportFieldKeyDown(e, line.id, 'excise')}
+                                                                />
+                                                            </label>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr
+                                                    className={`${styles.lineBlockRow3} ${rowActive}`}
+                                                    onClick={() => setActiveLineId(line.id)}
+                                                >
+                                                    <td colSpan={COL_MAIN}>
+                                                        {lr ? (
+                                                            <div className={styles.perLineInlineResult}>
+                                                                <span><strong>{t('importCost.perLineTitle')}</strong>：</span>
+                                                                <span>{t('importCost.unitAvg')} <b>{Math.round(lr.unitAverageCost).toLocaleString()}</b> TWD</span>
+                                                                <span className={styles.resultSep}>｜</span>
+                                                                <span>{t('importCost.retailFloor')} <b>{Math.round(lr.suggestedRetailFloor).toLocaleString()}</b> TWD</span>
+                                                                <span className={styles.resultSep}>｜</span>
+                                                                <span>本列落地小計 <b>{Math.round(lr.lineTotalLandedTwd).toLocaleString()}</b> TWD</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className={styles.perLinePlaceholder}>{t('importCost.perLineAfterCalc')}</div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </tbody>
+                                <tfoot>
+                                    <tr className={styles.totalsRow}>
+                                        <td colSpan={COL_MAIN}>
+                                            <strong>{t('importCost.totalVol')}</strong>
+                                            {' '}
+                                            {volWeightTotals.vol.toFixed(4)}
+                                            {' · '}
+                                            <strong>{t('importCost.totalWeight')}</strong>
+                                            {' '}
+                                            {volWeightTotals.wt.toFixed(2)}
+                                            {' kg'}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        {activeLine && (activeLine.hsCode || activeLine.nameZh) && (
+                            <div className={styles.selectedTariff}>
+                                <div className={styles.selectedTariffTitle}>
+                                    {t('importCost.selected')}（{activeLine.productName || activeLine.p_id || activeLine.hsCode || '—'}）
+                                </div>
+                                <div><strong>{activeLine.hsCode || '—'}</strong> — {activeLine.nameZh || '—'}</div>
+                                <div className={styles.tariffMetaGrid}>
+                                    <div>
+                                        <span className={styles.metaKey}>{t('importCost.dutyCol1')}</span>
+                                        <span className={styles.metaVal}>{activeLine.dutyRateText || `${(num(activeLine.dutyRate) * 100).toFixed(2)}%`}</span>
+                                    </div>
+                                    <div>
+                                        <span className={styles.metaKey}>{t('importCost.inputRule')}</span>
+                                        <span className={styles.metaVal}>{activeLine.inputRegulation || '—'}</span>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    className={styles.linkishBtn}
+                                    onClick={() => updateLine(activeLine.id, { exciseRate: activeLine.goodsTaxRateHint || 0 })}
+                                >
+                                    {t('importCost.applyHintExcise')}
+                                </button>
+                                <p className={styles.exciseHint}>{t('importCost.exciseNote')}</p>
+                            </div>
+                        )}
+
+                        <div className={styles.fieldRow}>
+                            <label className={styles.fieldLabel}>{t('importCost.hsCode')}</label>
+                            <input
+                                className={styles.input}
+                                value={hsInput}
+                                onChange={(e) => setHsInput(e.target.value)}
+                                placeholder="87089920909"
+                            />
+                            <button type="button" className={styles.primaryBtn} onClick={handleHsLookup} disabled={!tariffIndex}>
+                                <Search size={16} /> {t('importCost.hsLookup')}
+                            </button>
+                        </div>
+                        <div className={styles.fieldRow}>
+                            <label className={styles.fieldLabel}>{t('importCost.keyword')}</label>
+                            <input
+                                className={styles.input}
+                                value={keywordInput}
+                                onChange={(e) => setKeywordInput(e.target.value)}
+                                placeholder={t('importCost.keywordHint')}
+                            />
+                            <button type="button" className={styles.secondaryBtn} onClick={handleKeywordSearch} disabled={!tariffIndex}>
+                                {t('importCost.keywordSearch')}
+                            </button>
+                        </div>
+
+                        {searchHits.length > 0 && (
+                            <div className={styles.hitList}>
+                                <div className={styles.hitListHeader}>{t('importCost.results')} ({searchHits.length})</div>
+                                <div className={styles.hitScroll}>
+                                    {searchHits.map((row) => (
+                                        <div key={row.hsCode} className={styles.hitRow}>
+                                            <div className={styles.hitMeta}>
+                                                <span className={styles.hitHs}>{row.hsCode}</span>
+                                                <span className={styles.hitName}>{row.nameZh}</span>
+                                                <span className={styles.hitSub}>{row.dutyRateText}</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className={styles.pickBtn}
+                                                onClick={() => activeLine && applyTariffToLine(activeLine.id, row)}
+                                                disabled={!activeLine}
+                                            >
+                                                {t('importCost.pickRow')}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </section>
+                </div>
+
+                <section className={styles.estimatorCard}>
+                    <h2 className={styles.estimatorCardTitle}>{t('importCost.breakdown')}</h2>
+                    {!breakdown && (
+                        <p className={styles.mutedPanel}>{t('importCost.calc')}</p>
+                    )}
+                    {breakdown && breakdown.lineResults.length > 0 && (
+                        <>
+                            <div className={styles.volWtRecap}>
+                                <span>{t('importCost.totalVol')} <b>{volWeightTotals.vol.toFixed(4)}</b></span>
+                                <span>{t('importCost.totalWeight')} <b>{volWeightTotals.wt.toFixed(2)} kg</b></span>
+                            </div>
+                            <div className={styles.summaryCards}>
+                                <div className={styles.summaryCard}>
+                                    <span className={styles.summaryLabel}>{t('importCost.batchTotal')}</span>
+                                    <span className={styles.summaryValue}>{Math.round(breakdown.grandTotalLandedTwd).toLocaleString()} TWD</span>
+                                </div>
+                                <div className={styles.summaryCard}>
+                                    <span className={styles.summaryLabel}>{t('importCost.weightedUnitAvg')}</span>
+                                    <span className={styles.summaryValueAccent}>
+                                        {Math.round(breakdown.weightedUnitCost).toLocaleString()} TWD
+                                    </span>
+                                </div>
+                            </div>
+
+                            <table className={styles.breakdownTable}>
+                                <thead>
+                                    <tr>
+                                        <th>{t('importCost.breakdown')}（{t('importCost.batchTotal')}）</th>
+                                        <th className={styles.numCol}>TWD</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {breakdown.aggregateLines.map((line) => (
+                                        <tr key={line.key} className={line.key === 'total' ? styles.breakdownTotal : ''}>
+                                            <td>{line.label}</td>
+                                            <td className={styles.numCol}>{Math.round(line.amount).toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </>
+                    )}
+                    {breakdown && breakdown.lineResults.length === 0 && (
+                        <p className={styles.mutedPanel}>{t('importCost.emptyResults')}</p>
+                    )}
+                </section>
+            </div>
+
+            <ProductPickerModal
+                open={isPickerOpen}
+                onClose={() => setIsPickerOpen(false)}
+                onConfirm={addProductLines}
+                priceMode="purchase"
+            />
         </div>
     );
 };

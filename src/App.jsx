@@ -1,15 +1,17 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
 import { useDocumentStore } from './store/useDocumentStore';
 import { useProductStore } from './store/useProductStore';
 import { useSupplierStore } from './store/useSupplierStore';
 import { useCustomerStore } from './store/useCustomerStore';
 import { useEmployeeStore } from './store/useEmployeeStore';
+import { useImportEstimateStore } from './store/useImportEstimateStore';
 import { useSettlementStore } from './store/useSettlementStore';
 import { useAppStore } from './store/useAppStore';
 import ProductList from './pages/PIM/ProductList';
 import SourcingList from './pages/Sourcing/SourcingList';
+import ImportEstimateHub from './pages/Sourcing/ImportEstimateHub';
 import ContactManager from './pages/Contacts/ContactManager';
 import DocumentHub from './pages/Documents/DocumentHub';
 import DocumentEditorPage from './pages/Documents/DocumentEditorPage';
@@ -36,6 +38,7 @@ function App() {
       if (e.key === 'erp-customer-store') useCustomerStore.persist.rehydrate();
       if (e.key === 'erp-employee-store') useEmployeeStore.persist.rehydrate();
       if (e.key === 'erp-app-store') useAppStore.persist.rehydrate();
+      if (e.key === 'erp-import-estimates') useImportEstimateStore.persist.rehydrate();
       if (e.key === 'erp-settlement-store') useSettlementStore.persist.rehydrate();
     };
 
@@ -80,7 +83,12 @@ function App() {
         >
           <Route index element={<Navigate to="/pim" replace />} />
           <Route path="pim" element={<ProductList />} />
-          <Route path="sourcing" element={<SourcingList />} />
+          <Route path="sourcing" element={<Outlet />}>
+            <Route index element={<ImportEstimateHub />} />
+            <Route path="estimate" element={<SourcingList />} />
+          </Route>
+          <Route path="import-cost" element={<Navigate to="/sourcing" replace />} />
+          <Route path="import-cost/estimate" element={<Navigate to="/sourcing/estimate" replace />} />
           <Route path="suppliers" element={<ContactManager />} />
           <Route path="customers" element={<ContactManager />} />
           <Route path="employees" element={<ContactManager />} />

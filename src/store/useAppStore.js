@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export const DEFAULT_NAV_ORDER = ['/documents', '/pim', '/suppliers', '/shorthand-config', '/sourcing', '/reports', '/inventory-count', '/settlement', '/settings'];
+export const DEFAULT_NAV_ORDER = ['/documents', '/pim', '/suppliers', '/sourcing', '/shorthand-config', '/reports', '/inventory-count', '/settlement', '/settings'];
 
 /** 系統設定「顯示模式」字卡預設順序（可拖曳自訂，見 displayModeCardOrder） */
 export const DEFAULT_DISPLAY_MODE_CARD_ORDER = ['nightclub', 'light', 'warm', 'system'];
