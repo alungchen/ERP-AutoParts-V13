@@ -1100,7 +1100,7 @@ const ProductList = () => {
                     </div>
 
                     <div className={styles.searchField} data-search-field data-search-field-index="1" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '110px', flex: 1 }}>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>車型 (Model)</label>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>車種</label>
                         <AutocompleteInput
                             value={query.model}
                             onChange={(val) => setQuery({ ...query, model: val })}
@@ -1114,7 +1114,7 @@ const ProductList = () => {
                     </div>
 
                     <div className={styles.searchField} data-search-field data-search-field-index="2" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '110px', flex: 1 }}>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>零件名稱 (Part)</label>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>品名</label>
                         <AutocompleteInput
                             value={query.part}
                             onChange={(val) => setQuery({ ...query, part: val })}

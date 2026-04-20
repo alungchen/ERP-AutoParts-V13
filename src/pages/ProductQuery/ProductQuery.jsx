@@ -203,7 +203,7 @@ const ProductQuery = () => {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '110px', flex: 1 }}>
                         <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                            車型 (Model)
+                            車種
                         </label>
                         <AutocompleteInput
                             value={query.model}
@@ -220,7 +220,7 @@ const ProductQuery = () => {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '110px', flex: 1 }}>
                         <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                            零件名稱 (Part)
+                            品名
                         </label>
                         <AutocompleteInput
                             value={query.part}

@@ -34,11 +34,38 @@ const ProductDrawer = () => {
     const partNumberInputRef = useRef(null);
     const drawerRef = useRef(null);
 
-    const handleImageUpload = (e) => {
+    const handleImageUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
-        const newImages = files.map(f => URL.createObjectURL(f));
-        setFormData({ ...formData, images: [...(formData.images || []), ...newImages] });
+
+        alert(`準備上傳 ${files.length} 張照片到雲端...`);
+        const newUploadedUrls = [];
+        for (const file of files) {
+            try {
+                const fd = new FormData();
+                fd.append('file', file);
+                const res = await fetch('/api/images', {
+                    method: 'POST',
+                    body: fd
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    // 將 R2 API 網址存入資料庫
+                    newUploadedUrls.push(`/api/images?path=${data.fileName}`);
+                } else {
+                    console.error('Failed to upload image', file.name);
+                }
+            } catch (err) {
+                console.error('Upload Error:', err);
+            }
+        }
+
+        if (newUploadedUrls.length > 0) {
+            setFormData(prev => ({ 
+                ...prev, 
+                images: [...(prev.images || []), ...newUploadedUrls] 
+            }));
+        }
     };
 
     const handleAddUrlImage = () => {
@@ -341,7 +368,7 @@ const ProductDrawer = () => {
                     {/* Row 2: 車型, 零件資料 */}
                     <div className="flex gap-3 flex-wrap mb-4">
                         <div className={styles.inputGroup} style={{ flex: 1, minWidth: '150px' }}>
-                            <label className={styles.label}>車型 (Model)</label>
+                            <label className={styles.label}>車種</label>
                             <AutocompleteInput
                                 value={formData.car_model || ''}
                                 onChange={(val) => setFormData({ ...formData, car_model: val })}
@@ -355,7 +382,7 @@ const ProductDrawer = () => {
                             />
                         </div>
                         <div className={styles.inputGroup} style={{ flex: 1, minWidth: '150px' }}>
-                            <label className={styles.label}>零件 (Part)</label>
+                            <label className={styles.label}>品名</label>
                             <AutocompleteInput
                                 value={formData.name || ''}
                                 onChange={(val) => setFormData({ ...formData, name: val })}
@@ -481,6 +508,7 @@ const ProductDrawer = () => {
                                     <div style={{ flex: 2, minWidth: '80px' }}>車種</div>
                                     <div style={{ flex: 1, minWidth: '60px' }}>年份</div>
                                     <div style={{ flex: 1, minWidth: '60px' }}>品牌</div>
+                                    <div style={{ flex: 2, minWidth: '80px' }}>品名規格</div>
                                     <div style={{ flex: 3, minWidth: '100px' }}>備註</div>
                                     {isEditing && <div style={{ width: '20px', flexShrink: 0 }} />}
                                 </div>
@@ -567,6 +595,19 @@ const ProductDrawer = () => {
                                             disabled={!isEditing}
                                         />
                                     </div>
+                                    <div style={{ flex: 2, minWidth: '80px' }}>
+                                        <input
+                                            disabled={!isEditing}
+                                            className={`${styles.input} w-full`}
+                                            placeholder="品名規格"
+                                            value={pn.name_spec || ''}
+                                            onChange={(e) => {
+                                                const newParts = [...(formData.part_numbers || [])];
+                                                newParts[i].name_spec = e.target.value;
+                                                setFormData({ ...formData, part_numbers: newParts });
+                                            }}
+                                        />
+                                    </div>
                                     <div style={{ flex: 3, minWidth: '100px' }}>
                                         <input
                                             disabled={!isEditing}
@@ -631,7 +672,7 @@ const ProductDrawer = () => {
                         <div className="flex gap-2 flex-wrap mt-2">
                             {(p.images || []).map((img, idx) => (
                                 <div key={idx} style={{ width: '80px', height: '80px', flexShrink: 0, position: 'relative', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); setEnlargedImageIndex(idx); }}>
-                                    {img.startsWith('blob:') || img.startsWith('http') || img.startsWith('data:') ? (
+                                    {img.startsWith('blob:') || img.startsWith('http') || img.startsWith('data:') || img.startsWith('/api') ? (
                                         <img src={img} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
                                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-tertiary)', fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', padding: '4px', wordBreak: 'break-all' }}>

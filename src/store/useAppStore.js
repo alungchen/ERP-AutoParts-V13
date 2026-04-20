@@ -52,14 +52,16 @@ export const useAppStore = create(persist((set) => ({
     enablePermissionRole: true,
     setEnablePermissionRole: (enabled) => set({ enablePermissionRole: enabled }),
 
-    enableLoginSystem: false,
+    enableLoginSystem: true,
     setEnableLoginSystem: (enabled) => set((state) => ({
         enableLoginSystem: enabled,
-        currentUserEmpId: enabled ? state.currentUserEmpId : ''
+        currentUserEmpId: enabled ? state.currentUserEmpId : '',
+        currentUserPhotoURL: enabled ? state.currentUserPhotoURL : ''
     })),
     currentUserEmpId: '',
-    loginAsEmployee: (empId) => set({ currentUserEmpId: empId }),
-    logout: () => set({ currentUserEmpId: '' }),
+    currentUserPhotoURL: '',
+    loginAsEmployee: (empId, photoURL = '') => set({ currentUserEmpId: empId, currentUserPhotoURL: photoURL }),
+    logout: () => set({ currentUserEmpId: '', currentUserPhotoURL: '' }),
 
     // Navigation behavior mode
     operationMode: 'current', // 'current' | 'tabbed'

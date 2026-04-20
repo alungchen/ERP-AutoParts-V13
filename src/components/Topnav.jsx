@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Bell, HelpCircle, Globe, Database, LogOut } from 'lucide-react';
+import { auth, signOut } from '../firebase';
 import { useProductStore } from '../store/useProductStore';
 import { useTranslation } from '../i18n';
 import { useEmployeeStore } from '../store/useEmployeeStore';
@@ -10,7 +11,7 @@ import styles from './Topnav.module.css';
 const Topnav = () => {
     const { searchQuery, setSearchQuery } = useProductStore();
     const { t, language, setLanguage } = useTranslation();
-    const { enableLoginSystem, currentUserEmpId, logout } = useAppStore();
+    const { enableLoginSystem, currentUserEmpId, currentUserPhotoURL, logout } = useAppStore();
     const { employees } = useEmployeeStore();
     const [showBackupModal, setShowBackupModal] = useState(false);
     const currentUser = employees.find((e) => e.emp_id === currentUserEmpId);
@@ -44,11 +45,22 @@ const Topnav = () => {
                     <Bell size={20} />
                 </button>
                 {enableLoginSystem && (
-                    <button className={styles.iconBtn} aria-label="Logout" title="登出" onClick={logout}>
+                    <button className={styles.iconBtn} aria-label="Logout" title="登出" onClick={async () => {
+                        try {
+                            await signOut(auth);
+                        } catch(err) {
+                            console.error(err);
+                        }
+                        logout();
+                    }}>
                         <LogOut size={18} />
                     </button>
                 )}
-                <div className={styles.avatar} aria-label="User Avatar">{avatarText}</div>
+                {currentUserPhotoURL ? (
+                    <img src={currentUserPhotoURL} alt="Avatar" className={styles.avatar} style={{ padding: 0, objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                ) : (
+                    <div className={styles.avatar} aria-label="User Avatar">{avatarText}</div>
+                )}
             </div>
 
             {showBackupModal && <DataBackupModal onClose={() => setShowBackupModal(false)} />}

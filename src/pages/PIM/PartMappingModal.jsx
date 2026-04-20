@@ -92,8 +92,8 @@ const PartMappingModal = ({ product, onClose }) => {
                                     <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thAppNumber')}</th>
                                     <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thVehicle')}</th>
                                     <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thYear')}</th>
-                                    <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thProdSpec')}</th>
                                     <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thBrand')}</th>
+                                    <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thProdSpec')}</th>
                                     <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thNotes')}</th>
                                 </tr>
                             </thead>
@@ -123,8 +123,8 @@ const PartMappingModal = ({ product, onClose }) => {
                                             return typeof c === 'string' ? c : (c?.model || '-');
                                         })()}</td>
                                         <td style={{ padding: '0.75rem' }}>{pn.year || '-'}</td>
-                                        <td style={{ padding: '0.75rem' }}>{product.specifications || '-'}</td>
                                         <td style={{ padding: '0.75rem' }}>{pn.brand || '-'}</td>
+                                        <td style={{ padding: '0.75rem' }}>{pn.name_spec || '-'}</td>
                                         <td style={{ padding: '0.75rem' }}>{pn.note || '-'}</td>
                                     </tr>
                                 ))}

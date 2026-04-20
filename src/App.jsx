@@ -28,12 +28,18 @@ function App() {
   usePriceInputSelectOnFocus(); // 聚焦單價/售價/定價等數字欄位時全選
   // useGlobalEnterNavigation(); // 暫時停用以排查白屏問題
   const { enableLoginSystem, currentUserEmpId, displayMode } = useAppStore();
+  const fetchProducts = useProductStore(state => state.fetchProducts);
+
+  // Fetch initial data from Cloudflare database
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
   // Logic to sync Zustand stores across tabs
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (!e.key) return;
       if (e.key === 'erp-document-store') useDocumentStore.persist.rehydrate();
-      if (e.key === 'erp-product-store') useProductStore.persist.rehydrate();
       if (e.key === 'erp-supplier-store') useSupplierStore.persist.rehydrate();
       if (e.key === 'erp-customer-store') useCustomerStore.persist.rehydrate();
       if (e.key === 'erp-employee-store') useEmployeeStore.persist.rehydrate();
@@ -68,15 +74,13 @@ function App() {
         <Route
           path="/login"
           element={
-            enableLoginSystem
-              ? (!currentUserEmpId ? <LoginPage /> : <Navigate to="/" replace />)
-              : <Navigate to="/" replace />
+            !currentUserEmpId ? <LoginPage /> : <Navigate to="/" replace />
           }
         />
         <Route
           path="/"
           element={
-            enableLoginSystem && !currentUserEmpId
+            !currentUserEmpId
               ? <Navigate to="/login" replace />
               : <AppLayout />
           }

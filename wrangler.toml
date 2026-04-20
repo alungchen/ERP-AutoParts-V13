@@ -1,0 +1,13 @@
+name = "erp-autoparts"
+pages_build_output_dir = "dist"
+
+# 綁定 D1 資料庫
+[[d1_databases]]
+binding = "DB"
+database_name = "erp-db"
+database_id = "87c01130-8b24-4574-b1cb-84a45c9c5d84"
+
+# 綁定 R2 儲存桶
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "erp-images"
