@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Mail, Lock, User, LogIn } from 'lucide-react';
-import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from '../../firebase';
+import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from '../../firebase';
 import { useAppStore } from '../../store/useAppStore';
 
 const LoginPage = () => {
@@ -47,6 +47,7 @@ const LoginPage = () => {
             } else {
                 result = await createUserWithEmailAndPassword(auth, email, password);
             }
+            
             loginAsEmployee(result.user.email, result.user.photoURL);
             navigate('/', { replace: true });
         } catch (error) {
@@ -61,6 +62,24 @@ const LoginPage = () => {
             } else {
                 setErrorMsg('登入失敗：' + error.message);
             }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleForgotPassword = async () => {
+        if (!email) {
+            setErrorMsg('請先輸入您的電子信箱，再點擊忘記密碼。');
+            return;
+        }
+        try {
+            setErrorMsg('');
+            setLoading(true);
+            await sendPasswordResetEmail(auth, email);
+            alert('重設密碼信件已發送至您的信箱，請查看。');
+        } catch (error) {
+            console.error(error);
+            setErrorMsg('發送失敗：' + error.message);
         } finally {
             setLoading(false);
         }
@@ -129,7 +148,18 @@ const LoginPage = () => {
                         </div>
                     </div>
                     <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontWeight: 600 }}>密碼</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                            <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>密碼</label>
+                            {mode === 'login' && (
+                                <button 
+                                    type="button" 
+                                    onClick={handleForgotPassword}
+                                    style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
+                                >
+                                    忘記密碼？
+                                </button>
+                            )}
+                        </div>
                         <div style={{ position: 'relative' }}>
                             <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                             <input

@@ -381,23 +381,47 @@ const DocumentEditorPage = () => {
             /* ignore */
         }
 
-        // Browsers may block window.close() for tabs not opened by script.
-        // Fallback to route navigation so user is never stuck.
+        // 修復 COOP (Cross-Origin-Opener-Policy) 導致 window.closed/opener.closed 被阻擋的問題
+        // 改用安全性較高且不依賴跨視窗屬性的檢測方法
         try {
-            if (window.opener && !window.opener.closed) {
+            // 只要 opener 存在 (即使不可存取其屬性)，通常代表它是被 window.open 開啟的分頁
+            let isPopup = false;
+            try {
+                isPopup = !!(window.opener && window.opener !== window);
+            } catch (e) {
+                // 如果存取 opener 報錯，通常是因為 COOP 隔離，代表它必定是一個彈出視窗
+                isPopup = true;
+            }
+
+            if (isPopup) {
                 window.close();
+                // 如果 close() 成功，頁面會關閉；如果失敗 (如非腳本開啟)，則超時後執行 fallback 重導向
                 setTimeout(() => {
-                    if (!window.closed) window.location.href = fallbackUrl;
-                }, 80);
+                    let isStillOpen = true;
+                    try {
+                        // 在某些極端 COOP 設定下，self.closed 也可能受限，故加 try-catch
+                        isStillOpen = !window.closed;
+                    } catch (e) {
+                        isStillOpen = true; 
+                    }
+                    
+                    if (isStillOpen) {
+                        window.location.href = fallbackUrl;
+                    }
+                }, 150);
                 return;
             }
-            // 由列表開啟編輯器時已記錄回傳 URL，勿用 history.back() 以免回到錯誤分頁或看不到新單據
-            if (!returnFromHub && window.history.length > 1) {
-                window.history.back();
-                return;
-            }
-            window.location.href = fallbackUrl;
-        } catch {
+        } catch (e) {
+            // 發生任何權限錯誤時，嘗試關閉並 fallback
+            window.close();
+            setTimeout(() => { window.location.href = fallbackUrl; }, 150);
+            return;
+        }
+
+        // 若判定為非彈出分頁或關閉無效，則嘗試回到上一頁或列表
+        if (!returnFromHub && window.history.length > 1) {
+            window.history.back();
+        } else {
             window.location.href = fallbackUrl;
         }
     };
