@@ -19,12 +19,7 @@ const LoginPage = () => {
             setErrorMsg('');
             setLoading(true);
             const result = await signInWithPopup(auth, googleProvider);
-            if (result.user.email !== 'alung.chen@gmail.com') {
-                setErrorMsg('拒絕存取：只有系統管理員 alung.chen@gmail.com 擁有登入權限。');
-                // 為了安全，也可以在此呼叫 auth.signOut(), 但我們只擋住進入系統
-                return;
-            }
-            // 這裡使用 Firebase 拿到的電子信箱作為員工 ID，並帶入 Google 大頭貼
+            // 只要登入成功就允許進入系統
             loginAsEmployee(result.user.email, result.user.photoURL);
             navigate('/', { replace: true });
         } catch (error) {
@@ -52,11 +47,6 @@ const LoginPage = () => {
             } else {
                 result = await createUserWithEmailAndPassword(auth, email, password);
             }
-            if (result.user.email !== 'alung.chen@gmail.com') {
-                setErrorMsg('拒絕存取：只有系統管理員 alung.chen@gmail.com 擁有登入權限。');
-                return;
-            }
-            
             loginAsEmployee(result.user.email, result.user.photoURL);
             navigate('/', { replace: true });
         } catch (error) {
