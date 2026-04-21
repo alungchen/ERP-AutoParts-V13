@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { erpPersistStorage } from '../lib/erpPersistStorage';
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -482,4 +483,4 @@ export const useDocumentStore = create(persist((set, get) => ({
         // 轉詢價後仍保留於缺貨簿，直至庫存 > 安全庫存（由 syncShortageBook 依產品庫存更新）
         return createdDocs;
     }
-}), { name: 'erp-document-store' }));
+}), { name: 'erp-document-store', storage: erpPersistStorage }));

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { erpPersistStorage } from '../lib/erpPersistStorage';
 
 // Live mock exchange rates relative to TWD base
 const initialRates = {
@@ -96,4 +97,4 @@ export const useSourcingStore = create(persist((set) => ({
         console.log(`PO Generated for Quote: ${quoteId}`);
         // In a real app we'd trigger a PO creation workflow
     }
-}), { name: 'erp-sourcing-store' }));
+}), { name: 'erp-sourcing-store', storage: erpPersistStorage }));

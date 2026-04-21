@@ -11,6 +11,15 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.local
+.env.*.local
+
+# Wrangler / D1 本機狀態與備份
+.wrangler
+d1-mirror-erp.sql
+local-backup.sql
+.dev.vars
 
 # Editor directories and files
 .vscode/*

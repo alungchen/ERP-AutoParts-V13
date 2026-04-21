@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { erpPersistStorage } from '../lib/erpPersistStorage';
 
 export const DEFAULT_NAV_ORDER = ['/documents', '/pim', '/suppliers', '/sourcing', '/shorthand-config', '/reports', '/inventory-count', '/settlement', '/settings'];
 
@@ -93,6 +94,7 @@ export const useAppStore = create(persist((set) => ({
     }),
 }), {
     name: 'erp-app-store',
+    storage: erpPersistStorage,
     merge: (persisted, current) => {
         const p = { ...(persisted && typeof persisted === 'object' ? persisted : {}) };
         delete p.priceFieldShortcutCustomer;

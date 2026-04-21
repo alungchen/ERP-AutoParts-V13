@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { erpPersistStorage } from '../lib/erpPersistStorage';
 
 const initialModels = [
     { id: 1, shorthand: 'toal', fullname: 'TOYOTA Altis', brand: 'TOYOTA' },
@@ -36,4 +37,4 @@ export const useShorthandStore = create(persist((set) => ({
     addBrand: (brand) => set((state) => ({ brands: [...state.brands, { ...brand, id: Date.now() }] })),
     updateBrand: (brand) => set((state) => ({ brands: state.brands.map(b => b.id === brand.id ? brand : b) })),
     deleteBrand: (id) => set((state) => ({ brands: state.brands.filter(b => b.id !== id) })),
-}), { name: 'erp-shorthand-store' }));
+}), { name: 'erp-shorthand-store', storage: erpPersistStorage }));

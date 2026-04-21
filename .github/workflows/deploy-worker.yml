@@ -1,0 +1,29 @@
+# 推送 main 時自動部署 Worker（API + D1 綁定）
+# GitHub Repo → Settings → Secrets → Actions → CLOUDFLARE_API_TOKEN
+
+name: Deploy Worker to Cloudflare
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy Worker
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { erpPersistStorage } from '../lib/erpPersistStorage';
 import { toMinorFromTwd } from '../domain/settlement/money';
 import {
     applyPaymentTransaction,
@@ -299,6 +300,7 @@ export const useSettlementStore = create(
         }),
         {
             name: 'erp-settlement-store',
+            storage: erpPersistStorage,
             merge: (persisted, current) => {
                 const p = persisted && typeof persisted === 'object' ? { ...persisted } : {};
                 if (!Array.isArray(p.closedMonthsAr)) p.closedMonthsAr = [];

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { erpPersistStorage } from '../lib/erpPersistStorage';
 
 const initialSuppliers = [
     {
@@ -100,4 +101,4 @@ export const useSupplierStore = create(persist((set) => ({
         });
         return { suppliers: updatedList };
     })
-}), { name: 'erp-supplier-store' }));
+}), { name: 'erp-supplier-store', storage: erpPersistStorage }));

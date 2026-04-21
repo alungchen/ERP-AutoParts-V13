@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { erpPersistStorage } from '../lib/erpPersistStorage';
 
 export const createDefaultEstimateLine = () => ({
     id:
@@ -100,6 +101,6 @@ export const useImportEstimateStore = create(
                     importEstimates: s.importEstimates.filter((e) => e.estimate_id !== estimateId),
                 })),
         }),
-        { name: 'erp-import-estimates' },
+        { name: 'erp-import-estimates', storage: erpPersistStorage },
     ),
 );

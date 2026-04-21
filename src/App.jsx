@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { bootstrapFromD1 } from './lib/d1Bootstrap';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
 import { useDocumentStore } from './store/useDocumentStore';
@@ -9,6 +10,8 @@ import { useEmployeeStore } from './store/useEmployeeStore';
 import { useImportEstimateStore } from './store/useImportEstimateStore';
 import { useSettlementStore } from './store/useSettlementStore';
 import { useAppStore } from './store/useAppStore';
+import { useSourcingStore } from './store/useSourcingStore';
+import { useShorthandStore } from './store/useShorthandStore';
 import ProductList from './pages/PIM/ProductList';
 import SourcingList from './pages/Sourcing/SourcingList';
 import ImportEstimateHub from './pages/Sourcing/ImportEstimateHub';
@@ -30,6 +33,10 @@ function App() {
   const { enableLoginSystem, currentUserEmpId, displayMode } = useAppStore();
   const fetchProducts = useProductStore(state => state.fetchProducts);
 
+  useEffect(() => {
+    void bootstrapFromD1();
+  }, []);
+
   // Fetch initial data from Cloudflare database
   useEffect(() => {
     fetchProducts();
@@ -46,6 +53,8 @@ function App() {
       if (e.key === 'erp-app-store') useAppStore.persist.rehydrate();
       if (e.key === 'erp-import-estimates') useImportEstimateStore.persist.rehydrate();
       if (e.key === 'erp-settlement-store') useSettlementStore.persist.rehydrate();
+      if (e.key === 'erp-sourcing-store') useSourcingStore.persist.rehydrate();
+      if (e.key === 'erp-shorthand-store') useShorthandStore.persist.rehydrate();
     };
 
     window.addEventListener('storage', handleStorageChange);
