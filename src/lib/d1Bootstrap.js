@@ -26,6 +26,34 @@ function rehydrateAllStores() {
 let bootstrapRan = false;
 
 /**
+ * 手動「從雲端下載」：以 D1 快照覆寫本機 localStorage 中對應的 store，並 rehydrate。
+ * 僅更新遠端有提供的 key；雲端完全無資料時回傳 empty。
+ */
+export async function pullStoresFromD1() {
+    const res = await fetch(apiUrl('/api/stores'));
+    if (!res.ok) {
+        throw new Error(`無法讀取雲端：HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    const incoming = data?.stores && typeof data.stores === 'object' ? data.stores : data;
+    const keys = Object.keys(incoming || {}).filter((k) => STORE_KEYS.includes(k));
+
+    if (keys.length === 0) {
+        return { empty: true, updatedKeys: 0 };
+    }
+
+    let updatedKeys = 0;
+    for (const k of STORE_KEYS) {
+        if (incoming[k] !== undefined) {
+            localStorage.setItem(k, JSON.stringify(incoming[k]));
+            updatedKeys += 1;
+        }
+    }
+    rehydrateAllStores();
+    return { empty: false, updatedKeys };
+}
+
+/**
  * 啟動時：若 D1 有快照則覆寫 localStorage 並 rehydrate；
  * 若 D1 為空但本機有資料，則上傳到 D1。
  * 產品列表仍由 fetchProducts() 從 /api/products 載入。

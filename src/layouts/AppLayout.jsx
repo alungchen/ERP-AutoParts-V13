@@ -12,6 +12,8 @@ const AppLayout = () => {
     const { t } = useTranslation();
     const { operationMode, navOrder, setNavOrder } = useAppStore();
     const isStandalonePage = new URLSearchParams(location.search).get('standalone') === '1';
+    /** 新分頁模式主視窗預設只顯示啟動器；若直接開 /settings 等網址仍應顯示該頁（否則 Outlet 不渲染，看不到內容） */
+    const tabbedRoutesNeedOutlet = ['/settings', '/shorthand-config'].includes(location.pathname);
     const [draggingCardIndex, setDraggingCardIndex] = useState(null);
     const routeTitleMap = useMemo(() => ({
         '/pim': t('sidebar.pim'),
@@ -41,7 +43,7 @@ const AppLayout = () => {
             purchaseReturn: '進貨退回',
             shortageBook: '缺貨簿',
         };
-        if (operationMode === 'tabbed' && !isStandalonePage) {
+        if (operationMode === 'tabbed' && !isStandalonePage && !tabbedRoutesNeedOutlet) {
             document.title = '新分頁模式';
             return;
         }
@@ -56,9 +58,9 @@ const AppLayout = () => {
         if (matchedTitle) {
             document.title = matchedTitle;
         }
-    }, [location.pathname, routeTitleMap, operationMode, isStandalonePage]);
+    }, [location.pathname, routeTitleMap, operationMode, isStandalonePage, tabbedRoutesNeedOutlet]);
 
-    if (operationMode === 'tabbed' && !isStandalonePage) {
+    if (operationMode === 'tabbed' && !isStandalonePage && !tabbedRoutesNeedOutlet) {
         const quickLinkMap = [
             { path: '/pim', label: t('sidebar.pim'), icon: Layers },
             { path: '/sourcing', label: t('sidebar.sourcing'), icon: Globe },

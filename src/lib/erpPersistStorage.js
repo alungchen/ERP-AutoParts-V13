@@ -28,12 +28,17 @@ export async function pushAllStoresToD1() {
             }
         }
     }
-    if (Object.keys(body).length === 0) return;
-    await fetch(apiUrl('/api/stores'), {
+    if (Object.keys(body).length === 0) return { ok: true, saved: 0, skipped: true };
+    const res = await fetch(apiUrl('/api/stores'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `HTTP ${res.status}`);
+    }
+    return res.json().catch(() => ({ ok: true }));
 }
 
 function scheduleSyncPush() {

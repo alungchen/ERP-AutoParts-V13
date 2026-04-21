@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_DISPLAY_MODE_CARD_ORDER, useAppStore } from '../../store/useAppStore';
 import { useTranslation } from '../../i18n';
-import { Settings, Globe, CircleDollarSign, Database, LayoutPanelTop, ShieldCheck, LockKeyhole, Palette } from 'lucide-react';
+import { pullStoresFromD1 } from '../../lib/d1Bootstrap';
+import { pushAllStoresToD1 } from '../../lib/erpPersistStorage';
+import { apiUrl } from '../../lib/apiUrl';
+import { Settings, Globe, CircleDollarSign, Database, LayoutPanelTop, ShieldCheck, LockKeyhole, Palette, CloudDownload, CloudUpload } from 'lucide-react';
 
 const DISPLAY_MODE_CARDS = {
     nightclub: {
@@ -49,6 +52,8 @@ const SystemSettings = () => {
     const [systemThemeLabel, setSystemThemeLabel] = useState(() => (
         window.matchMedia('(prefers-color-scheme: dark)').matches ? '深色' : '淺色'
     ));
+    const [dbSyncLoading, setDbSyncLoading] = useState(null);
+    const [dbSyncMessage, setDbSyncMessage] = useState(null);
 
     useEffect(() => {
         setPendingOperationMode(operationMode);
@@ -97,6 +102,63 @@ const SystemSettings = () => {
         setOperationMode(pendingOperationMode);
         // Refresh to matching layout state immediately
         window.location.href = '/settings';
+    };
+
+    const apiBaseHint = import.meta.env.VITE_API_BASE
+        ? String(import.meta.env.VITE_API_BASE).replace(/\/$/, '')
+        : '（同網域，經 /api 代理）';
+
+    const handlePullFromCloud = async () => {
+        if (
+            !window.confirm(
+                '將從雲端 D1 讀取快照，並覆寫本機瀏覽器中已對應的資料。\n未在雲端出現的 store 欄位會保留本機值。\n是否繼續？'
+            )
+        ) {
+            return;
+        }
+        setDbSyncMessage(null);
+        setDbSyncLoading('pull');
+        try {
+            const result = await pullStoresFromD1();
+            if (result.empty) {
+                setDbSyncMessage('雲端尚無快照資料，本機未變更。');
+            } else {
+                setDbSyncMessage(`已從雲端套用 ${result.updatedKeys} 個 store，畫面已重新載入狀態。`);
+            }
+        } catch (e) {
+            setDbSyncMessage(`下載失敗：${e?.message || String(e)}`);
+        } finally {
+            setDbSyncLoading(null);
+        }
+    };
+
+    const handlePushToCloud = async () => {
+        if (
+            !window.confirm(
+                '將把本機目前所有已儲存的 Zustand 快照寫入雲端 D1，可能覆寫雲端現有內容。\n是否繼續？'
+            )
+        ) {
+            return;
+        }
+        setDbSyncMessage(null);
+        setDbSyncLoading('push');
+        try {
+            const data = await pushAllStoresToD1();
+            if (data?.skipped) {
+                setDbSyncMessage('本機尚無可上傳的 store 資料。');
+                return;
+            }
+            const saved = data?.saved ?? data?.count;
+            setDbSyncMessage(
+                typeof saved === 'number'
+                    ? `已上傳至雲端（寫入 ${saved} 筆 store 列）。`
+                    : '已上傳至雲端。'
+            );
+        } catch (e) {
+            setDbSyncMessage(`上傳失敗：${e?.message || String(e)}`);
+        } finally {
+            setDbSyncLoading(null);
+        }
     };
 
     const switchTrackStyle = {
@@ -171,6 +233,82 @@ const SystemSettings = () => {
                         >
                             <span style={{ ...switchThumbStyle, transform: showImportExport ? 'translateX(20px)' : 'translateX(0)' }} />
                         </button>
+                    </div>
+                </div>
+
+                {/* D1 資料庫同步 */}
+                <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                        <Database className="text-accent-primary" style={{ flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 800 }}>資料庫同步（Cloudflare D1）</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.35rem', marginBottom: '0.75rem' }}>
+                                手動與雲端 D1 同步 Zustand 快照（各模組的 localStorage 持久化資料）。此流程<strong>不經 Git</strong>；若前端與 API 不同網域，請在部署環境設定{' '}
+                                <code style={{ fontSize: '0.8rem' }}>VITE_API_BASE</code>。
+                                圖檔等 R2 物件仍依各頁面上傳流程，不在此同步。
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.85rem', wordBreak: 'break-all' }}>
+                                API：{apiUrl('/api/stores')} · 基址 {apiBaseHint}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem', alignItems: 'center' }}>
+                                <button
+                                    type="button"
+                                    disabled={!!dbSyncLoading}
+                                    onClick={handlePullFromCloud}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: '8px',
+                                        padding: '0.5rem 0.85rem',
+                                        fontWeight: 700,
+                                        background: 'var(--bg-tertiary)',
+                                        color: 'var(--text-primary)',
+                                        cursor: dbSyncLoading ? 'not-allowed' : 'pointer',
+                                        opacity: dbSyncLoading ? 0.65 : 1,
+                                    }}
+                                >
+                                    <CloudDownload size={18} />
+                                    {dbSyncLoading === 'pull' ? '下載中…' : '從雲端下載至本機'}
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={!!dbSyncLoading}
+                                    onClick={handlePushToCloud}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        padding: '0.5rem 0.85rem',
+                                        fontWeight: 700,
+                                        background: 'var(--accent-primary)',
+                                        color: '#fff',
+                                        cursor: dbSyncLoading ? 'not-allowed' : 'pointer',
+                                        opacity: dbSyncLoading ? 0.65 : 1,
+                                    }}
+                                >
+                                    <CloudUpload size={18} />
+                                    {dbSyncLoading === 'push' ? '上傳中…' : '將本機上傳至雲端'}
+                                </button>
+                            </div>
+                            {dbSyncMessage && (
+                                <div
+                                    style={{
+                                        marginTop: '0.85rem',
+                                        fontSize: '0.88rem',
+                                        color: dbSyncMessage.startsWith('下載失敗') || dbSyncMessage.startsWith('上傳失敗')
+                                            ? '#f87171'
+                                            : 'var(--text-secondary)',
+                                        lineHeight: 1.45,
+                                    }}
+                                >
+                                    {dbSyncMessage}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
