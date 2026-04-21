@@ -1,7 +1,8 @@
 # 推送 main 時自動部署 Worker（API + D1 綁定）
 # GitHub Repo → Settings → Secrets → Actions：
 #   CLOUDFLARE_API_TOKEN（必填，需含 Account:Workers Scripts:Edit 等）
-#   CLOUDFLARE_ACCOUNT_ID（選填，多帳號或 deploy 找不到帳號時加）
+# 若未建立 CLOUDFLARE_ACCOUNT_ID secret，部署步驟會先 unset，避免空字串導致 wrangler 失敗。
+# 亦可改在 wrangler.toml 寫死 account_id = "..."
 
 name: Deploy Worker to Cloudflare
 
@@ -26,7 +27,9 @@ jobs:
         run: npm ci
 
       - name: Deploy Worker
-        run: npx wrangler deploy
+        run: |
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then unset CLOUDFLARE_ACCOUNT_ID; fi
+          npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
