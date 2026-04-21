@@ -1,11 +1,10 @@
 # 本機：`npm run dev:all`（Vite + Worker，預設 8787）
-# Pages 部署：靜態輸出 dist；Functions 仍可用 functions/ 目錄
+# Pages：在儀表板設定 build（npm run build）與輸出 dist；勿在此寫 pages_build_output_dir，否則 wrangler deploy 可能與純 Worker 部署行為衝突
 # D1 / R2：與 Cloudflare 儀表板綁定一致
 
 name = "erp-autoparts-api"
 main = "worker/index.js"
 compatibility_date = "2024-04-15"
-pages_build_output_dir = "dist"
 
 [[d1_databases]]
 binding = "DB"
