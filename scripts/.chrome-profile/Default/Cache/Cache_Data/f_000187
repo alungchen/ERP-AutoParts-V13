@@ -1,0 +1,1394 @@
+<head>
+    <link rel="stylesheet" href="/car2009/css/TS/jquery-ui-1.9.2.custom-new.css" type="text/css" media="all" /> 
+    <style type="text/css">
+        .style1
+        {
+            height: 25px;
+            width: 120px;
+            font-size: 20px;
+            text-align:right;
+        }
+        .style2
+        {
+            height: 25px;
+            font-size: 20px;
+        }        
+    </style>
+    <style>
+        /* 1. 設定全域字體與大小，並移除預設粗體 */
+        .ui-widget {
+            font-family: "Roboto Flex", Verdana, Arial, sans-serif !important;
+            font-size: 1.03rem !important; 
+            text-shadow: 0.3px 0 0 currentColor, -0.3px 0 0 currentColor !important;
+            
+        }
+    </style>
+</head>
+<!--<table width="99%">
+    <tr class="ui-widget-header"><td align="center" style="font-size: 26px; ">零&nbsp;件&nbsp;適&nbsp;用&nbsp;資&nbsp;料</td></tr>
+</table>-->
+<div style="max-height:1px; overflow:hidden;"><input type="text" id="i_focus" /></div>
+<div id="display_partkey_detail" class="ui-widget ui-widget-conent ui-corner-all">
+    <table style="color:white;font-size: 20px;">
+        <tr>
+            <td>
+                適用號碼&nbsp:&nbsp<span class="partkey_detail" fieldname="適用號碼" >--</span>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                車種年份&nbsp:&nbsp<span class="partkey_detail" fieldname="TYPE_LABLE"></span>&nbsp<span class="partkey_detail" fieldname="車種規格"></span>&nbsp<span class="partkey_detail" fieldname="年份"></span>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                品名&nbsp:&nbsp<span class="partkey_detail" fieldname="CHNAME_LABLE" >--</span>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                品名規格&nbsp:&nbsp<span class="partkey_detail" fieldname="品名規格" >--</span>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                備註&nbsp:&nbsp<span class="partkey_detail" fieldname="副檔備註" sstyle=" background-color:#A1B3F6">--</span>
+            </td>
+        </tr>
+    </table>
+</div>
+<textarea name="ele_SendData" id="ele_SendData" style="display:none"></textarea>
+<div id="auto_focus">
+    <input type="button" id="btn_edit" value="修改" onclick="$j('.edit-mode').show(); $j('.display-mode').hide(); $j('#btn_edit_close').show(); $j(this).hide(); " />
+    <input type="button" id="btn_edit_close" style="display:none;" value="結束修改" onclick="window.location.reload(); " />
+    <input type="button" id="btn_刪除" value="刪除" onclick="do_刪除適用_多筆();" style="display:none;" class="edit-mode" />
+    <input type="button" id="btn_複製" value="複製" onclick="複製_零件副檔();" />
+    <input type="button" id="btn_貼上" value="貼上" onclick="貼上_零件副檔();" />
+
+    零件號碼:<input type="text" id="ele_零件號碼" style="height:25px; font-size:20px; font-family:@細明體" class="AutoUpdate_零件主檔" KeyName="id" KeyValue="" FieldName="零件號碼" TableName="零件主檔" />　自編號碼:<input type="text" id="ele_自編號碼" style="height:25px; font-size:20px; font-family:@細明體" />
+    <input type="button" id="btn_列印" value="列印" onclick="do_report('適用.rpx' , '適用.sql');" />
+    <input type="button" name="btn_sync_chname" id="btn_sync_chname" value="品名同步" style="display:none;" onclick="do_sync_chname($j(this));" />
+    <input type="button" name="btn_sync_spec" id="btn_sync_spec" value="規格同步" style="display:none;" onclick="do_sync_spec($j(this));" />
+    <input type="button" name="btn_sync_備註" id="btn_sync_備註" value="備註同步" style="display:none;" onclick="do_sync_備註($j(this));" />  
+</div>             
+<table width="100%" readonly id="DataGridDetail" class="ui-widget ui-widget-conent ui-corner-all">
+  
+
+<thead>
+  <tr class="ui-widget-header">
+    <td height="25" align="center" valign="middle" style="font-size: 20px; " >主</td>
+    <td height="25" align="center" valign="middle" style="font-size: 20px; " >控制</td>
+    <td height="25" align="center" valign="middle" style="font-size: 20px; " >適用號碼</td>
+    <td class="Replacement" ></td>
+    <td height="25" align="center" valign="middle" style="font-size: 20px; " >車種</td>
+    <td height="25" align="center" valign="middle" style="font-size: 20px; " >車種規格</td>
+    <td height="25" align="center" valign="middle" style="font-size: 20px; " >年份</td>
+    <td class="Replacement" ></td>
+    <td height="25" align="center" valign="middle" style="font-size: 20px; " >品名</td>
+    <td height="25" align="center" valign="middle" style="font-size: 20px; " >品名規格</td>
+    <td height="25" align="center" valign="middle" style="font-size: 20px; " >品牌</td>
+    <td height="25" align="center" valign="middle" style="font-size: 20px; " >備註</td>
+  </tr>
+</thead>
+<tbody>   
+  
+
+    <tr class="ui-state-default" KeyValue="88DE2588-6D2E-4DD3-969D-FE27832BF05B" >
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >1&nbsp;主</div>
+            <input type="radio" name="ele_detail_主資料" id="ele_detail_1_主資料" value="88DE2588-6D2E-4DD3-969D-FE27832BF05B" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode 主資料" 主資料="1" KeyValue="88DE2588-6D2E-4DD3-969D-FE27832BF05B" onclick="Update零件副檔('零件主檔ID','38204378-A4D5-48F7-9E44-49E845D40C06','主資料','0'); Update零件副檔('id','88DE2588-6D2E-4DD3-969D-FE27832BF05B','主資料','1'); 零件號碼同步('COM-B018T', '38204378-A4D5-48F7-9E44-49E845D40C06'); window.location.reload();" />            
+        </td>
+        <td height="25" align="left" valign="middle" >
+            <!-- <input type="button" value="刪除" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_刪除適用('88DE2588-6D2E-4DD3-969D-FE27832BF05B');" class="button_class" /> -->
+            <input type="checkbox" name="chk_selected" id="chk_selected_1" class="chk_selected edit-mode" style="display:none;" value="88DE2588-6D2E-4DD3-969D-FE27832BF05B" 主資料="1" />
+            <input type="button" value="複製" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_複製適用('88DE2588-6D2E-4DD3-969D-FE27832BF05B');" class="button_class" />
+        </td>
+        <td height="25" align="left" valign="middle" title="COM-B018T" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >COM-B018T</div>
+            <input type="text" value="COM-B018T" title="COM-B018T" mainrec="1" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="88DE2588-6D2E-4DD3-969D-FE27832BF05B" FieldName="適用號碼" TableName="零件副檔" partsid="38204378-A4D5-48F7-9E44-49E845D40C06" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('88DE2588-6D2E-4DD3-969D-FE27832BF05B');" /></td>
+<!--        <td height="25" align="center" valign="middle" >BMW E60 (5系列)</td>-->
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >BMW E60 (5系列)</div>
+            <input type="text" value="BMW E60 (5系列)" title="BMW E60 (5系列)" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_type" NavigateDownStop="1" KeyValue="88DE2588-6D2E-4DD3-969D-FE27832BF05B" FieldName="車種名稱" TableName="零件副檔" />
+        </td>
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=1; OpenSelectCTYPE(1);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=1; ClearCTYPE(1);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="88DE2588-6D2E-4DD3-969D-FE27832BF05B" FieldName="車種規格" TableName="零件副檔" />
+        </td>
+
+        <td height="25" align="left" valign="middle" title="05-" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >05-</div>
+            <input type="text" value="05-" title="05-" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="88DE2588-6D2E-4DD3-969D-FE27832BF05B" FieldName="年份" TableName="零件副檔" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('88DE2588-6D2E-4DD3-969D-FE27832BF05B');" /></td>
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >壓縮機</div>
+            <input type="text" value="壓縮機" title="壓縮機" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_chname" NavigateDownStop="1" KeyValue="88DE2588-6D2E-4DD3-969D-FE27832BF05B" FieldName="品名名稱" TableName="零件副檔" />
+        </td>
+<!--        <td height="25" align="center" valign="middle" >壓縮機</td>-->
+<!--        <td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=1; OpenSelectCCHNAME(1);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=1; ClearCCHNAME(1);" /></td>
+-->        
+        <td height="25" align="left" valign="middle" title="(7SEU17C) 6PK" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >(7SEU17C) 6PK</div>
+            <input type="text" value="(7SEU17C) 6PK" title="(7SEU17C) 6PK" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_品名規格 edit-mode AutoUpdate" KeyValue="88DE2588-6D2E-4DD3-969D-FE27832BF05B" FieldName="品名規格" TableName="零件副檔" />
+        </td>
+        <td height="25" align="left" valign="middle" >新品</td>
+        <!--<td height="25" align="center" valign="middle" >新品</td>-->
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=1; OpenSelectCBRAND(1);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=1; ClearCBRAND(1);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_備註 edit-mode AutoUpdate autocomplete_note" KeyValue="88DE2588-6D2E-4DD3-969D-FE27832BF05B" FieldName="備註" TableName="零件副檔" />
+        </td>
+    </tr>
+
+  
+
+
+    <tr class="ui-widget-content" KeyValue="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" >
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >2&nbsp;</div>
+            <input type="radio" name="ele_detail_主資料" id="ele_detail_2_主資料" value="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode 主資料" 主資料="0" KeyValue="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" onclick="Update零件副檔('零件主檔ID','38204378-A4D5-48F7-9E44-49E845D40C06','主資料','0'); Update零件副檔('id','A993FDA5-05BD-4BE2-A59F-750F62FD5B8F','主資料','1'); 零件號碼同步('', '38204378-A4D5-48F7-9E44-49E845D40C06'); window.location.reload();" />            
+        </td>
+        <td height="25" align="left" valign="middle" >
+            <!-- <input type="button" value="刪除" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_刪除適用('A993FDA5-05BD-4BE2-A59F-750F62FD5B8F');" class="button_class" /> -->
+            <input type="checkbox" name="chk_selected" id="chk_selected_2" class="chk_selected edit-mode" style="display:none;" value="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" 主資料="0" />
+            <input type="button" value="複製" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_複製適用('A993FDA5-05BD-4BE2-A59F-750F62FD5B8F');" class="button_class" />
+        </td>
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" mainrec="0" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" FieldName="適用號碼" TableName="零件副檔" partsid="38204378-A4D5-48F7-9E44-49E845D40C06" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('A993FDA5-05BD-4BE2-A59F-750F62FD5B8F');" /></td>
+<!--        <td height="25" align="center" valign="middle" >BMW E65 (7系列)</td>-->
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >BMW E65 (7系列)</div>
+            <input type="text" value="BMW E65 (7系列)" title="BMW E65 (7系列)" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_type" NavigateDownStop="1" KeyValue="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" FieldName="車種名稱" TableName="零件副檔" />
+        </td>
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=2; OpenSelectCTYPE(2);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=2; ClearCTYPE(2);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" FieldName="車種規格" TableName="零件副檔" />
+        </td>
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" FieldName="年份" TableName="零件副檔" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('A993FDA5-05BD-4BE2-A59F-750F62FD5B8F');" /></td>
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >壓縮機</div>
+            <input type="text" value="壓縮機" title="壓縮機" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_chname" NavigateDownStop="1" KeyValue="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" FieldName="品名名稱" TableName="零件副檔" />
+        </td>
+<!--        <td height="25" align="center" valign="middle" >壓縮機</td>-->
+<!--        <td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=2; OpenSelectCCHNAME(2);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=2; ClearCCHNAME(2);" /></td>
+-->        
+        <td height="25" align="left" valign="middle" title="(7SEU17C) 6PK" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >(7SEU17C) 6PK</div>
+            <input type="text" value="(7SEU17C) 6PK" title="(7SEU17C) 6PK" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_品名規格 edit-mode AutoUpdate" KeyValue="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" FieldName="品名規格" TableName="零件副檔" />
+        </td>
+        <td height="25" align="left" valign="middle" >新品</td>
+        <!--<td height="25" align="center" valign="middle" >新品</td>-->
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=2; OpenSelectCBRAND(2);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=2; ClearCBRAND(2);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;"></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_備註 edit-mode AutoUpdate autocomplete_note" KeyValue="A993FDA5-05BD-4BE2-A59F-750F62FD5B8F" FieldName="備註" TableName="零件副檔" />
+        </td>
+    </tr>
+  
+
+
+    <tr class="ui-state-default" KeyValue="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" >
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >3&nbsp;</div>
+            <input type="radio" name="ele_detail_主資料" id="ele_detail_3_主資料" value="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode 主資料" 主資料="0" KeyValue="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" onclick="Update零件副檔('零件主檔ID','38204378-A4D5-48F7-9E44-49E845D40C06','主資料','0'); Update零件副檔('id','0FE2477C-AC8D-4976-86BD-F1E1D866F10E','主資料','1'); 零件號碼同步('', '38204378-A4D5-48F7-9E44-49E845D40C06'); window.location.reload();" />            
+        </td>
+        <td height="25" align="left" valign="middle" >
+            <!-- <input type="button" value="刪除" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_刪除適用('0FE2477C-AC8D-4976-86BD-F1E1D866F10E');" class="button_class" /> -->
+            <input type="checkbox" name="chk_selected" id="chk_selected_3" class="chk_selected edit-mode" style="display:none;" value="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" 主資料="0" />
+            <input type="button" value="複製" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_複製適用('0FE2477C-AC8D-4976-86BD-F1E1D866F10E');" class="button_class" />
+        </td>
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" mainrec="0" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" FieldName="適用號碼" TableName="零件副檔" partsid="38204378-A4D5-48F7-9E44-49E845D40C06" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('0FE2477C-AC8D-4976-86BD-F1E1D866F10E');" /></td>
+<!--        <td height="25" align="center" valign="middle" >BMW E90 (3系列)</td>-->
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >BMW E90 (3系列)</div>
+            <input type="text" value="BMW E90 (3系列)" title="BMW E90 (3系列)" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_type" NavigateDownStop="1" KeyValue="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" FieldName="車種名稱" TableName="零件副檔" />
+        </td>
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=3; OpenSelectCTYPE(3);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=3; ClearCTYPE(3);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" FieldName="車種規格" TableName="零件副檔" />
+        </td>
+
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" FieldName="年份" TableName="零件副檔" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('0FE2477C-AC8D-4976-86BD-F1E1D866F10E');" /></td>
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >壓縮機</div>
+            <input type="text" value="壓縮機" title="壓縮機" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_chname" NavigateDownStop="1" KeyValue="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" FieldName="品名名稱" TableName="零件副檔" />
+        </td>
+<!--        <td height="25" align="center" valign="middle" >壓縮機</td>-->
+<!--        <td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=3; OpenSelectCCHNAME(3);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=3; ClearCCHNAME(3);" /></td>
+-->        
+        <td height="25" align="left" valign="middle" title="(7SEU17C) 6PK" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >(7SEU17C) 6PK</div>
+            <input type="text" value="(7SEU17C) 6PK" title="(7SEU17C) 6PK" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_品名規格 edit-mode AutoUpdate" KeyValue="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" FieldName="品名規格" TableName="零件副檔" />
+        </td>
+        <td height="25" align="left" valign="middle" >新品</td>
+        <!--<td height="25" align="center" valign="middle" >新品</td>-->
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=3; OpenSelectCBRAND(3);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=3; ClearCBRAND(3);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_備註 edit-mode AutoUpdate autocomplete_note" KeyValue="0FE2477C-AC8D-4976-86BD-F1E1D866F10E" FieldName="備註" TableName="零件副檔" />
+        </td>
+    </tr>
+
+  
+
+
+    <tr class="ui-widget-content" KeyValue="E857AD28-303C-471E-9F02-3EC7DBF202C0" >
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >4&nbsp;</div>
+            <input type="radio" name="ele_detail_主資料" id="ele_detail_4_主資料" value="E857AD28-303C-471E-9F02-3EC7DBF202C0" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode 主資料" 主資料="0" KeyValue="E857AD28-303C-471E-9F02-3EC7DBF202C0" onclick="Update零件副檔('零件主檔ID','38204378-A4D5-48F7-9E44-49E845D40C06','主資料','0'); Update零件副檔('id','E857AD28-303C-471E-9F02-3EC7DBF202C0','主資料','1'); 零件號碼同步('64509174803-01', '38204378-A4D5-48F7-9E44-49E845D40C06'); window.location.reload();" />            
+        </td>
+        <td height="25" align="left" valign="middle" >
+            <!-- <input type="button" value="刪除" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_刪除適用('E857AD28-303C-471E-9F02-3EC7DBF202C0');" class="button_class" /> -->
+            <input type="checkbox" name="chk_selected" id="chk_selected_4" class="chk_selected edit-mode" style="display:none;" value="E857AD28-303C-471E-9F02-3EC7DBF202C0" 主資料="0" />
+            <input type="button" value="複製" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_複製適用('E857AD28-303C-471E-9F02-3EC7DBF202C0');" class="button_class" />
+        </td>
+        <td height="25" align="left" valign="middle" title="64509174803-01" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >64509174803-01</div>
+            <input type="text" value="64509174803-01" title="64509174803-01" mainrec="0" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="E857AD28-303C-471E-9F02-3EC7DBF202C0" FieldName="適用號碼" TableName="零件副檔" partsid="38204378-A4D5-48F7-9E44-49E845D40C06" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('E857AD28-303C-471E-9F02-3EC7DBF202C0');" /></td>
+<!--        <td height="25" align="center" valign="middle" ></td>-->
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_type" NavigateDownStop="1" KeyValue="E857AD28-303C-471E-9F02-3EC7DBF202C0" FieldName="車種名稱" TableName="零件副檔" />
+        </td>
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=4; OpenSelectCTYPE(4);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=4; ClearCTYPE(4);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="E857AD28-303C-471E-9F02-3EC7DBF202C0" FieldName="車種規格" TableName="零件副檔" />
+        </td>
+        <td height="25" align="left" valign="middle" title="05-" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >05-</div>
+            <input type="text" value="05-" title="05-" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="E857AD28-303C-471E-9F02-3EC7DBF202C0" FieldName="年份" TableName="零件副檔" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('E857AD28-303C-471E-9F02-3EC7DBF202C0');" /></td>
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >壓縮機</div>
+            <input type="text" value="壓縮機" title="壓縮機" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_chname" NavigateDownStop="1" KeyValue="E857AD28-303C-471E-9F02-3EC7DBF202C0" FieldName="品名名稱" TableName="零件副檔" />
+        </td>
+<!--        <td height="25" align="center" valign="middle" >壓縮機</td>-->
+<!--        <td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=4; OpenSelectCCHNAME(4);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=4; ClearCCHNAME(4);" /></td>
+-->        
+        <td height="25" align="left" valign="middle" title="(7SEU17C) 6PK" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >(7SEU17C) 6PK</div>
+            <input type="text" value="(7SEU17C) 6PK" title="(7SEU17C) 6PK" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_品名規格 edit-mode AutoUpdate" KeyValue="E857AD28-303C-471E-9F02-3EC7DBF202C0" FieldName="品名規格" TableName="零件副檔" />
+        </td>
+        <td height="25" align="left" valign="middle" >新品</td>
+        <!--<td height="25" align="center" valign="middle" >新品</td>-->
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=4; OpenSelectCBRAND(4);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=4; ClearCBRAND(4);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;"></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_備註 edit-mode AutoUpdate autocomplete_note" KeyValue="E857AD28-303C-471E-9F02-3EC7DBF202C0" FieldName="備註" TableName="零件副檔" />
+        </td>
+    </tr>
+  
+
+
+    <tr class="ui-state-default" KeyValue="BB977D8C-E159-439E-8B76-867734224328" >
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >5&nbsp;</div>
+            <input type="radio" name="ele_detail_主資料" id="ele_detail_5_主資料" value="BB977D8C-E159-439E-8B76-867734224328" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode 主資料" 主資料="0" KeyValue="BB977D8C-E159-439E-8B76-867734224328" onclick="Update零件副檔('零件主檔ID','38204378-A4D5-48F7-9E44-49E845D40C06','主資料','0'); Update零件副檔('id','BB977D8C-E159-439E-8B76-867734224328','主資料','1'); 零件號碼同步('GE447150-0157', '38204378-A4D5-48F7-9E44-49E845D40C06'); window.location.reload();" />            
+        </td>
+        <td height="25" align="left" valign="middle" >
+            <!-- <input type="button" value="刪除" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_刪除適用('BB977D8C-E159-439E-8B76-867734224328');" class="button_class" /> -->
+            <input type="checkbox" name="chk_selected" id="chk_selected_5" class="chk_selected edit-mode" style="display:none;" value="BB977D8C-E159-439E-8B76-867734224328" 主資料="0" />
+            <input type="button" value="複製" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_複製適用('BB977D8C-E159-439E-8B76-867734224328');" class="button_class" />
+        </td>
+        <td height="25" align="left" valign="middle" title="GE447150-0157" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >GE447150-0157</div>
+            <input type="text" value="GE447150-0157" title="GE447150-0157" mainrec="0" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="BB977D8C-E159-439E-8B76-867734224328" FieldName="適用號碼" TableName="零件副檔" partsid="38204378-A4D5-48F7-9E44-49E845D40C06" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('BB977D8C-E159-439E-8B76-867734224328');" /></td>
+<!--        <td height="25" align="center" valign="middle" ></td>-->
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_type" NavigateDownStop="1" KeyValue="BB977D8C-E159-439E-8B76-867734224328" FieldName="車種名稱" TableName="零件副檔" />
+        </td>
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=5; OpenSelectCTYPE(5);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=5; ClearCTYPE(5);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="BB977D8C-E159-439E-8B76-867734224328" FieldName="車種規格" TableName="零件副檔" />
+        </td>
+
+        <td height="25" align="left" valign="middle" title="05-" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >05-</div>
+            <input type="text" value="05-" title="05-" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="BB977D8C-E159-439E-8B76-867734224328" FieldName="年份" TableName="零件副檔" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('BB977D8C-E159-439E-8B76-867734224328');" /></td>
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >壓縮機</div>
+            <input type="text" value="壓縮機" title="壓縮機" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_chname" NavigateDownStop="1" KeyValue="BB977D8C-E159-439E-8B76-867734224328" FieldName="品名名稱" TableName="零件副檔" />
+        </td>
+<!--        <td height="25" align="center" valign="middle" >壓縮機</td>-->
+<!--        <td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=5; OpenSelectCCHNAME(5);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=5; ClearCCHNAME(5);" /></td>
+-->        
+        <td height="25" align="left" valign="middle" title="(7SEU17C) 6PK" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >(7SEU17C) 6PK</div>
+            <input type="text" value="(7SEU17C) 6PK" title="(7SEU17C) 6PK" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_品名規格 edit-mode AutoUpdate" KeyValue="BB977D8C-E159-439E-8B76-867734224328" FieldName="品名規格" TableName="零件副檔" />
+        </td>
+        <td height="25" align="left" valign="middle" >新品</td>
+        <!--<td height="25" align="center" valign="middle" >新品</td>-->
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=5; OpenSelectCBRAND(5);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=5; ClearCBRAND(5);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_備註 edit-mode AutoUpdate autocomplete_note" KeyValue="BB977D8C-E159-439E-8B76-867734224328" FieldName="備註" TableName="零件副檔" />
+        </td>
+    </tr>
+
+  
+
+
+    <tr class="ui-widget-content" KeyValue="16C96D1D-DD6E-4276-AA13-4FCE8972B475" >
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >6&nbsp;</div>
+            <input type="radio" name="ele_detail_主資料" id="ele_detail_6_主資料" value="16C96D1D-DD6E-4276-AA13-4FCE8972B475" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode 主資料" 主資料="0" KeyValue="16C96D1D-DD6E-4276-AA13-4FCE8972B475" onclick="Update零件副檔('零件主檔ID','38204378-A4D5-48F7-9E44-49E845D40C06','主資料','0'); Update零件副檔('id','16C96D1D-DD6E-4276-AA13-4FCE8972B475','主資料','1'); 零件號碼同步('22527010', '38204378-A4D5-48F7-9E44-49E845D40C06'); window.location.reload();" />            
+        </td>
+        <td height="25" align="left" valign="middle" >
+            <!-- <input type="button" value="刪除" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_刪除適用('16C96D1D-DD6E-4276-AA13-4FCE8972B475');" class="button_class" /> -->
+            <input type="checkbox" name="chk_selected" id="chk_selected_6" class="chk_selected edit-mode" style="display:none;" value="16C96D1D-DD6E-4276-AA13-4FCE8972B475" 主資料="0" />
+            <input type="button" value="複製" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_複製適用('16C96D1D-DD6E-4276-AA13-4FCE8972B475');" class="button_class" />
+        </td>
+        <td height="25" align="left" valign="middle" title="22527010" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >22527010</div>
+            <input type="text" value="22527010" title="22527010" mainrec="0" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="16C96D1D-DD6E-4276-AA13-4FCE8972B475" FieldName="適用號碼" TableName="零件副檔" partsid="38204378-A4D5-48F7-9E44-49E845D40C06" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('16C96D1D-DD6E-4276-AA13-4FCE8972B475');" /></td>
+<!--        <td height="25" align="center" valign="middle" ></td>-->
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_type" NavigateDownStop="1" KeyValue="16C96D1D-DD6E-4276-AA13-4FCE8972B475" FieldName="車種名稱" TableName="零件副檔" />
+        </td>
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=6; OpenSelectCTYPE(6);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=6; ClearCTYPE(6);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="16C96D1D-DD6E-4276-AA13-4FCE8972B475" FieldName="車種規格" TableName="零件副檔" />
+        </td>
+        <td height="25" align="left" valign="middle" title="05-" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >05-</div>
+            <input type="text" value="05-" title="05-" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="16C96D1D-DD6E-4276-AA13-4FCE8972B475" FieldName="年份" TableName="零件副檔" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('16C96D1D-DD6E-4276-AA13-4FCE8972B475');" /></td>
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >壓縮機</div>
+            <input type="text" value="壓縮機" title="壓縮機" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_chname" NavigateDownStop="1" KeyValue="16C96D1D-DD6E-4276-AA13-4FCE8972B475" FieldName="品名名稱" TableName="零件副檔" />
+        </td>
+<!--        <td height="25" align="center" valign="middle" >壓縮機</td>-->
+<!--        <td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=6; OpenSelectCCHNAME(6);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=6; ClearCCHNAME(6);" /></td>
+-->        
+        <td height="25" align="left" valign="middle" title="(7SEU17C) 6PK" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >(7SEU17C) 6PK</div>
+            <input type="text" value="(7SEU17C) 6PK" title="(7SEU17C) 6PK" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_品名規格 edit-mode AutoUpdate" KeyValue="16C96D1D-DD6E-4276-AA13-4FCE8972B475" FieldName="品名規格" TableName="零件副檔" />
+        </td>
+        <td height="25" align="left" valign="middle" >新品</td>
+        <!--<td height="25" align="center" valign="middle" >新品</td>-->
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=6; OpenSelectCBRAND(6);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=6; ClearCBRAND(6);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;"></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_備註 edit-mode AutoUpdate autocomplete_note" KeyValue="16C96D1D-DD6E-4276-AA13-4FCE8972B475" FieldName="備註" TableName="零件副檔" />
+        </td>
+    </tr>
+  
+
+
+    <tr class="ui-state-default" KeyValue="67397514-6C05-4F9D-82C9-442F2C7B4BD9" >
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >7&nbsp;</div>
+            <input type="radio" name="ele_detail_主資料" id="ele_detail_7_主資料" value="67397514-6C05-4F9D-82C9-442F2C7B4BD9" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode 主資料" 主資料="0" KeyValue="67397514-6C05-4F9D-82C9-442F2C7B4BD9" onclick="Update零件副檔('零件主檔ID','38204378-A4D5-48F7-9E44-49E845D40C06','主資料','0'); Update零件副檔('id','67397514-6C05-4F9D-82C9-442F2C7B4BD9','主資料','1'); 零件號碼同步('CO-DE179', '38204378-A4D5-48F7-9E44-49E845D40C06'); window.location.reload();" />            
+        </td>
+        <td height="25" align="left" valign="middle" >
+            <!-- <input type="button" value="刪除" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_刪除適用('67397514-6C05-4F9D-82C9-442F2C7B4BD9');" class="button_class" /> -->
+            <input type="checkbox" name="chk_selected" id="chk_selected_7" class="chk_selected edit-mode" style="display:none;" value="67397514-6C05-4F9D-82C9-442F2C7B4BD9" 主資料="0" />
+            <input type="button" value="複製" style="display:none; font-size:1.0em; font-family:@細明體; zoom:70%;" class="edit-mode AutoUpdate" onclick="do_複製適用('67397514-6C05-4F9D-82C9-442F2C7B4BD9');" class="button_class" />
+        </td>
+        <td height="25" align="left" valign="middle" title="CO-DE179" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >CO-DE179</div>
+            <input type="text" value="CO-DE179" title="CO-DE179" mainrec="0" style="display:none; height:25px; width:100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="67397514-6C05-4F9D-82C9-442F2C7B4BD9" FieldName="適用號碼" TableName="零件副檔" partsid="38204378-A4D5-48F7-9E44-49E845D40C06" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('67397514-6C05-4F9D-82C9-442F2C7B4BD9');" /></td>
+<!--        <td height="25" align="center" valign="middle" ></td>-->
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_type" NavigateDownStop="1" KeyValue="67397514-6C05-4F9D-82C9-442F2C7B4BD9" FieldName="車種名稱" TableName="零件副檔" />
+        </td>
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=7; OpenSelectCTYPE(7);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=7; ClearCTYPE(7);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="67397514-6C05-4F9D-82C9-442F2C7B4BD9" FieldName="車種規格" TableName="零件副檔" />
+        </td>
+
+        <td height="25" align="left" valign="middle" title="05-" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >05-</div>
+            <input type="text" value="05-" title="05-" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate" KeyValue="67397514-6C05-4F9D-82C9-442F2C7B4BD9" FieldName="年份" TableName="零件副檔" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('67397514-6C05-4F9D-82C9-442F2C7B4BD9');" /></td>
+        <td height="25" align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >壓縮機</div>
+            <input type="text" value="壓縮機" title="壓縮機" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="edit-mode AutoUpdate autocomplete_chname" NavigateDownStop="1" KeyValue="67397514-6C05-4F9D-82C9-442F2C7B4BD9" FieldName="品名名稱" TableName="零件副檔" />
+        </td>
+<!--        <td height="25" align="center" valign="middle" >壓縮機</td>-->
+<!--        <td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=7; OpenSelectCCHNAME(7);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=7; ClearCCHNAME(7);" /></td>
+-->        
+        <td height="25" align="left" valign="middle" title="(7SEU17C) 6PK" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" >(7SEU17C) 6PK</div>
+            <input type="text" value="(7SEU17C) 6PK" title="(7SEU17C) 6PK" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_品名規格 edit-mode AutoUpdate" KeyValue="67397514-6C05-4F9D-82C9-442F2C7B4BD9" FieldName="品名規格" TableName="零件副檔" />
+        </td>
+        <td height="25" align="left" valign="middle" >新品</td>
+        <!--<td height="25" align="center" valign="middle" >新品</td>-->
+        <!--<td height="25" align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=7; OpenSelectCBRAND(7);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=7; ClearCBRAND(7);" /></td>-->
+        <td height="25" align="left" valign="middle" title="" >
+            <div class="display-mode" style="height:25px; width:100%; overflow:hidden;" ></div>
+            <input type="text" value="" title="" style="display:none; height:25px; width: 100%; font-size:1.0em; font-family:@細明體" class="sync_same_備註 edit-mode AutoUpdate autocomplete_note" KeyValue="67397514-6C05-4F9D-82C9-442F2C7B4BD9" FieldName="備註" TableName="零件副檔" />
+        </td>
+    </tr>
+
+  
+
+
+</tbody>  
+</table>
+
+<div id="div_貼上" style="display:none;">
+    <table width="100%">
+        <tbody>
+            <tr>
+                <td>
+                    <input type="button" id="btn_貼上_全部取代" value="全部取代" onclick="partkey_ReplaceAll();" />
+                    <input type="button" id="btn_貼上_加入" value="加入" onclick="partkey_JoinItems();" />
+                </td>
+                <td>
+                    <input type="button" id="btn_自動勾選" value="自動勾選 欲補足的車種年份" title="來源適用車種 比對 目的適用車種，若是目的不存在的適用車種，始勾選。幫助您輕鬆補足完整適用車種，而不重複。" onclick="partkey_Check();" />
+                    <input type="button" id="btn_自動勾選_適用號碼" value="自動勾選 欲補足的適用號碼" title="來源適用號碼 比對 目的適用號碼，若是目的不存在的適用號碼，始勾選。幫助您輕鬆補足完整適用號碼，而不重複。" onclick="partkey_Check_適用號碼();" />
+                </td>
+                <td>
+                    <input type="button" value="關閉" onclick="$j('#div_貼上').hide();" />
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div id="div_DataGridDetail_sheet_list" style="overflow:auto" >
+        <table width="100%" id="DataGrid_Partkey_Source" class="ui-widget ui-widget-conent ui-corner-all" >
+            <thead>
+                <tr height="30" class="ui-widget-header">
+                    <td align="center" valign="middle" >
+                        <input type="checkbox" name="chk_SelectAll" id="chk_SelectAll" value="1" onclick="Select_All();"  />
+                    </td>
+                    <td align="center" >適用號碼</td>
+                    <td align="center" >車種</td>
+                    <td align="center" >車種規格</td>
+                    <td align="center" >年份</td>
+                    <td align="center" >品名</td>
+                    <td align="center" >品名規格</td>
+                    <td align="center" >備註</td>
+                </tr>
+            </thead>
+            <tbody id="Display_Partkey_Source">
+
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script type="text/x-tmpl" id="tmpl-Partkey_Source">
+	<tr data_id="{id}" >
+        <td align="center" valign="middle"><input name="chk_Selected" id="chk_{row}_selected" value="{id}" type="checkbox" RowNumber="{row}" RowId="{id}" class="chk_Selected" onclick="Select_chk_item();" /></td>
+        <td align="left" valign="middle">{適用號碼}</td>
+        <td align="left" valign="middle">{TYPE_LABLE}</td>
+        <td align="left" valign="middle">{車種規格}</td>
+        <td align="left" valign="middle">{年份}</td>
+        <td align="left" valign="middle">{CHNAME_LABLE}</td>
+        <td align="left" valign="middle">{品名規格}</td>
+        <td align="left" valign="middle">{副檔備註}</td>
+        <td></td>
+    </tr>
+</script>
+<script> ThisPartKeyInfo = [{"id":"88DE2588-6D2E-4DD3-969D-FE27832BF05B","零件主檔ID":"38204378-A4D5-48F7-9E44-49E845D40C06","TYPE_ID":"A3402A70-BB2F-47EA-963B-79F304FBC825","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"86AD46AD-5693-4BF3-96B8-59039F03A5CF","適用號碼":"COM-B018T","年份":"05-","車種規格":"","品名規格":"(7SEU17C) 6PK","副檔備註":"","主資料":"1","主資料顯示":"主","TYPE_CCODE":"BME60","TYPE_CNAME":"BMW E60 (5系列)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"VQ1","BRAND_CNAME":"新品","BRAND_CCOCODE":"","BRAND_LABLE":"新品","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW E60 (5系列)"},{"id":"A993FDA5-05BD-4BE2-A59F-750F62FD5B8F","零件主檔ID":"38204378-A4D5-48F7-9E44-49E845D40C06","TYPE_ID":"417706DA-86BB-4FF7-8210-8D9C574C99BD","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"86AD46AD-5693-4BF3-96B8-59039F03A5CF","適用號碼":"","年份":"","車種規格":"","品名規格":"(7SEU17C) 6PK","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"BME65","TYPE_CNAME":"BMW E65 (7系列)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"VQ1","BRAND_CNAME":"新品","BRAND_CCOCODE":"","BRAND_LABLE":"新品","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW E65 (7系列)"},{"id":"0FE2477C-AC8D-4976-86BD-F1E1D866F10E","零件主檔ID":"38204378-A4D5-48F7-9E44-49E845D40C06","TYPE_ID":"B1CA0350-0CB3-4457-87F4-3F73CBCD1E51","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"86AD46AD-5693-4BF3-96B8-59039F03A5CF","適用號碼":"","年份":"","車種規格":"","品名規格":"(7SEU17C) 6PK","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"BME90","TYPE_CNAME":"BMW E90 (3系列)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"VQ1","BRAND_CNAME":"新品","BRAND_CCOCODE":"","BRAND_LABLE":"新品","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW E90 (3系列)"},{"id":"E857AD28-303C-471E-9F02-3EC7DBF202C0","零件主檔ID":"38204378-A4D5-48F7-9E44-49E845D40C06","TYPE_ID":"AFA44E4A-58A2-4CFE-A836-77B50B5C844B","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"86AD46AD-5693-4BF3-96B8-59039F03A5CF","適用號碼":"64509174803-01","年份":"05-","車種規格":"","品名規格":"(7SEU17C) 6PK","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"*","TYPE_CNAME":"","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"VQ1","BRAND_CNAME":"新品","BRAND_CCOCODE":"","BRAND_LABLE":"新品","CHNAME_LABLE":"壓縮機","TYPE_LABLE":""},{"id":"BB977D8C-E159-439E-8B76-867734224328","零件主檔ID":"38204378-A4D5-48F7-9E44-49E845D40C06","TYPE_ID":"AFA44E4A-58A2-4CFE-A836-77B50B5C844B","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"86AD46AD-5693-4BF3-96B8-59039F03A5CF","適用號碼":"GE447150-0157","年份":"05-","車種規格":"","品名規格":"(7SEU17C) 6PK","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"*","TYPE_CNAME":"","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"VQ1","BRAND_CNAME":"新品","BRAND_CCOCODE":"","BRAND_LABLE":"新品","CHNAME_LABLE":"壓縮機","TYPE_LABLE":""},{"id":"16C96D1D-DD6E-4276-AA13-4FCE8972B475","零件主檔ID":"38204378-A4D5-48F7-9E44-49E845D40C06","TYPE_ID":"AFA44E4A-58A2-4CFE-A836-77B50B5C844B","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"86AD46AD-5693-4BF3-96B8-59039F03A5CF","適用號碼":"22527010","年份":"05-","車種規格":"","品名規格":"(7SEU17C) 6PK","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"*","TYPE_CNAME":"","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"VQ1","BRAND_CNAME":"新品","BRAND_CCOCODE":"","BRAND_LABLE":"新品","CHNAME_LABLE":"壓縮機","TYPE_LABLE":""},{"id":"67397514-6C05-4F9D-82C9-442F2C7B4BD9","零件主檔ID":"38204378-A4D5-48F7-9E44-49E845D40C06","TYPE_ID":"AFA44E4A-58A2-4CFE-A836-77B50B5C844B","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"86AD46AD-5693-4BF3-96B8-59039F03A5CF","適用號碼":"CO-DE179","年份":"05-","車種規格":"","品名規格":"(7SEU17C) 6PK","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"*","TYPE_CNAME":"","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"VQ1","BRAND_CNAME":"新品","BRAND_CCOCODE":"","BRAND_LABLE":"新品","CHNAME_LABLE":"壓縮機","TYPE_LABLE":""}]</script>
+
+
+    
+<script type="text/javascript" src="/car2009/js/jquery.tools.min.js" ></script>
+<script type="text/javascript" src="/car2009/js/jquery-ui-1.9.2.js"></script>
+<script type="text/javascript" src="/car2009/AJAX-framework.js?version=202603252331" ></script>
+<link rel="stylesheet" href="/car2009/css/alertify.core.css" />
+<link rel="stylesheet" href="/car2009/css/alertify.default.css" id="toggleCSS" />
+
+<style>
+    /* 1. 設定全域字體與大小，並移除預設粗體 */
+    .ui-widget {
+        font-family: Verdana, Arial, sans-serif !important;
+        font-size: 1em !important; 
+        font-weight: normal !important; /* 加強權重，讓大部分文字回歸正常體 */
+    }
+
+    /* 2. 強制覆蓋 jQuery UI 原始檔案中特定的粗體設定 */
+    /* 這些選擇器在原檔中被強制設為 bold，所以這裡必須單獨處理 */
+    .ui-state-default, 
+    .ui-widget-content .ui-state-default, 
+    .ui-widget-header,
+    .ui-widget-header .ui-state-default {
+        font-weight: normal !important;
+    }
+</style>
+
+<script src="/car2009/js/alertify.min.js"></script>
+<script >
+        PageInfo = {"auto_focus":"","ModuleName_calllfrom":"Parts_Query","ServiceNo":"CAR00401","str_登錄名稱":"東強汽車材料行","str_default_store_no":"1"}
+</script>
+<style type="text/css">
+	.CursorPointer:hover {cursor: pointer;}
+	.width500 { width: 500px !important; }
+</style> 
+<div style="display:none;">
+    <span id="ModuleName"></span> / <span id="SubModuleName"></span>
+</div>
+
+<script>
+    ModuleName = "";
+    SubModuleName = "";
+
+    $j(function () {
+        SYS_ALERT = alert;
+        SYS_CONFIRM = confirm;
+        alert = alertify.alert;
+        confirm = alertify.confirm;
+        alertify_reset();
+        alertify_event();
+    });
+
+    $j(function () {
+                if (PageInfo.auto_focus == "1") {
+                    setTimeout(function () { $j("#i_focus").focus(); }, 300);
+                }
+
+        //console.log("PageInfo.auto_focus", PageInfo.auto_focus);
+        TextBox_KeyEvent($j('body'), 27, function ($this) {
+            //parent.$j('#dialog_presell').parent().find('.ui-dialog-buttonset').find('button').first().click();
+            parent.$j('#btn_close_dialog_partkey').click();
+            if (PageInfo.ModuleName_calllfrom == "Parts_Query") {
+                setTimeout(function () { var row = parseInt(parent.$j('#dialog_partkey').attr("row")); parent.$j(".TrKeyNavigate_" + (row - 1)).click(); }, 300);
+            }
+        });
+    });
+
+    function do_report(ReportName , sql_file) {
+        var str_url = "Default.aspx?AJAX=1&do_action=ajax_do_report&sql=%sql%&ModuleName=%ModuleName%&ModuleTitle=%ModuleTitle%&ReportName=%ReportName%&store_no=%store_no%";
+        var ele_list = new Array();
+        var ReportService_url = "";
+        var service_no = PageInfo.ServiceNo;
+        var str_ModuleName = "api/product_info_partkey_big";
+        var str_ModuleTitle = "零件適用資料";
+        var str_id = "";
+        var dt = null;
+        var dt_senddata = new DataTable();
+        var partsid = ThisPartKeyInfo[0]["零件主檔ID"];
+
+        dt_senddata.create('登錄名稱,開始日,結束日,日期型態,程式指定店號,零件主檔ID'.split(','), null, 1);
+
+        dt_senddata.setValue('登錄名稱', PageInfo.str_登錄名稱);
+        dt_senddata.setValue('零件主檔ID', partsid);
+        dt_senddata.setValue('開始日', '');
+        dt_senddata.setValue('結束日', '');
+        dt_senddata.setValue('日期型態', '');
+        dt_senddata.setValue('程式指定店號', PageInfo.str_default_store_no);
+        $j('#ele_SendData').val(dt_senddata.ExportCSV());
+
+        with (ele_list) {
+            push('ele_SendData');
+        }
+
+        str_url = str_url.ReplaceAll('%sql%', escape(sql_file));
+        str_url = str_url.ReplaceAll("%ModuleName%", escape(str_ModuleName));
+        str_url = str_url.ReplaceAll("%ModuleTitle%", escape(str_ModuleTitle));
+        str_url = str_url.ReplaceAll("%ReportName%", escape(ReportName));
+        //str_url = str_url.ReplaceAll("%store_no%", escape(get_element_value("ele_select_倉庫名稱")));
+
+        dt = get_data(str_url, ele_list.join(","));
+
+        if (dt.getValue('flg_error') == "1") {
+            //$j('#ele_SendData').val(dt.getValue('message'));
+            alert(dt.getValue('message'));
+        }
+        else {
+            //do_PrintToActiveReportViewer2('日報總表.rpx', dt);
+            str_id = dt.getValue("message");
+            ReportService_url = "/ReportService/Default.aspx?ServiceNo=%ServiceNo%&ReportName=%ReportName%&id=%id%&ModuleName=%ModuleName%";
+            //ReportService_url = "/ReportService/Default.aspx?ServiceNo=CAR1234&ReportName=%ReportName%&id=%id%&ModuleName=%ModuleName%";
+            ReportService_url = ReportService_url.ReplaceAll("%ServiceNo%", escape(service_no));
+            ReportService_url = ReportService_url.ReplaceAll("%ReportName%", escape(ReportName));
+            ReportService_url = ReportService_url.ReplaceAll("%ModuleName%", escape(str_ModuleName));
+            ReportService_url = ReportService_url.ReplaceAll("%id%", escape(str_id));
+            OpenWindow2(ReportService_url, "ReportService" + (new Date()).toFormat("yyyymmddhhnnss"), "1024", "960", (new DataTable()));        
+        }
+
+    }
+
+    $j(function () {
+        if (typeof (parent.parent.location.href) != "undefined") {
+            var tmp = parent.parent.location.href.split("/");
+
+            if (tmp.length >= 2)
+                ModuleName = tmp[tmp.length - 2];
+            else
+                ModuleName = tmp[tmp.length - 1];
+        }
+
+        if (typeof (parent.location.href) != "undefined") {
+            var tmp = parent.location.href.split("/");
+
+            if (tmp.length >= 2)
+                SubModuleName = tmp[tmp.length - 2];
+            else
+                SubModuleName = tmp[tmp.length - 1];
+        }
+        //console.log("ModuleName", ModuleName);
+        //console.log("SubModuleName", SubModuleName);
+        $j("#ModuleName").text(ModuleName);
+        $j("#SubModuleName").text(SubModuleName);
+
+        switch (ModuleName.toLowerCase()) {
+            case "parts_query":
+                HideButton();
+                break;
+
+            default:
+                ShowButton();
+                break;
+        }
+
+        switch (SubModuleName.toLowerCase()) {
+            case "cart":
+                ShowButton();
+                break;
+        }
+    });
+
+    $j(function () {
+        主資料ID = "";
+        var $target = $j(".主資料");
+        //console.log("$target", $target);
+
+        $target.each(function () {
+            var $this = $j(this);
+            var 主資料 = $this.attr("主資料");
+            var KeyValue = $this.attr("KeyValue");
+
+            if (主資料 == "1") {
+                主資料ID = KeyValue;
+
+                //console.log("主資料ID", 主資料ID);
+
+                return (false);
+            }
+        });
+
+        $$SV("ele_detail_主資料", 主資料ID);
+    });
+
+    $j(function () {
+        autocomplete_multi_remote4(".autocomplete_type", "VW_TYPE_AUTOCOMPLETE_PARTS_QUERY_EDIT", " ", 100, swap_content_phrase_type_id);
+        autocomplete_multi_remote4(".autocomplete_chname", "VW_CHNAME_AUTOCOMPLETE_PARTS_QUERY_EDIT", " ", 100, swap_content_phrase_chname_id);
+        autocomplete_multi_remote(".autocomplete_note", "VW_HOTKEY片語", " ", 100, swap_content_phrase_note);
+
+        TdAutoChangeWidth($j("#DataGridDetail thead td"));
+
+        SetTableInputKeyNavigate("#DataGridDetail"
+            , "#DataGridDetail_row_col"
+            , function () { }
+            , function () { }
+            , function () { }
+        );
+
+        $j("#DataGridDetail tbody tr").click(function () {
+            var $this = $j(this);
+            var PartkeyId = $this.attr("KeyValue");
+            //console.log("#DataGridDetail tbody tr click ", PartkeyId);
+            var list = FindObject(ThisPartKeyInfo, "id", PartkeyId);
+
+            if (list.length != 0) {
+                var $details = $j("#display_partkey_detail .partkey_detail");
+
+                $details.each(function () {
+                    var $detail = $j(this);
+                    var fieldname = $detail.attr("fieldname");
+                    var value = list[0][fieldname];
+
+                    $detail.html(value);
+                });
+            }
+        });
+
+
+        $j("#DataGridDetail .AutoUpdate").focus(function () {
+            var $this = $j(this);
+            $this.attr("old_value", $this.val());
+        });
+
+        $j("#DataGridDetail .AutoUpdate").change(function () {
+            var $this = $j(this);
+            var strFieldValue = $this.val();
+            var strFieldName = $this.attr("FieldName");
+            var strKeyValue = $this.attr("KeyValue");
+            var strTableName = $this.attr("TableName");
+            var strmainrec = $this.attr("mainrec");
+            var partsid = $this.attr("partsid");
+            var old_value = $this.attr("old_value");
+
+            //sys_auto_update("Default.aspx", "零件副檔", "id", strKeyValue, strFieldName, strFieldValue, update_detail_finish);
+            //sys_auto_update("Default.aspx", strTableName, "id", strKeyValue, strFieldName, strFieldValue);
+            //console.log(".AutoUpdate .change", strFieldName);
+            api_sys_auto_update(strTableName, "id", strKeyValue, strFieldName, strFieldValue, function (resp) {
+                
+                if (strFieldName == "車種名稱" && strFieldValue.trim() == "") {
+                    api_sys_auto_update(strTableName, "id", strKeyValue, "TYPE_ID", "", function (resp) {
+                    });
+                }
+
+                if (strFieldName == "品名名稱" && strFieldValue.trim() == "") {
+                    api_sys_auto_update(strTableName, "id", strKeyValue, "CHNAME_ID", "", function (resp) {
+                    });
+                }
+
+                if (strmainrec == "1" && strFieldName == "適用號碼") {
+                    api_sys_auto_update("零件主檔", "id", partsid, "零件號碼", strFieldValue, function (resp) {
+                        //console.log("api_sys_auto_update 零件主檔 零件號碼", resp);
+                    });
+                }
+
+                if (strFieldName == "適用號碼") {
+                    var privateNo = api_get_value("零件主檔", "id", partsid, "自編號碼");
+
+                    if (privateNo == old_value) {
+                        api_sys_auto_update("零件主檔", "id", partsid, "自編號碼", strFieldValue, function (resp) {
+                            //console.log("api_sys_auto_update 零件主檔 自編號碼", resp);
+                        });
+                    }
+                }
+            });
+
+        });
+    });
+
+    $j(function () {
+        var partsid = ThisPartKeyInfo[0]["零件主檔ID"];
+        var privateNo = api_get_value("零件主檔", "id", partsid, "自編號碼");
+        var realnoNo = api_get_value("零件主檔", "id", partsid, "零件號碼");
+        $j("#ele_零件號碼").val(realnoNo);
+        $j("#ele_零件號碼").attr("KeyValue", partsid);
+
+        $j("#ele_自編號碼").val(privateNo);
+
+        $j("#DataGridDetail tbody tr").first().click();
+
+        //        $j(".AutoUpdate_零件主檔").change(function () {
+        //            var $this = $j(this);
+        //            var strFieldValue = $this.val();
+        //            var strFieldName = $this.attr("FieldName");
+        //            var strKeyName = $this.attr("KeyName");
+        //            var strKeyValue = $this.attr("KeyValue");
+        //            var strTableName = $this.attr("TableName");
+        //            api_sys_auto_update(strTableName, strKeyName, strKeyValue, strFieldName, strFieldValue, function (resp) {
+        //                alertify.success(resp);
+        //            });
+        //        });
+    })
+
+    $j(function () {
+        $j(".sync_same_品名規格").change(function () {
+            var $this = $j(this);
+            var str_id = $this.attr("KeyValue");
+            var old_value = $this.attr("old_value");
+
+            var NewValue = $this.val();
+
+            SetObjectInfo(ThisPartKeyInfo, "id", str_id, "品名規格", NewValue)
+            //            console.log("OldValue=" + OldValue);
+            //            console.log("NewValue=" + NewValue);
+
+            if ($this.attr("disupdate") == "1") {
+                alertify.error("變更沒獲得授權!!!")
+            }
+            else {
+                var list = FindObject(ThisPartKeyInfo, "品名規格", old_value);
+                if (list.length != 0) {
+                    var $btn = $j("#btn_sync_spec");
+                    $btn.show();
+                    $btn.attr("KeyValue", str_id);
+                    $btn.attr("old_value", old_value);
+                    $btn.attr("NewValue", NewValue);
+
+                    alertify.success("有相同內容的品名規格，可以同步!!!");
+                }
+            }
+        });
+
+        $j(".sync_same_備註").change(function () {
+            var $this = $j(this);
+            var str_id = $this.attr("KeyValue");
+            var old_value = $this.attr("old_value");
+
+            var NewValue = $this.val();
+
+            SetObjectInfo(ThisPartKeyInfo, "id", str_id, "副檔備註", NewValue)
+            //            console.log("OldValue=" + OldValue);
+            //            console.log("NewValue=" + NewValue);
+
+            if ($this.attr("disupdate") == "1") {
+                alertify.error("變更沒獲得授權!!!")
+            }
+            else {
+                var list = FindObject(ThisPartKeyInfo, "副檔備註", old_value);
+                if (list.length != 0) {
+                    var $btn = $j("#btn_sync_備註");
+                    $btn.show();
+                    $btn.attr("KeyValue", str_id);
+                    $btn.attr("old_value", old_value);
+                    $btn.attr("NewValue", NewValue);
+
+                    alertify.success("有相同內容的備註，可以同步!!!");
+                }
+            }
+        });
+    })
+
+    function do_sync_spec($this) {
+        
+        var fieldvalue = $this.attr('NewValue');
+        var old_value = $this.attr('old_value');
+
+        var list = FindObject(ThisPartKeyInfo, "品名規格", old_value);
+
+        if (list.length != 0) {
+            for (var i = 0; i < list.length; i++) {
+                var str_id = list[i]["id"];
+                api_sys_auto_update("零件副檔", "id", str_id, "品名規格", fieldvalue, function (resp) {
+
+                });
+            }
+
+            parent.alertify.success("品名規格同步完成!!!");
+            window.location.reload();
+        }
+
+    }
+
+    function do_sync_備註($this) {
+
+        var fieldvalue = $this.attr('NewValue');
+        var old_value = $this.attr('old_value');
+
+        var list = FindObject(ThisPartKeyInfo, "副檔備註", old_value);
+
+        if (list.length != 0) {
+            for (var i = 0; i < list.length; i++) {
+                var str_id = list[i]["id"];
+                api_sys_auto_update("零件副檔", "id", str_id, "備註", fieldvalue, function (resp) {
+
+                });
+            }
+
+            parent.alertify.success("備註同步完成!!!");
+            window.location.reload();
+        }
+
+    }
+
+    function do_sync_chname($this) {
+
+        var fieldvalue = $this.attr('NewValue');
+        var old_value = $this.attr('old_value');
+        var CHNAME_ID = $this.attr('CHNAME_ID');
+
+        var list = FindObject(ThisPartKeyInfo, "CHNAME_LABLE", old_value);
+
+        if (list.length != 0) {
+            for (var i = 0; i < list.length; i++) {
+                var str_id = list[i]["id"];
+
+                api_sys_auto_update_sync("零件副檔", "id", str_id, "品名名稱", fieldvalue, function (resp) {
+
+                });
+
+                api_sys_auto_update_sync("零件副檔", "id", str_id, "CHNAME_ID", CHNAME_ID, function (resp) {
+
+                });
+            }
+
+            parent.alertify.success("品名同步完成!!!");
+            window.location.reload();
+        }
+
+    }
+
+    function swap_content_phrase_type_id(event, ui, $this) {
+        var str_id = $this.attr('KeyValue');
+        var fieldvalue = ui.item.value;
+        //console.log("$this", $this.val());
+        api_sys_auto_update("零件副檔", "id", str_id, "TYPE_ID", fieldvalue, function (resp) {
+            //console.log("api_sys_auto_update 零件副檔 TYPE_ID", resp);
+            var val = ui.item.label;
+
+            if (val.indexOf(" -- ") != "-1") {
+                val = val.split(" -- ")[1];
+            }
+
+            $this.val(val).change();
+        });
+    }
+
+    function swap_content_phrase_chname_id(event, ui, $this) {
+        var str_id = $this.attr('KeyValue');
+        var fieldvalue = ui.item.value;
+        //alert(fieldvalue);
+
+        api_sys_auto_update("零件副檔", "id", str_id, "CHNAME_ID", fieldvalue, function (resp) {
+            //console.log("api_sys_auto_update 零件副檔 TYPE_ID", resp);
+            var val = ui.item.label;
+
+            if (val.indexOf(" -- ") != "-1") {
+                val = val.split(" -- ")[1];
+            }
+
+            $this.val(val).change();
+        });
+
+        var str_id = $this.attr("KeyValue");
+        var old_value = $this.attr("old_value");
+
+        var NewValue = $this.val();
+
+        SetObjectInfo(ThisPartKeyInfo, "id", str_id, "CHNAME_LABLE", NewValue)
+        SetObjectInfo(ThisPartKeyInfo, "id", str_id, "CHNAME_ID", fieldvalue)
+        //            console.log("OldValue=" + OldValue);
+        //            console.log("NewValue=" + NewValue);
+
+        if ($this.attr("disupdate") == "1") {
+            alertify.error("變更沒獲得授權!!!")
+        }
+        else {
+            var list = FindObject(ThisPartKeyInfo, "CHNAME_LABLE", old_value);
+            if (list.length != 0) {
+                var $btn = $j("#btn_sync_chname");
+                $btn.show();
+                $btn.attr("KeyValue", str_id);
+                $btn.attr("old_value", old_value);
+                $btn.attr("NewValue", NewValue);
+                $btn.attr("CHNAME_ID", fieldvalue);
+
+                alertify.success("有相同內容的品名，可以同步!!!");
+            }
+        }
+
+
+    }
+
+    function swap_content_phrase_note(event, ui, $this) {
+        $this.val(ui.item.value).change();
+    }
+
+    function ShowButton() {
+        $j(".Replacement").show();
+    }
+
+    function HideButton() {
+        $j(".Replacement").hide();
+    }
+
+    function Replacement(id) {
+        if (SubModuleName.toLowerCase() == "cart") {
+            parent.Replacement(id);
+        }
+        else {
+            parent.parent.Replacement(id);
+        }
+    }
+
+    function Replacement_Realno(id) {
+        if (SubModuleName.toLowerCase() == "cart") {
+            parent.Replacement_Realno(id);
+        }
+        else {
+            parent.parent.Replacement_Realno(id);
+        }
+    }
+
+    function Update零件副檔(KeyName, KeyValue, FieldName, FieldValue) {
+        var ApiUrl = "/car2009/api/Update零件副檔/";
+
+        $j.ajax(
+            {
+                url: ApiUrl
+                , cache: false
+                , global: false
+                , type: "POST"
+                , data: {
+                    "KeyName": KeyName
+                    , "KeyValue": KeyValue
+                    , "FieldName": FieldName
+                    , "FieldValue": FieldValue
+                }
+                , dataType: "json"
+                , async: false
+                , success: Update零件副檔_finish
+            }
+        )
+    }
+
+    function Update零件副檔_finish(resp) {
+        if (resp.Code == "1") {
+            alert(resp.Message);
+            return (false);
+        }
+
+        //alertify.success(resp.Message);
+    }
+
+    function 零件號碼同步(str_適用號碼_主資料, partsid) {
+        api_sys_auto_update("零件主檔", "id", partsid, "零件號碼", str_適用號碼_主資料, function (resp) {
+            //console.log("api_sys_auto_update 零件主檔 零件號碼", resp);
+        });
+
+    }
+
+
+    function do_刪除適用_多筆() {
+        var id_list = $$GV("chk_selected");
+        var ApiUrl = "/car2009/api/Delete零件副檔/";
+
+        if (id_list == "") {
+            alertify.error("請在左側勾選!!!");
+            return (false);
+        }
+        confirm("是否刪除勾選 適用資料?"
+        , function (e) {
+            if (e) {
+                $j.ajax(
+                    {
+                        url: ApiUrl
+                        , cache: false
+                        , global: false
+                        , type: "POST"
+                        , data: {
+                            "id": id_list
+                        }
+                        , dataType: "json"
+                        , async: false
+                        , success: Delete零件副檔_finish
+                    }
+                );
+            }
+            else {
+                return (false);
+            }
+        });
+
+        alertify_confirm_focus_cancel();
+    }
+
+
+    function do_刪除適用(str_id) {
+        var ApiUrl = "/car2009/api/Delete零件副檔/";
+
+        $j.ajax(
+            {
+                url: ApiUrl
+                , cache: false
+                , global: false
+                , type: "POST"
+                , data: {
+                    "id": str_id
+                }
+                , dataType: "json"
+                , async: false
+                , success: Delete零件副檔_finish
+            }
+        )
+    }
+
+    function Delete零件副檔_finish(resp) {
+        if (resp.Code == "1") {
+            alert(resp.Message);
+            return (false);
+        }
+
+        window.location.reload();
+
+        //alertify.success(resp.Message);
+    }
+
+    function do_複製適用(str_id) {
+        var ApiUrl = "/car2009/api/Copy零件副檔/";
+
+        $j.ajax(
+            {
+                url: ApiUrl
+                , cache: false
+                , global: false
+                , type: "POST"
+                , data: {
+                    "id": str_id
+                }
+                , dataType: "json"
+                , async: false
+                , success: Copy零件副檔_finish
+            }
+        )
+    }
+
+    function Copy零件副檔_finish(resp) {
+        if (resp.Code == "1") {
+            alert(resp.Message);
+            return (false);
+        }
+
+        window.location.reload();
+
+        //alertify.success(resp.Message);
+    }
+
+    function 複製_零件副檔() {
+        SetTokenData("PartKey_Info", JSON.stringify(ThisPartKeyInfo));
+
+        alertify.success("已經複製 適用資料...");
+    }
+
+    Source_Partkey_Info = [];
+
+    function 貼上_零件副檔() {
+        var Value = GetTokenData("PartKey_Info");
+
+        if (Value == "") {
+            alert("沒有來源 適用資料 !!!");
+        }
+        else {
+            $j("#div_貼上").show();
+
+            var $dsp = $j("#Display_Partkey_Source");
+            var data_template = $j("#tmpl-Partkey_Source").html();
+            var data_list = JSON.parse(Value);
+
+            Source_Partkey_Info = data_list;
+
+            $dsp.html("");
+
+            DataAppender($dsp, data_list, data_template);
+
+            
+        }
+    }
+
+    function GetAllChkItems() {
+        var id_list = new Array();
+        var $items = $j(".chk_Selected");
+
+        $items.each(function () {
+            var $this = $j(this);
+            var id = $this.attr("value");
+
+            id_list.push(id);
+        });
+
+        return (id_list);
+    }
+
+    function Select_All() {
+        var chk = $$GV("chk_SelectAll");
+        //console.log("chk", chk);
+        if (chk == "1") {
+            var id_list = GetAllChkItems();
+            //console.log("id_list", id_list);
+            $$SV("chk_Selected", id_list.join(","));
+        }
+        else {
+            $$SV("chk_Selected", "");
+        }
+    }
+
+    function Select_chk_item() {
+        var all_items = GetAllChkItems();
+        var selected_items = $$GV("chk_Selected");
+
+        if (all_items == selected_items) {
+            $$SV("chk_SelectAll", "1")
+        }
+        else {
+            $$SV("chk_SelectAll", "")
+        }
+    }
+
+    function partkey_Check_適用號碼() {
+        var dest_list = ThisPartKeyInfo;
+        var src_list = Source_Partkey_Info;
+        var list = [];
+
+        for (var i = 0; i < src_list.length; i++) {
+            var src_info = src_list[i];
+            var 適用號碼 = src_info["適用號碼"];
+            //var 車種規格 = src_info["車種規格"];
+            //var 年份 = src_info["年份"];
+            var findList = [];
+
+            if (適用號碼 == "") {
+                continue;
+            }
+
+            findList = FindObject(dest_list, "適用號碼", 適用號碼);
+            //findList = FindObject(findList, "車種規格", 車種規格);
+            //findList = FindObject(findList, "年份", 年份);
+
+            if (findList.length == 0) {
+                list.push(src_info);
+            }
+        }
+
+//        if (list.length == 0) {
+//            $$SV("chk_Selected", "");
+//        }
+//        else {
+            var id_list = new Array();
+            for (var i = 0; i < list.length; i++) {
+                var id = list[i]["id"];
+                id_list.push(id);
+            }
+
+            $$SV("chk_Selected", id_list.join(","));
+//        }
+    }
+
+    function partkey_Check() {
+        var dest_list = ThisPartKeyInfo;
+        var src_list = Source_Partkey_Info;
+        var list = [];
+
+        for (var i = 0; i < src_list.length; i++) {
+            var src_info = src_list[i];
+            var TYPE_LABLE = src_info["TYPE_LABLE"];
+            var 車種規格 = src_info["車種規格"];
+            var 年份 = src_info["年份"];
+            var findList = [];
+
+            if (TYPE_LABLE == "") {
+                continue;
+            }
+
+            findList = FindObject(dest_list, "TYPE_LABLE", TYPE_LABLE);
+            findList = FindObject(findList, "車種規格", 車種規格);
+            findList = FindObject(findList, "年份", 年份);
+
+            if (findList.length == 0) {
+                list.push(src_info);
+            }
+        }
+
+//        if (list.length == 0) {
+//            $$SV("chk_Selected", "");
+//        }
+//        else {
+            var id_list = new Array();
+            for (var i = 0; i < list.length; i++) {
+                var id = list[i]["id"];
+                id_list.push(id);
+            }
+
+            $$SV("chk_Selected", id_list.join(","));
+//        }
+    }
+
+    function partkey_ReplaceAll() {
+        var id_list = $$GV("chk_Selected");
+
+        var ApiUrl = "/car2009/api/partkey_ReplaceAll/";
+        var partkeyId = ThisPartKeyInfo[0]["零件主檔ID"];
+
+        $j.ajax(
+            {
+                url: ApiUrl
+                , cache: false
+                , global: false
+                , type: "POST"
+                , data: {
+                    "id_list": id_list
+                    , "partkeyId": partkeyId
+
+                }
+                , dataType: "json"
+                , async: false
+                , success: function (resp) {
+                    parent.alertify.success(resp.Message);
+                    window.location.reload();
+
+                }
+            }
+        )
+    }
+
+    function partkey_JoinItems() {
+        var id_list = $$GV("chk_Selected");
+        var ApiUrl = "/car2009/api/partkey_JoinItems/";
+        var partkeyId = ThisPartKeyInfo[0]["零件主檔ID"];
+
+        $j.ajax(
+            {
+                url: ApiUrl
+                , cache: false
+                , global: false
+                , type: "POST"
+                , data: {
+                    "id_list": id_list
+                    , "partkeyId": partkeyId
+
+                }
+                , dataType: "json"
+                , async: false
+                , success: function (resp) {
+                    parent.alertify.success(resp.Message);
+                    window.location.reload();
+                    
+                }
+            }
+        )
+    }
+
+</script>
+<script type="text/javascript">
+    function TdAutoChangeWidth($items) {
+        $items.addClass("CursorPointer");
+        $items.click(function () {
+            var $this = $j(this);
+            var $input = $this.find("input");
+
+            if ($input.length > 0) {
+                return (true);
+            }
+            //console.log("TdAutoChangeWidth click", $this, $this.hasClass("width500"));
+            if ($this.hasClass("width500")) {
+                //console.log("removeClass('width500')");
+                $this.removeClass("width500");
+            }
+            else {
+                //console.log("addClass('width500')");
+                $this.addClass("width500");
+            }
+        });
+    }
+</script> 
+

@@ -1,0 +1,1144 @@
+
+<div style="position: relative">
+<div class="tooltip" id="tooltip"></div>
+
+             
+<table width="100%" readonly id="DataGridDetail" class="ui-widget ui-widget-conent ui-corner-all">
+  
+
+<thead>
+  <tr class="ui-widget-header">
+    <td align="center" valign="middle" style="font-size: 20px; width: 4%;" >主</td>
+    <td align="center" valign="middle" style="font-size: 20px; width: 15%;">適用號碼</td>
+    <td class="Replacement" ></td>
+    <td align="center" valign="middle" style="font-size: 20px;" >車種</td>
+<!--    <td align="center" valign="middle" ></td>-->
+    <td align="center" valign="middle" style="font-size: 20px;" >車種規格</td>
+    <td align="center" valign="middle" style="font-size: 20px;" >年份</td>
+    <td class="Replacement" ></td>
+    <td align="center" valign="middle" style="font-size: 20px;"  >品名</td>
+<!--    <td align="center" valign="middle" ></td>
+-->    <td align="center" valign="middle" style="font-size: 20px;" >品名規格</td>
+    <td align="center" valign="middle" style="font-size: 20px;"   >品牌</td>
+    <!--<td align="center" valign="middle" ></td>-->
+    <td align="center" valign="middle" style="font-size: 20px;" >備註</td>
+  </tr>
+</thead>
+<tbody>   
+  
+
+    <tr class="ui-state-default" KeyValue="E2331CBE-5C7D-4C96-83C9-AEA52FC61677" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >1&nbsp;主</div>
+        </td>
+        <td align="center" valign="middle" title="COM-B031A" >
+            <input type="text" value="COM-B031A" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('E2331CBE-5C7D-4C96-83C9-AEA52FC61677');" /></td>
+<!--        <td align="center" valign="middle" >BMW F45 (2系列)</td>-->
+        <td align="center" valign="middle" title="BMW F45 (2系列)" >
+            <input type="text" value="BMW F45 (2系列)" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=1; OpenSelectCTYPE(1);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=1; ClearCTYPE(1);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+
+        <td align="center" valign="middle" title="16" >
+            <input type="text" value="16" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('E2331CBE-5C7D-4C96-83C9-AEA52FC61677');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=1; OpenSelectCCHNAME(1);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=1; ClearCCHNAME(1);" /></td>
+-->        
+        <td align="center" valign="middle" title="(6VS14ec) 6PK 有線圈" >
+            <input type="text" value="(6VS14ec) 6PK 有線圈" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=1; OpenSelectCBRAND(1);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=1; ClearCBRAND(1);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="(PXC16)" >
+            <input type="text" value="(PXC16)" class="style1" />
+        </td>
+    </tr>
+
+  
+
+
+    <tr class="ui-widget-content" KeyValue="CE8A30A3-0491-4CBB-919D-439F4CB61EB6" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >2&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="64525A3F1D2" >
+            <input type="text" value="64525A3F1D2" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('CE8A30A3-0491-4CBB-919D-439F4CB61EB6');" /></td>
+<!--        <td align="center" valign="middle" >BMW F10 (5系列)</td>-->
+        <td align="center" valign="middle" title="BMW F10 (5系列)" >
+            <input type="text" value="BMW F10 (5系列)" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=2; OpenSelectCTYPE(2);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=2; ClearCTYPE(2);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="13-16" >
+            <input type="text" value="13-16" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('CE8A30A3-0491-4CBB-919D-439F4CB61EB6');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=2; OpenSelectCCHNAME(2);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=2; ClearCCHNAME(2);" /></td>
+-->        
+        <td align="center" valign="middle" title="520d B47 柴油" >
+            <input type="text" value="520d B47 柴油" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=2; OpenSelectCBRAND(2);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=2; ClearCBRAND(2);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="" >         
+            <input type="text" value="" class="style1" />
+        </td>
+    </tr>
+  
+
+
+    <tr class="ui-state-default" KeyValue="A49EC911-8DA8-4FC6-BC00-95941F6A5900" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >3&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="BS010N" >
+            <input type="text" value="BS010N" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('A49EC911-8DA8-4FC6-BC00-95941F6A5900');" /></td>
+<!--        <td align="center" valign="middle" >BMW F30 (3系列)</td>-->
+        <td align="center" valign="middle" title="BMW F30 (3系列)" >
+            <input type="text" value="BMW F30 (3系列)" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=3; OpenSelectCTYPE(3);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=3; ClearCTYPE(3);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+
+        <td align="center" valign="middle" title="16-" >
+            <input type="text" value="16-" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('A49EC911-8DA8-4FC6-BC00-95941F6A5900');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=3; OpenSelectCCHNAME(3);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=3; ClearCCHNAME(3);" /></td>
+-->        
+        <td align="center" valign="middle" title="(PXC16) 6PK 110mm 有線圈" >
+            <input type="text" value="(PXC16) 6PK 110mm 有線圈" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=3; OpenSelectCBRAND(3);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=3; ClearCBRAND(3);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+    </tr>
+
+  
+
+
+    <tr class="ui-widget-content" KeyValue="9B318933-5386-40A6-9FA1-FB5490159DEB" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >4&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="64526811430	" >
+            <input type="text" value="64526811430	" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('9B318933-5386-40A6-9FA1-FB5490159DEB');" /></td>
+<!--        <td align="center" valign="middle" >BMW F45 (2系列)</td>-->
+        <td align="center" valign="middle" title="BMW F45 (2系列)" >
+            <input type="text" value="BMW F45 (2系列)" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=4; OpenSelectCTYPE(4);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=4; ClearCTYPE(4);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('9B318933-5386-40A6-9FA1-FB5490159DEB');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=4; OpenSelectCCHNAME(4);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=4; ClearCCHNAME(4);" /></td>
+-->        
+        <td align="center" valign="middle" title="(6VS14ec) 6PK 有線圈" >
+            <input type="text" value="(6VS14ec) 6PK 有線圈" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=4; OpenSelectCBRAND(4);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=4; ClearCBRAND(4);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="(PXC16)" >         
+            <input type="text" value="(PXC16)" class="style1" />
+        </td>
+    </tr>
+  
+
+
+    <tr class="ui-state-default" KeyValue="F6CA86A5-C206-4101-821F-CBF321E46BF7" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >5&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="64526811432" >
+            <input type="text" value="64526811432" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('F6CA86A5-C206-4101-821F-CBF321E46BF7');" /></td>
+<!--        <td align="center" valign="middle" >BMW F45 (2系列)</td>-->
+        <td align="center" valign="middle" title="BMW F45 (2系列)" >
+            <input type="text" value="BMW F45 (2系列)" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=5; OpenSelectCTYPE(5);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=5; ClearCTYPE(5);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('F6CA86A5-C206-4101-821F-CBF321E46BF7');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=5; OpenSelectCCHNAME(5);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=5; ClearCCHNAME(5);" /></td>
+-->        
+        <td align="center" valign="middle" title="(6VS14ec) 6PK 有線圈" >
+            <input type="text" value="(6VS14ec) 6PK 有線圈" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=5; OpenSelectCBRAND(5);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=5; ClearCBRAND(5);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="(PXC16)" >
+            <input type="text" value="(PXC16)" class="style1" />
+        </td>
+    </tr>
+
+  
+
+
+    <tr class="ui-widget-content" KeyValue="FBBCAEBC-A6DB-48F7-BC10-68841842553F" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >6&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="64526826879	" >
+            <input type="text" value="64526826879	" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('FBBCAEBC-A6DB-48F7-BC10-68841842553F');" /></td>
+<!--        <td align="center" valign="middle" >BMW F45 (2系列)</td>-->
+        <td align="center" valign="middle" title="BMW F45 (2系列)" >
+            <input type="text" value="BMW F45 (2系列)" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=6; OpenSelectCTYPE(6);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=6; ClearCTYPE(6);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('FBBCAEBC-A6DB-48F7-BC10-68841842553F');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=6; OpenSelectCCHNAME(6);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=6; ClearCCHNAME(6);" /></td>
+-->        
+        <td align="center" valign="middle" title="(6VS14ec) 6PK 有線圈" >
+            <input type="text" value="(6VS14ec) 6PK 有線圈" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=6; OpenSelectCBRAND(6);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=6; ClearCBRAND(6);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="(PXC16)" >         
+            <input type="text" value="(PXC16)" class="style1" />
+        </td>
+    </tr>
+  
+
+
+    <tr class="ui-state-default" KeyValue="39B47D71-9A36-4B51-8D29-94E1B54CD4FF" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >7&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="64529295050" >
+            <input type="text" value="64529295050" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('39B47D71-9A36-4B51-8D29-94E1B54CD4FF');" /></td>
+<!--        <td align="center" valign="middle" >BMW G11 (7系列)</td>-->
+        <td align="center" valign="middle" title="BMW G11 (7系列)" >
+            <input type="text" value="BMW G11 (7系列)" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=7; OpenSelectCTYPE(7);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=7; ClearCTYPE(7);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+
+        <td align="center" valign="middle" title="15-19" >
+            <input type="text" value="15-19" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('39B47D71-9A36-4B51-8D29-94E1B54CD4FF');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=7; OpenSelectCCHNAME(7);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=7; ClearCCHNAME(7);" /></td>
+-->        
+        <td align="center" valign="middle" title="(PXC16) 6PK 有線圈" >
+            <input type="text" value="(PXC16) 6PK 有線圈" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=7; OpenSelectCBRAND(7);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=7; ClearCBRAND(7);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="(PXC16)" >
+            <input type="text" value="(PXC16)" class="style1" />
+        </td>
+    </tr>
+
+  
+
+
+    <tr class="ui-widget-content" KeyValue="1C8CC0B0-F8AD-42F1-98AD-A9FCC1BF664E" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >8&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="ACP1385000S (MAHLE)" >
+            <input type="text" value="ACP1385000S (MAHLE)" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('1C8CC0B0-F8AD-42F1-98AD-A9FCC1BF664E');" /></td>
+<!--        <td align="center" valign="middle" >BMW X1</td>-->
+        <td align="center" valign="middle" title="BMW X1" >
+            <input type="text" value="BMW X1" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=8; OpenSelectCTYPE(8);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=8; ClearCTYPE(8);" /></td>-->
+        <td align="center" valign="middle" title="(F48)" >
+            <input type="text" value="(F48)" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="14-" >
+            <input type="text" value="14-" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('1C8CC0B0-F8AD-42F1-98AD-A9FCC1BF664E');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=8; OpenSelectCCHNAME(8);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=8; ClearCCHNAME(8);" /></td>
+-->        
+        <td align="center" valign="middle" title="(6VS14ec) 6PK 有線圈" >
+            <input type="text" value="(6VS14ec) 6PK 有線圈" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=8; OpenSelectCBRAND(8);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=8; ClearCBRAND(8);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="(PXC16)" >         
+            <input type="text" value="(PXC16)" class="style1" />
+        </td>
+    </tr>
+  
+
+
+    <tr class="ui-state-default" KeyValue="610FF768-8A77-42E9-BD9D-C3C595FFB6FB" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >9&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="64526822847" >
+            <input type="text" value="64526822847" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('610FF768-8A77-42E9-BD9D-C3C595FFB6FB');" /></td>
+<!--        <td align="center" valign="middle" >BMW X1 (F48)</td>-->
+        <td align="center" valign="middle" title="BMW X1 (F48)" >
+            <input type="text" value="BMW X1 (F48)" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=9; OpenSelectCTYPE(9);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=9; ClearCTYPE(9);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+
+        <td align="center" valign="middle" title="14-" >
+            <input type="text" value="14-" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('610FF768-8A77-42E9-BD9D-C3C595FFB6FB');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=9; OpenSelectCCHNAME(9);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=9; ClearCCHNAME(9);" /></td>
+-->        
+        <td align="center" valign="middle" title="(6VS14ec) 6PK 有線圈" >
+            <input type="text" value="(6VS14ec) 6PK 有線圈" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=9; OpenSelectCBRAND(9);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=9; ClearCBRAND(9);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="(PXC16)" >
+            <input type="text" value="(PXC16)" class="style1" />
+        </td>
+    </tr>
+
+  
+
+
+    <tr class="ui-widget-content" KeyValue="6364878C-8B55-4938-BB32-705F5550AA51" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >10&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="8733E" >
+            <input type="text" value="8733E" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('6364878C-8B55-4938-BB32-705F5550AA51');" /></td>
+<!--        <td align="center" valign="middle" >MINI COOPER</td>-->
+        <td align="center" valign="middle" title="MINI COOPER" >
+            <input type="text" value="MINI COOPER" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=10; OpenSelectCTYPE(10);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=10; ClearCTYPE(10);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('6364878C-8B55-4938-BB32-705F5550AA51');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=10; OpenSelectCCHNAME(10);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=10; ClearCCHNAME(10);" /></td>
+-->        
+        <td align="center" valign="middle" title="(6VS14ec) 6PK 有線圈" >
+            <input type="text" value="(6VS14ec) 6PK 有線圈" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=10; OpenSelectCBRAND(10);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=10; ClearCBRAND(10);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="(PXC16)" >         
+            <input type="text" value="(PXC16)" class="style1" />
+        </td>
+    </tr>
+  
+
+
+    <tr class="ui-state-default" KeyValue="95E25946-DC82-4B3A-95C3-FE23B436FF1D" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >11&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="814698 (VALEO)" >
+            <input type="text" value="814698 (VALEO)" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('95E25946-DC82-4B3A-95C3-FE23B436FF1D');" /></td>
+<!--        <td align="center" valign="middle" >MINI COOPER</td>-->
+        <td align="center" valign="middle" title="MINI COOPER" >
+            <input type="text" value="MINI COOPER" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=11; OpenSelectCTYPE(11);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=11; ClearCTYPE(11);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('95E25946-DC82-4B3A-95C3-FE23B436FF1D');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=11; OpenSelectCCHNAME(11);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=11; ClearCCHNAME(11);" /></td>
+-->        
+        <td align="center" valign="middle" title="(6VS14ec) 6PK 有線圈" >
+            <input type="text" value="(6VS14ec) 6PK 有線圈" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=11; OpenSelectCBRAND(11);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=11; ClearCBRAND(11);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="(PXC16)" >
+            <input type="text" value="(PXC16)" class="style1" />
+        </td>
+    </tr>
+
+  
+
+
+    <tr class="ui-widget-content" KeyValue="8F25F6DE-1547-4B8A-853F-A851D5E02D6A" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >12&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('8F25F6DE-1547-4B8A-853F-A851D5E02D6A');" /></td>
+<!--        <td align="center" valign="middle" ></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=12; OpenSelectCTYPE(12);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=12; ClearCTYPE(12);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('8F25F6DE-1547-4B8A-853F-A851D5E02D6A');" /></td>
+        <td align="center" valign="middle" title="壓縮機" >
+            <input type="text" value="壓縮機" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" >壓縮機</td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=12; OpenSelectCCHNAME(12);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=12; ClearCCHNAME(12);" /></td>
+-->        
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=12; OpenSelectCBRAND(12);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=12; ClearCBRAND(12);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="" >         
+            <input type="text" value="" class="style1" />
+        </td>
+    </tr>
+  
+
+
+    <tr class="ui-state-default" KeyValue="61222AEB-F052-4066-84E4-DF40752E14D8" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >13&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="64525A5C712" >
+            <input type="text" value="64525A5C712" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('61222AEB-F052-4066-84E4-DF40752E14D8');" /></td>
+<!--        <td align="center" valign="middle" ></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=13; OpenSelectCTYPE(13);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=13; ClearCTYPE(13);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('61222AEB-F052-4066-84E4-DF40752E14D8');" /></td>
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" ></td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=13; OpenSelectCCHNAME(13);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=13; ClearCCHNAME(13);" /></td>
+-->        
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=13; OpenSelectCBRAND(13);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=13; ClearCBRAND(13);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+    </tr>
+
+  
+
+
+    <tr class="ui-widget-content" KeyValue="572D3E51-D9EE-4499-BBD4-825D2713AA7E" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >14&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="64529890655" >
+            <input type="text" value="64529890655" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('572D3E51-D9EE-4499-BBD4-825D2713AA7E');" /></td>
+<!--        <td align="center" valign="middle" ></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=14; OpenSelectCTYPE(14);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=14; ClearCTYPE(14);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('572D3E51-D9EE-4499-BBD4-825D2713AA7E');" /></td>
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" ></td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=14; OpenSelectCCHNAME(14);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=14; ClearCCHNAME(14);" /></td>
+-->        
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=14; OpenSelectCBRAND(14);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=14; ClearCBRAND(14);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="" >         
+            <input type="text" value="" class="style1" />
+        </td>
+    </tr>
+  
+
+
+    <tr class="ui-state-default" KeyValue="0F5E83B2-15CC-4B4F-A8DF-29430B8746E0" >
+        <td align="left" valign="middle" >
+            <div class="display-mode" style="height:25px; overflow:hidden;" >15&nbsp;</div>
+        </td>
+        <td align="center" valign="middle" title="CO-BM056-2" >
+            <input type="text" value="CO-BM056-2" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回料號" onclick="Replacement_Realno('0F5E83B2-15CC-4B4F-A8DF-29430B8746E0');" /></td>
+<!--        <td align="center" valign="middle" ></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_ctype_row=15; OpenSelectCTYPE(15);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_ctype_row=15; ClearCTYPE(15);" /></td>-->
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td class="Replacement" ><input type="button" value="取回" onclick="Replacement('0F5E83B2-15CC-4B4F-A8DF-29430B8746E0');" /></td>
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+<!--        <td align="center" valign="middle" ></td>-->
+<!--        <td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cchname_row=15; OpenSelectCCHNAME(15);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cchname_row=15; ClearCCHNAME(15);" /></td>
+-->        
+        <td align="center" valign="middle" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+        <td align="center" valign="middle" title="外匯新" >
+            <input type="text" value="外匯新" class="style1" />
+        </td>
+        <!--<td align="center" valign="middle" >外匯新</td>-->
+        <!--<td align="center" valign="middle" ><img src="../img/1280761850_exit.png" onclick="i_select_cbrand_row=15; OpenSelectCBRAND(15);" /><img src="../img/1280759021_edit-clear.png" onclick="i_select_cbrand_row=15; ClearCBRAND(15);" /></td>-->
+        <td align="center" valign="middle" style="width:200px;" title="" >
+            <input type="text" value="" class="style1" />
+        </td>
+    </tr>
+
+  
+
+
+</tbody>  
+</table>
+
+</div>
+<!--
+<div id="div_貼上" style="display:none;">
+    <table width="100%">
+        <tbody>
+            <tr>
+                <td>
+                    <input type="button" id="btn_貼上_全部取代" value="全部取代" onclick="partkey_ReplaceAll();" />
+                    <input type="button" id="btn_貼上_加入" value="加入" onclick="partkey_JoinItems();" />
+                </td>
+                
+                <td>
+                    <input type="button" value="關閉" onclick="$j('#div_貼上').hide();" />
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div id="div_DataGridDetail_sheet_list" style="overflow:auto" >
+        <table width="100%" id="DataGrid_Partkey_Source" class="ui-widget ui-widget-conent ui-corner-all" >
+            <thead>
+                <tr height="30" class="ui-widget-header">
+                    <td align="center" valign="middle" >
+                        <input type="checkbox" name="chk_SelectAll" id="chk_SelectAll" value="1" onclick="Select_All();"  />
+                    </td>
+                    <td align="center" >適用號碼</td>
+                    <td align="center" >車種</td>
+                    <td align="center" >車種規格</td>
+                    <td align="center" >年份</td>
+                    <td align="center" >品名</td>
+                    <td align="center" >品名規格</td>
+                    <td align="center" >備註</td>
+                </tr>
+            </thead>
+            <tbody id="Display_Partkey_Source">
+
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script type="text/x-tmpl" id="tmpl-Partkey_Source">
+	<tr data_id="{id}" >
+        <td align="center" valign="middle"><input name="chk_Selected" id="chk_{row}_selected" value="{id}" type="checkbox" RowNumber="{row}" RowId="{id}" class="chk_Selected" onclick="Select_chk_item();" /></td>
+        <td align="left" valign="middle">{適用號碼}</td>
+        <td align="left" valign="middle">{TYPE_LABLE}</td>
+        <td align="left" valign="middle">{車種規格}</td>
+        <td align="left" valign="middle">{年份}</td>
+        <td align="left" valign="middle">{CHNAME_LABLE}</td>
+        <td align="left" valign="middle">{品名規格}</td>
+        <td align="left" valign="middle">{副檔備註}</td>
+        <td></td>
+    </tr>
+</script>
+-->
+<script> ThisPartKeyInfo = [{"id":"E2331CBE-5C7D-4C96-83C9-AEA52FC61677","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"48BA0E86-D845-4834-A406-DDFE589522F4","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"COM-B031A","年份":"16","車種規格":"","品名規格":"(6VS14ec) 6PK 有線圈","副檔備註":"(PXC16)","主資料":"1","主資料顯示":"主","TYPE_CCODE":"BMF45","TYPE_CNAME":"BMW F45 (2系列)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW F45 (2系列)"},{"id":"CE8A30A3-0491-4CBB-919D-439F4CB61EB6","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"6508B7B5-8D34-4D93-908A-442AF888B0E0","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"64525A3F1D2","年份":"13-16","車種規格":"","品名規格":"520d B47 柴油","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"BMF10","TYPE_CNAME":"BMW F10 (5系列)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW F10 (5系列)"},{"id":"A49EC911-8DA8-4FC6-BC00-95941F6A5900","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"DE6AC4EA-4EA3-4B01-9E25-F767E4BDA7D1","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"BS010N","年份":"16-","車種規格":"","品名規格":"(PXC16) 6PK 110mm 有線圈","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"BMF30","TYPE_CNAME":"BMW F30 (3系列)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW F30 (3系列)"},{"id":"9B318933-5386-40A6-9FA1-FB5490159DEB","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"48BA0E86-D845-4834-A406-DDFE589522F4","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"64526811430\t","年份":"","車種規格":"","品名規格":"(6VS14ec) 6PK 有線圈","副檔備註":"(PXC16)","主資料":"0","主資料顯示":"","TYPE_CCODE":"BMF45","TYPE_CNAME":"BMW F45 (2系列)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW F45 (2系列)"},{"id":"F6CA86A5-C206-4101-821F-CBF321E46BF7","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"48BA0E86-D845-4834-A406-DDFE589522F4","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"64526811432","年份":"","車種規格":"","品名規格":"(6VS14ec) 6PK 有線圈","副檔備註":"(PXC16)","主資料":"0","主資料顯示":"","TYPE_CCODE":"BMF45","TYPE_CNAME":"BMW F45 (2系列)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW F45 (2系列)"},{"id":"FBBCAEBC-A6DB-48F7-BC10-68841842553F","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"48BA0E86-D845-4834-A406-DDFE589522F4","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"64526826879\t","年份":"","車種規格":"","品名規格":"(6VS14ec) 6PK 有線圈","副檔備註":"(PXC16)","主資料":"0","主資料顯示":"","TYPE_CCODE":"BMF45","TYPE_CNAME":"BMW F45 (2系列)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW F45 (2系列)"},{"id":"39B47D71-9A36-4B51-8D29-94E1B54CD4FF","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"0C222736-0106-469A-A423-F62D8C1FF17E","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"64529295050","年份":"15-19","車種規格":"","品名規格":"(PXC16) 6PK 有線圈","副檔備註":"(PXC16)","主資料":"0","主資料顯示":"","TYPE_CCODE":"BMG11","TYPE_CNAME":"BMW G11 (7系列)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW G11 (7系列)"},{"id":"1C8CC0B0-F8AD-42F1-98AD-A9FCC1BF664E","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"B862BB94-0FB2-4AAF-B2CB-4D05752372FC","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"ACP1385000S (MAHLE)","年份":"14-","車種規格":"(F48)","品名規格":"(6VS14ec) 6PK 有線圈","副檔備註":"(PXC16)","主資料":"0","主資料顯示":"","TYPE_CCODE":"BMX1","TYPE_CNAME":"BMW X1","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"BMW","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW X1"},{"id":"610FF768-8A77-42E9-BD9D-C3C595FFB6FB","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"EE2D8A6A-CE7E-46A1-A7DF-167773EF9BB0","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"64526822847","年份":"14-","車種規格":"","品名規格":"(6VS14ec) 6PK 有線圈","副檔備註":"(PXC16)","主資料":"0","主資料顯示":"","TYPE_CCODE":"BMF48","TYPE_CNAME":"BMW X1 (F48)","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"BMW X1 (F48)"},{"id":"6364878C-8B55-4938-BB32-705F5550AA51","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"62DD47E4-5069-4870-AD2F-D1CC9319A304","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"8733E","年份":"","車種規格":"","品名規格":"(6VS14ec) 6PK 有線圈","副檔備註":"(PXC16)","主資料":"0","主資料顯示":"","TYPE_CCODE":"BMMI","TYPE_CNAME":"MINI COOPER","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"MINI COOPER"},{"id":"95E25946-DC82-4B3A-95C3-FE23B436FF1D","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"62DD47E4-5069-4870-AD2F-D1CC9319A304","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"814698 (VALEO)","年份":"","車種規格":"","品名規格":"(6VS14ec) 6PK 有線圈","副檔備註":"(PXC16)","主資料":"0","主資料顯示":"","TYPE_CCODE":"BMMI","TYPE_CNAME":"MINI COOPER","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":"MINI COOPER"},{"id":"8F25F6DE-1547-4B8A-853F-A851D5E02D6A","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"","CHNAME_ID":"4BB20B7A-FAA0-4E60-9E5F-B75F03969832","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"","年份":"","車種規格":"","品名規格":"","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"","TYPE_CNAME":"","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"UNR","CHNAME_CNAME":"壓縮機","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"壓縮機","TYPE_LABLE":""},{"id":"61222AEB-F052-4066-84E4-DF40752E14D8","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"","CHNAME_ID":"","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"64525A5C712","年份":"","車種規格":"","品名規格":"","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"","TYPE_CNAME":"","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"","CHNAME_CNAME":"","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"","TYPE_LABLE":""},{"id":"572D3E51-D9EE-4499-BBD4-825D2713AA7E","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"","CHNAME_ID":"","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"64529890655","年份":"","車種規格":"","品名規格":"","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"","TYPE_CNAME":"","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"","CHNAME_CNAME":"","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"","TYPE_LABLE":""},{"id":"0F5E83B2-15CC-4B4F-A8DF-29430B8746E0","零件主檔ID":"E294C84B-1461-4EB7-832E-378EB25894DC","TYPE_ID":"","CHNAME_ID":"","BRAND_ID":"45596BA7-4988-4E3F-AFBA-0F460B2CD9E0","適用號碼":"CO-BM056-2","年份":"","車種規格":"","品名規格":"","副檔備註":"","主資料":"0","主資料顯示":"","TYPE_CCODE":"","TYPE_CNAME":"","TYPE_CNOTE":"","TYPE_CCOCODE":"","TYPE_CAR_BRAND":"","CHNAME_CCODE":"","CHNAME_CNAME":"","CHNAME_CCOCODE":"","CHNAME_CAMNAME":"","CHNAME_CCLASS":"","BRAND_CCODE":"JCV","BRAND_CNAME":"外匯新","BRAND_CCOCODE":"","BRAND_LABLE":"外匯新","CHNAME_LABLE":"","TYPE_LABLE":""}]</script>
+<link rel="stylesheet" type="text/css" href="/car2009/css/overlay-apple.css" /> 
+    
+<script type="text/javascript" src="/car2009/js/jquery.tools.min.js" ></script>
+<script type="text/javascript" src="/car2009/js/jquery-ui-1.9.2.js"></script>
+<script type="text/javascript" src="/car2009/AJAX-framework.js?version=202603252331" ></script>
+<link rel="stylesheet" href="/car2009/css/alertify.core.css" />
+<link rel="stylesheet" href="/car2009/css/alertify.default.css" id="toggleCSS" />
+
+<link rel="stylesheet" href="/car2009/css/TS/jquery-ui-1.9.2.custom-new.css" type="text/css" media="all" />
+<style type="text/css">
+    .style1
+    {
+        width:98%; 
+        background-color: transparent; 
+        border: none;
+    }
+    .style2
+    {
+        height: 25px;
+        font-size: 20px;
+    }        
+</style>
+<style type="text/css">
+    .CursorPointer:hover {cursor: pointer;}
+    .width500 { width: 500px !important; }
+</style> 
+<!-- style>
+    /* 1. 設定全域字體與大小，並移除預設粗體 */
+    .ui-widget {
+        font-family: Verdana, Arial, sans-serif !important;
+        font-size: 1.1em !important; 
+        font-weight: normal !important; /* 加強權重，讓大部分文字回歸正常體 */
+    }
+
+    /* 2. 強制覆蓋 jQuery UI 原始檔案中特定的粗體設定 */
+    /* 這些選擇器在原檔中被強制設為 bold，所以這裡必須單獨處理 */
+    .ui-state-default, 
+    .ui-widget-content .ui-state-default, 
+    .ui-widget-header,
+    .ui-widget-header .ui-state-default {
+        font-weight: normal !important;
+    }
+</style -->
+<style>
+    td {
+	    position: relative;
+	}
+
+	/* 工具提示样式 */
+	.tooltip {
+	    position: absolute;
+	    background-color: rgba(0, 0, 0, 0.8);
+	    color: white;
+	    padding: 5px 10px;
+	    border-radius: 5px;
+	    white-space: nowrap;
+	    font-size: 16px;
+	    display: none; /* 默认隐藏 */
+	    z-index: 1000;
+	    pointer-events: none; /* 避免鼠标与工具提示交互 */
+	    transform: translate(-50%, -100%);
+	    opacity: 0;
+	    transition: opacity 0.2s ease-in-out;
+	}
+</style>
+
+<script src="/car2009/js/alertify.min.js"></script>
+<script >
+        PageInfo = {"auto_focus":null,"ModuleName_calllfrom":null}
+</script>
+<script>
+	document.addEventListener('DOMContentLoaded', () => {
+	    const tooltip = document.getElementById('tooltip');
+
+	    // 为每个 input 添加事件
+	    document.querySelectorAll('td input[type="text"]').forEach(input => {
+	        input.addEventListener('mouseover', (event) => {
+	            const td = event.target.closest('td'); // 获取所在单元格
+	            tooltip.textContent = event.target.value; // 显示输入框的值
+	            const rect = td.getBoundingClientRect(); // 获取单元格位置
+
+                const iframeScrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+                const iframeScrollLeft = document.documentElement.scrollLeft || document.body.scrollLeft;
+
+                console.log(`iframe 内部滚动量 - scrollTop: ${iframeScrollTop}, scrollLeft: ${iframeScrollLeft}`);
+
+
+	            console.log("tooltip", td, rect);
+	            console.log("tooltip.textContent", tooltip.textContent);
+
+	            if (tooltip.textContent != '') {
+	                // 设置工具提示的位置
+	                tooltip.style.left = `${iframeScrollLeft + rect.left + 50}px`;
+	                tooltip.style.top = `${iframeScrollTop + rect.top + 0}px`;
+	                tooltip.style.display = 'block';
+                    tooltip.style.opacity = '1';
+	                
+	                input.addEventListener('mouseout', () => {
+	                    tooltip.style.opacity = '0';
+	                    tooltip.style.display = 'none';
+	                });
+	            }
+
+	        });
+	    });
+	});
+</script>
+
+
+<div style="display:none;">
+    <span id="ModuleName"></span> / <span id="SubModuleName"></span>
+</div>
+
+<script type="text/javascript">
+    function TdAutoChangeWidth($items) {
+        $items.addClass("CursorPointer");
+
+        $items.click(function () {
+            var $this = $j(this);
+            var $input = $this.find("input");
+
+            if ($input.length > 0) {
+                return (true);
+            }
+            //console.log("TdAutoChangeWidth click", $this, $this.hasClass("width500"));
+            if ($this.hasClass("width500")) {
+                //console.log("removeClass('width500')");
+                $this.removeClass("width500");
+            }
+            else {
+                //console.log("addClass('width500')");
+                $this.addClass("width500");
+            }
+        });
+    }
+</script> 
+
+<script>
+    ModuleName = "";
+    SubModuleName = "";
+
+    $j(function () {
+
+        TdAutoChangeWidth($j("#DataGridDetail thead td"));
+
+    });
+
+    $j(function () {
+        if (typeof (parent.parent.location.href) != "undefined") {
+            var tmp = parent.parent.location.href.split("/");
+
+            if (tmp.length >= 2)
+                ModuleName = tmp[tmp.length - 2];
+            else
+                ModuleName = tmp[tmp.length - 1];
+        }
+
+        if (typeof (parent.location.href) != "undefined") {
+            var tmp = parent.location.href.split("/");
+
+            if (tmp.length >= 2)
+                SubModuleName = tmp[tmp.length - 2];
+            else
+                SubModuleName = tmp[tmp.length - 1];
+        }
+
+        $j("#ModuleName").text(ModuleName);
+        $j("#SubModuleName").text(SubModuleName);
+
+        switch (ModuleName.toLowerCase()) {
+            case "parts_query":
+                HideButton();
+                break;
+
+            default:
+                ShowButton();
+                break;
+        }
+
+        switch (SubModuleName.toLowerCase()) {
+            case "cart":
+                ShowButton();
+                break;
+        }
+    });
+
+    $j(function () {
+        主資料ID = "";
+        var $target = $j(".主資料");
+        //console.log("$target", $target);
+
+        $target.each(function () {
+            var $this = $j(this);
+            var 主資料 = $this.attr("主資料");
+            var KeyValue = $this.attr("KeyValue");
+
+            if (主資料 == "1") {
+                主資料ID = KeyValue;
+
+                //console.log("主資料ID", 主資料ID);
+
+                return (false);
+            }
+        });
+
+        $$SV("ele_detail_主資料", 主資料ID);
+    });
+
+    function ShowButton() {
+        $j(".Replacement").show();
+    }
+
+    function HideButton() {
+        $j(".Replacement").hide();
+    }
+
+    function Replacement(id) {
+        if (SubModuleName.toLowerCase() == "cart") {
+            parent.Replacement(id);
+        }
+        else {
+            parent.parent.Replacement(id);
+        }
+    }
+
+    function Replacement_Realno(id) {
+        if (SubModuleName.toLowerCase() == "cart") {
+            parent.Replacement_Realno(id);
+        }
+        else {
+            parent.parent.Replacement_Realno(id);
+        }
+    }
+
+    function Update零件副檔(KeyName, KeyValue, FieldName, FieldValue) {
+        var ApiUrl = "/car2009/api/Update零件副檔/";
+
+        $j.ajax(
+            {
+                url: ApiUrl
+                , cache: false
+                , global: false
+                , type: "POST"
+                , data: {
+                    "KeyName": KeyName
+                    , "KeyValue": KeyValue
+                    , "FieldName": FieldName
+                    , "FieldValue": FieldValue
+                }
+                , dataType: "json"
+                , async: false
+                , success: Update零件副檔_finish
+            }
+        )
+    }
+
+    function Update零件副檔_finish(resp) {
+        if (resp.Code == "1") {
+            alert(resp.Message);
+            return (false);
+        }
+
+        //alertify.success(resp.Message);
+    }
+
+    function 零件號碼同步(str_適用號碼_主資料, partsid) {
+        api_sys_auto_update("零件主檔", "id", partsid, "零件號碼", str_適用號碼_主資料, function (resp) {
+            //console.log("api_sys_auto_update 零件主檔 零件號碼", resp);
+        });
+
+    }
+
+    function do_刪除適用(str_id) {
+        var ApiUrl = "/car2009/api/Delete零件副檔/";
+
+        $j.ajax(
+            {
+                url: ApiUrl
+                , cache: false
+                , global: false
+                , type: "POST"
+                , data: {
+                    "id": str_id
+                }
+                , dataType: "json"
+                , async: false
+                , success: Delete零件副檔_finish
+            }
+        )
+    }
+
+    function Delete零件副檔_finish(resp) {
+        if (resp.Code == "1") {
+            alert(resp.Message);
+            return (false);
+        }
+
+        window.location.reload();
+
+        //alertify.success(resp.Message);
+    }
+
+    function 複製_零件副檔() {
+        SetTokenData("PartKey_Info", JSON.stringify(ThisPartKeyInfo));
+
+        alertify.success("已經複製 適用資料...");
+    }
+
+    function 貼上_零件副檔() {
+        var Value = GetTokenData("PartKey_Info");
+
+        if (Value == "") {
+            alert("沒有來源 適用資料 !!!");
+        }
+        else {
+            $j("#div_貼上").show();
+
+            var $dsp = $j("#Display_Partkey_Source");
+            var data_template = $j("#tmpl-Partkey_Source").html();
+            var data_list = JSON.parse(Value);
+
+            $dsp.html("");
+
+            DataAppender($dsp, data_list, data_template);
+
+            
+        }
+    }
+
+    function GetAllChkItems() {
+        var id_list = new Array();
+        var $items = $j(".chk_Selected");
+
+        $items.each(function () {
+            var $this = $j(this);
+            var id = $this.attr("value");
+
+            id_list.push(id);
+        });
+
+        return (id_list);
+    }
+
+    function Select_All() {
+        var chk = $$GV("chk_SelectAll");
+        //console.log("chk", chk);
+        if (chk == "1") {
+            var id_list = GetAllChkItems();
+            //console.log("id_list", id_list);
+            $$SV("chk_Selected", id_list.join(","));
+        }
+        else {
+            $$SV("chk_Selected", "");
+        }
+    }
+
+    function Select_chk_item() {
+        var all_items = GetAllChkItems();
+        var selected_items = $$GV("chk_Selected");
+
+        if (all_items == selected_items) {
+            $$SV("chk_SelectAll", "1")
+        }
+        else {
+            $$SV("chk_SelectAll", "")
+        }
+    }
+
+    function partkey_ReplaceAll() {
+        var id_list = $$GV("chk_Selected");
+
+        var ApiUrl = "/car2009/api/partkey_ReplaceAll/";
+        var partkeyId = ThisPartKeyInfo[0]["零件主檔ID"];
+
+        $j.ajax(
+            {
+                url: ApiUrl
+                , cache: false
+                , global: false
+                , type: "POST"
+                , data: {
+                    "id_list": id_list
+                    , "partkeyId": partkeyId
+
+                }
+                , dataType: "json"
+                , async: false
+                , success: function (resp) {
+                    parent.alertify.success(resp.Message);
+                    window.location.reload();
+
+                }
+            }
+        )
+    }
+
+    function partkey_JoinItems() {
+        var id_list = $$GV("chk_Selected");
+        var ApiUrl = "/car2009/api/partkey_JoinItems/";
+        var partkeyId = ThisPartKeyInfo[0]["零件主檔ID"];
+
+        $j.ajax(
+            {
+                url: ApiUrl
+                , cache: false
+                , global: false
+                , type: "POST"
+                , data: {
+                    "id_list": id_list
+                    , "partkeyId": partkeyId
+
+                }
+                , dataType: "json"
+                , async: false
+                , success: function (resp) {
+                    parent.alertify.success(resp.Message);
+                    window.location.reload();
+                    
+                }
+            }
+        )
+    }
+
+</script>
+
+

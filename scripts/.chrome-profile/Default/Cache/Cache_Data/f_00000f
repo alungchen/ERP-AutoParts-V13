@@ -1,0 +1,833 @@
+﻿
+function parts_detail_stock_place_default_store(partsid) {
+    $j("#display_parts_detail .parts_detail_stock_place_default_store").attr("attr_partsid", partsid);
+    stock_place_info($j('#display_parts_detail .parts_detail_stock_place_default_store'), "1");
+}
+
+function after_set_preprice($item) {
+    ////console.log("after_set_preprice -> $item", $item);
+    var $tr = $item.parent();
+    var $chk = $tr.find(".chk_Selected");
+    var content = $item.text();
+
+    if (content.indexOf("不出貨") != -1) {
+        $tr.attr("不出貨", "1");
+        $chk.prop("disabled", true);
+    }
+    else {
+        $tr.attr("不出貨", "");
+        $chk.prop("disabled", false);
+    }
+}
+
+function show_import_short_mark() {
+    originalLog("show_import_short_mark");
+    var flag = dt_store_info.getValueByIndex("name", "零件查詢時 列示 有欠貨", "enable");
+
+    if (flag != "1") {
+        return (false);
+    }
+
+    var partsid_list = sys_parts_list.map(item => item.零件主檔ID);
+    originalLog("partsid_list", partsid_list);
+    get_import_short_list(partsid_list, function (resp) {
+        originalLog("get_import_short_list resp", resp);
+        var list = [];
+
+        if (resp.Code == "1") {
+            originalLog("get_import_short_list ERROR", resp.Message);
+            return (false);
+        }
+
+        list = resp.ReturnValue.QueryResult;
+
+        originalLog("get_import_short_list list", list);
+
+        var $table = $j("#DataGridDetail");
+        var $notice = $table.find("tbody .import_short_notice");
+
+        originalLog("get_import_short_list $notice", $notice);
+
+        $notice.each(function () {
+            var $this = $j(this);
+            var partsid = $this.attr("partsid");
+
+            originalLog("get_import_short_list partsid", partsid);
+
+            // 檢查 list 裡是否有對應的 partsid
+            var found = list.find(function (item) {
+                return item.PartsID == partsid;
+            });
+
+            originalLog("get_import_short_list found", found);
+ 
+            if (found) {
+                $this.show();
+                $this.text("欠");
+            }
+            else {
+                $this.hide();
+                $this.text("");
+            }
+        });
+    });
+}
+
+function get_import_short_list(partsid_list, func) {
+    var ApiUrl = "/CAR2009/api/Data/Query/";
+    var param = {
+        "CommandName": "CAR2009.api.import_short.get_list"
+        , "ParamInfo": JSON.stringify({
+            "id_list": partsid_list.join(",")
+        })
+    }
+
+    originalLog("get_import_short_list", ApiUrl, param);
+    
+    $j.ajax({
+        url:ApiUrl
+        , data: param
+        , type: "POST"
+        , dataType: "json"
+        , success: func
+    })
+}
+
+function do_search() {
+    var ApiUrl = "/car2009/api/Parts_Query/do_search/";
+    ////console.log("do_search", new Date());
+    var func = function (info) {
+        ////console.log("do_search func", info, new Date());
+        var list = [];
+        sys_parts_list = [];
+        if (info.Code != '0') {
+            alertify.error(info.Message);
+            return (false);
+        }
+
+        list = info.ReturnValue.list;
+        sys_parts_list = list;
+        ////console.log("sys_parts_list", sys_parts_list);
+        dt_parts = new DataTable();
+
+        dt_detail = new DataTable();
+        ////console.log("dt_parts.ImportJsonArray start", new Date());
+        dt_parts.ImportJsonArray(list);
+        dt_detail = dt_parts;
+        //dt_detail.ImportJsonArray(list);
+        ////console.log("dt_parts.ImportJsonArray finish", new Date());
+        with (dt_parts) {
+
+            if (MaxRow() == 0) {
+                alertify.error("查無資料!!!");
+                $j('#ele_search_零件號碼').focus();
+                //return(false);
+            }
+
+            var parts_id_list = new Array();
+            var detail_id_list = new Array();
+
+            //refresh_bg_detail();
+            ////console.log("parts_id_list.push start", new Date());
+            for (var row = 0; row < MaxRow(); row++) {
+                if (getValueByRow(row, "CHNAME_LABLE") == ""
+                    || getValueByRow(row, "TYPE_LABLE") == ""
+                    || getValueByRow(row, "BRAND_LABLE") == ""
+                    || getValueByRow(row, "適用號碼") == ""
+                    ) {
+                    parts_id_list.push(getValueByRow(row, "零件主檔ID"));
+                    detail_id_list.push(getValueByRow(row, "id"));
+                }
+            }
+            ////console.log("parts_id_list.push finish", new Date());
+            ////console.log(parts_id_list);
+            ////console.log("get_parts_mainrec start", new Date());
+            var dt_parts_mainrec = get_parts_mainrec(parts_id_list);
+            ////console.log("get_parts_mainrec finish", new Date());
+            var aa = dt_store_info.getValueByIndex("name", "零件查詢時 列示的品名規格若是空白，則取主資料的品名規格", "enable");
+            var bb = dt_store_info.getValueByIndex("name", "零件查詢時 列示的品名規格，強迫取主資料的品名規格", "enable");
+            ////console.log("detail_id_list start", new Date());
+            for (var i = 0; i < detail_id_list.length; i++) {
+                var id = detail_id_list[i];
+                var 零件主檔ID = getValueByIndex("id", id, "零件主檔ID");
+                var CHNAME_LABLE = dt_parts_mainrec.getValueByIndex("零件主檔ID", 零件主檔ID, "CHNAME_LABLE");
+                var 品名規格 = dt_parts_mainrec.getValueByIndex("零件主檔ID", 零件主檔ID, "品名規格");
+
+                var TYPE_LABLE = dt_parts_mainrec.getValueByIndex("零件主檔ID", 零件主檔ID, "TYPE_LABLE");
+                var 車種規格 = dt_parts_mainrec.getValueByIndex("零件主檔ID", 零件主檔ID, "車種規格");
+                var 年份 = dt_parts_mainrec.getValueByIndex("零件主檔ID", 零件主檔ID, "年份");
+
+                var BRAND_LABLE = dt_parts_mainrec.getValueByIndex("零件主檔ID", 零件主檔ID, "BRAND_LABLE");
+
+                var 適用號碼 = dt_parts_mainrec.getValueByIndex("零件主檔ID", 零件主檔ID, "適用號碼");
+
+                if (getValueByIndex("id", id, "CHNAME_LABLE") == "") {
+                    setValueByIndex("id", id, "CHNAME_LABLE", CHNAME_LABLE);
+                }
+
+                if (getValueByIndex("id", id, "品名規格") == "" && aa == "1") {
+                    setValueByIndex("id", id, "品名規格", 品名規格);
+                }
+
+                if (bb == "1") {
+                    setValueByIndex("id", id, "品名規格", 品名規格);
+                }
+
+                if (getValueByIndex("id", id, "TYPE_LABLE") == "") {
+                    setValueByIndex("id", id, "TYPE_LABLE", TYPE_LABLE);
+                    setValueByIndex("id", id, "車種規格", 車種規格);
+                    setValueByIndex("id", id, "年份", 年份);
+                }
+
+                if (getValueByIndex("id", id, "BRAND_LABLE") == "") {
+                    setValueByIndex("id", id, "BRAND_LABLE", BRAND_LABLE);
+                }
+
+                if (getValueByIndex("id", id, "適用號碼") == "") {
+                    setValueByIndex("id", id, "適用號碼", 適用號碼);
+                }
+            }
+            ////console.log("detail_id_list finish", new Date());
+        }
+
+        //$j("#dspResult").html(dt_parts.ShowDataGrid());
+        if ($j("#ele_search_對象").val() == "")
+            str_search_對象ID = "";
+
+        ////console.log("dg_detail start", new Date());
+        with (dg_detail) {
+            //str_template = str_datagrid_parts_template;
+            //page_size = 1000;
+
+            //str_template = str_template.ReplaceAll("%對象ID%", str_search_對象ID);
+
+            dt = dt_parts;
+            get_field_list();
+            $j("#display_DataGrid").html(GetDataGrid());
+        }
+
+        show_import_short_mark();
+
+        ////console.log("dg_detail finish", new Date());
+        ////console.log("show_count start", new Date());
+        show_count();
+        ////console.log("show_count finish", new Date());
+        ////console.log("show_media_count start", new Date());
+        show_media_count();
+        ////console.log("show_media_count finish", new Date());
+        var 零件主檔ID_list = new Array();
+
+        $j("#display_DataGrid #DataGridDetail tbody tr").each(function () {
+            var $this = $j(this);
+
+            零件主檔ID_list.push($this.attr("partsid"));
+        });
+        ////console.log("get_Parts_Extension_Info start", new Date());
+        var Parts_Extension_Info_有特價 = dt_store_info.getValueByIndex("name", "零件查詢時 列示 有特價", "enable");
+        if (Parts_Extension_Info_有特價 == "1") {
+            get_Parts_Extension_Info(零件主檔ID_list.join(","), "有特價", function (info) {
+                if (info.Code == '1') {
+                    alertify.error(info.Message);
+                    return (false);
+                }
+                else {
+                    var data_list = info.ReturnValue.list;
+
+                    for (var i = 0; i < data_list.length; i++) {
+                        var data_row = data_list[i];
+                        var 零件主檔ID = data_row["MasterID"];
+                        var Value = data_row["Value"];
+                        var $tr = $j("#display_DataGrid #DataGridDetail tbody tr");
+
+                        if (Value != "1") {
+                            continue;
+                        }
+
+                        $tr.each(function () {
+                            var $this = $j(this);
+                            var partsid = $this.attr("partsid");
+
+                            if (partsid == 零件主檔ID) {
+                                show_spacial_price($this);
+                            }
+
+                        });
+                    }
+
+                    return (true);
+                }
+            });
+        }
+        ////console.log("get_Parts_Extension_Info finish", new Date());
+
+        ////console.log("DataGrid_ColumnInfo_init start", new Date());
+
+        //all_columns = new Array();
+        var temp_columns = _SYS_DataGridDetailColumnSeq.split(",");
+        all_columns = new Array();
+
+        for (var i = 0; i < temp_columns.length; i++) {
+            var ColumnName = temp_columns[i].trim();
+
+            if (ColumnName != "") {
+                if (all_columns.indexOf(ColumnName) == -1)
+                    all_columns.push(ColumnName);
+            }
+        }
+
+        $j(".TemplateHeadColumnInfo").each(function () {
+            var $this = $j(this);
+            var ColumnName = $this.attr("ColumnName").trim();
+
+            if (ColumnName != "") {
+                if (all_columns.indexOf(ColumnName) == -1)
+                    all_columns.push(ColumnName);
+            }
+        });
+
+        ////console.log("TemplateHeadColumnInfo", "all_columns", all_columns);
+        get_Parts_Extension_Info(零件主檔ID_list.join(","), "", function (info) {
+            if (info.Code == '1') {
+                alertify.error(info.Message);
+                return (false);
+            }
+
+            var ExtInfo_list = info.ReturnValue.list;
+            var $tbody = $j("#display_DataGrid #DataGridDetail tbody");
+            var $spn = $tbody.find(".spacial_price_notice");
+            var $dsn = $tbody.find(".dont_sell_notice");
+
+            $spn.each(function () {
+                var $this = $j(this);
+                var PartsID = $this.attr("PartsID");
+                var AttrName = $this.attr("AttrName");
+                var list = FindObject(ExtInfo_list, "MasterID", PartsID);
+
+                list = FindObject(list, "AttrName", AttrName);
+                list = FindObject(list, "Value", "1");
+
+                if (list.length != 0) {
+                    $this.text("特");
+                }
+            });
+
+            $dsn.each(function () {
+                var $this = $j(this);
+                var PartsID = $this.attr("PartsID");
+                var AttrName = $this.attr("AttrName");
+                var list = FindObject(ExtInfo_list, "MasterID", PartsID);
+
+                list = FindObject(list, "AttrName", AttrName);
+                list = FindObject(list, "Value", "1");
+
+                if (list.length != 0) {
+                    $this.text("禁");
+                }
+            });
+
+            return (true);
+
+        });
+
+        //console.log("DataGrid_Detail_ColumnInfo", DataGrid_Detail_ColumnInfo);
+
+        //console.log("DataGrid_ColumnInfo_init", str_ModuleName, "DataGridDetail", $j("#DataGridDetail"), DataGrid_Detail_ColumnInfo);
+
+        DataGrid_ColumnInfo_init(str_ModuleName, "DataGridDetail", $j("#DataGridDetail"), DataGrid_Detail_ColumnInfo
+        , function (info) {
+            //console.log("DataGrid_ColumnInfo_init", "info", info);
+            var $table = $j("#DataGridDetail");
+            _SYS_DataGridDetailColumnSeq = $table.attr("fieldlist");
+
+            var datagrid_field = _SYS_DataGridDetailColumnSeq.split(",");
+            str_datagrid_parts_template = SYS_generate_DataGrid_template($j("#TemplateDataGrid_Main"), $j(".TemplateHeadColumnInfo"), $j(".TemplateBodyColumnInfo"), datagrid_field);
+            dg_detail.str_template = str_datagrid_parts_template;
+
+            do_search();
+            $j('#DataGridDetail').find('tbody').find('tr').first().click();
+        }
+        , function (info) {
+            DataGrid_ColumnInfo_Get(str_ModuleName, "DataGridDetail", function (info) {
+                //console.log("DataGrid_ColumnInfo_Get", "str_ModuleName", "DataGridDetail", info);
+
+                if (info.code == "0") {
+                    DataGrid_Detail_ColumnInfo = info.returnValue[0];
+                    //console.log("DataGrid_Detail_ColumnInfo", DataGrid_Detail_ColumnInfo);
+                }
+
+                do_search();
+
+                $j('#DataGridDetail').find('tbody').find('tr').first().click();
+
+                //setTimeout(function(){ show_count(); show_media_count(); }, 100);
+            });
+        }, all_columns);
+        ////console.log("DataGrid_ColumnInfo_init finish", new Date());
+
+
+        $j("#display_DataGrid .header_class")
+            .css("min-height", "25px")
+            .css("max-height", "25px")
+            .css("overflow", "hidden");
+
+
+        $j("#display_DataGrid .height_limit")
+            .css("min-height", "25px")
+            .css("max-height", "25px")
+            .css("overflow", "hidden");
+
+
+        if (Service_Relation_flg == false) {
+            $j(".Service_Relation").remove();
+        }
+
+
+        author_map_proc_div($j("#display_DataGrid"));
+
+        if (str_choose == 'true') {
+
+            //$j('#DataGridDetail .choose').show();
+            //$j('#DataGridDetail .choose').parent().css('width', '120px');
+        }
+        ////console.log("stock_place_info start", new Date());
+        stock_place_info($j('#DataGridDetail .stock_place_else_store'), "0");
+        stock_place_info($j('#DataGridDetail .stock_place_default_store'), "1");
+
+        stock_place_info($j('#DataGridDetail .nullstock_place_else_store'), "0");
+        ////console.log("stock_place_info finish", new Date());
+        $j('#DataGridDetail .stock_place').click(function () {
+            return (false);
+        });
+        ////console.log("sys_preprice start", new Date());
+        dt_preprice = sys_preprice($j('#DataGridDetail .preprice'), $j('#ele_對象_type').val(), after_set_preprice);
+        //dt_preprice = sys_preprice($j('#DataGridDetail .preprice'), $j('#ele_對象_type').val());
+        ////console.log("sys_preprice finish", new Date());
+        select_highlight();
+
+        $j("#display_DataGrid").show();
+        ////console.log("SetTableTrKeyNavigate start", new Date());
+        SetTableTrKeyNavigate("#DataGridDetail"
+            , "#Data_Grid_Navigate"
+            , function () { $j("#btn_PageControl_PagePrevious").click(); }
+            , function () { $j("#btn_PageControl_PageNext").click(); }
+            , function () { //if (hide_product_info($j('#DataGridDetail tbody .ui-state-active')) == false) return (false);
+
+                if ($j('#advanced_search').is(':visible') == true) { //setTimeout(function(){ $j('#ele_search_零件號碼').focus().select();} , 500);
+                    setTimeout(function () { $j('#DataGrid_Query .first_stop').focus().select(); }, 300);
+                }
+                else
+                { setTimeout(function () { $j('#ele_search_keyword').focus().select(); }, 300); }
+            }
+        );
+        ////console.log("SetTableTrKeyNavigate finish", new Date());
+        //space
+        TextBox_KeyEvent($j('#Data_Grid_Navigate'), 32, function ($this) { sys_keyboard_select(); });
+        //home
+        TextBox_KeyEvent($j('#Data_Grid_Navigate'), 36, function ($this) { sys_keyboard_select(); });
+        //insert
+        TextBox_KeyEvent($j('#Data_Grid_Navigate'), 45, function ($this) { $j('#btn_new').click(); });
+        //f10
+        ele_KeyEvent_complex($j('#Data_Grid_Navigate'), 121, function ($this) { $j('#btn_copy').click(); }, true);
+        //delete
+        TextBox_KeyEvent($j('#Data_Grid_Navigate'), 46, function ($this) { $j('#btn_delete').click(); });
+
+        //TextBox_KeyEvent($j('#Data_Grid_Navigate') , 118 , function($this){ $j('#btn_select').click(); } );
+        switch (str_event_mode) {
+            case 'a':
+
+                TextBox_KeyEvent($j('#Data_Grid_Navigate'), 13, function ($this) { $j('#btn_select2').click(); });
+
+                ele_KeyEvent_complex($j('body'), 13, function ($this) { $j('#btn_edit').click(); }, true, false);
+
+                //TextBox_KeyEvent($j('#Data_Grid_Navigate') , 27 , function($this){ $j('#btn_select').click(); } );
+                //TextBox_KeyEvent($j('#Data_Grid_Navigate') , 118 , function($this){ $j('#btn_select').click(); } );
+                break;
+
+            case 'b':
+                //TextBox_KeyEvent($j('#Data_Grid_Navigate') , 13 , function($this){ $j('#btn_select').click(); } );
+                //TextBox_KeyEvent($j('#Data_Grid_Navigate') , 27 , function($this){ $j('#btn_select').click(); } );
+                //TextBox_KeyEvent($j('#Data_Grid_Navigate') , 118 , function($this){ $j('#btn_select').click(); } );
+                break;
+
+            default:
+                //TextBox_KeyEvent($j('#Data_Grid_Navigate') , 13 , function($this){ $j('#btn_edit').click(); } );
+                //$j("#display_DataGrid .is_bg_td").hide();
+
+                ele_KeyEvent_complex($j('body'), 13, function ($this) { $j('#btn_edit').click(); }, true, false);
+                break;
+        }
+
+        if (str_CallBack != "") {
+            //            if (typeof(parent.get_dt_detail_data) == "function") {
+            //                $j("#display_DataGrid .is_bg_td").show();                
+            //            }
+            //            else {
+            //                $j("#display_DataGrid .is_bg_td").hide();
+            //            }
+            $j("#display_DataGrid .user_input_price").hide();
+            $j("#display_DataGrid .user_input_qty").hide();
+
+        }
+        //            $j("#display_DataGrid .is_bg_td").remove();
+        //            $j("#display_DataGrid .user_input_qty").remove();
+
+
+        $j("#triggers img[rel]").overlay({ effect: 'apple' });
+
+        sys_display_DataGrid_class("#display_DataGrid");
+
+        //author_map_proc();
+        ////console.log("#display_DataGrid tbody tr click start", new Date());
+        SYS_I_ROW = -1;
+
+        $j("#display_DataGrid tbody tr").click(function () {
+            var $this = $j(this);
+            var i_row = parseInt($this.attr('row')) - 1;
+            var str_id = dt_parts.getValueByRow(i_row, '零件主檔ID');
+
+            var $tr = $j("#display_DataGrid tbody tr");
+            $tr.find("input:text").css("border", "");
+            $this.find("input:text").css("border", "2px solid red");
+            ////console.log("tr", $this.position());
+
+            SYS_I_ROW = i_row;
+
+            if (ShowMedia_flag == 'open') {
+                var $btn = $j('#btn_' + $this.attr('row') + '_ShowMedia');
+                var cmd = $btn.attr("ShowMedia");
+                ////console.log("cmd", cmd);
+                eval(cmd);
+            }
+
+            if ($j('#Iframe_History').is(':visible') == true) {
+                $j('#ele_History_PageNum').val("1");
+                //$j('.filter').val("");
+                $j('#btn_history').click();
+            }
+
+            if ($j('#div_chart').is(':visible') == true) {
+                var $this = $j('#display_DataGrid tbody .ui-state-active');
+                var str_id = $this.attr('partsid');
+                var store_no = $$GV('ele_select_倉庫名稱');
+
+                var attr_url = $j('#iframe_chart').attr('attr_url');
+
+                attr_url = attr_url.rp('{partsid}', str_id);
+                attr_url = attr_url.rp('{store_no}', store_no);
+                ////console.log("attr_url Parts_Query_do_search.js", attr_url);
+                $j('#iframe_chart').attr('src', attr_url);
+            }
+
+            if (dt_store_info.getValueByIndex("name", "零件查詢時 parts_detail 顯示主資料", "enable") == "1") {
+
+                var dt_主資料 = get_主資料(str_id);
+
+                var $parts_detail = $j("#display_parts_detail .parts_detail");
+                ////console.log("dt_主資料", ToJsonArray(dt_主資料));
+                $parts_detail.each(function () {
+                    var $this = $j(this);
+                    var fieldname = $this.attr("fieldname");
+                    var val = dt_主資料.getValue(fieldname);
+                    ////console.log("fieldname", fieldname);
+                    $this.text(val);
+                });
+
+                var $partkey_detail = $j("#display_parts_detail .partkey_detail");
+
+                $partkey_detail.each(function () {
+                    var $this = $j(this);
+                    var fieldname = $this.attr("fieldname");
+                    var val = dt_parts.getValueByRow(i_row, fieldname);
+                    ////console.log("fieldname", fieldname);
+                    ////console.log("fieldname val = ", val);
+                    $this.text(val);
+                });
+
+                if ($j("#parts_detail_副檔備註").text() == $j("#partkey_detail_副檔備註").text()) {
+                    $j("#partkey_detail_副檔備註").hide();
+                }
+                else {
+                    $j("#partkey_detail_副檔備註").show();
+                }
+            }
+            else {
+                var $parts_detail = $j("#display_parts_detail .parts_detail");
+                ////console.log("dt_parts", ToJsonArray(dt_parts));
+                $parts_detail.each(function () {
+                    var $this = $j(this);
+                    var fieldname = $this.attr("fieldname");
+                    var val = dt_parts.getValueByRow(i_row, fieldname);
+                    ////console.log("fieldname", fieldname);
+                    $this.text(val);
+                });
+            }
+
+            $j("#display_parts_detail").show();
+
+            var $secret_field = $j("#display_parts_detail .secret_field");
+
+            $secret_field.each(function () {
+                var $this = $j(this);
+                var secret_name = $this.attr("secret_name");
+                var flg = dt_author_map_price_darkcode.getValueByIndex("operation_model_name", secret_name, "dark_code");
+                ////console.log("secret_name = " + secret_name);
+                // //console.log("flg = " + flg);
+                if (flg == "1") {
+                    var value = $this.text();
+                    var dark_code = TransDarkcode(value);
+                    //                    //console.log("value = " + value); //console.log("dark_code = " + dark_code);
+                    $this.text(dark_code);
+                    //                    $this.attr("darkValue", dark_code);
+
+                    //                    //console.log("$this.attr('darkValue')", $this.attr("darkValue"));
+                }
+                else {
+                }
+
+                if (dt_author_map_price_darkcode.getValueByIndex("class_name", secret_name, "enable") == "0") {
+                }
+                else {
+                    $this.show();
+                }
+            });
+
+            switch (opened_div_name) {
+                case "dialog_partkey":
+                    $j("#btn_partkey").click();
+                    break;
+
+                case "dialog_presell":
+                    $j("#btn_presell").click();
+                    break;
+
+                case "dialog_prebuy":
+                    $j("#btn_prebuy").click();
+                    break;
+
+            }
+        });
+        ////console.log("#display_DataGrid tbody tr click finish", new Date());
+        if ($j('#display_merge').is(':visible') == true) {
+            $j('#display_DataGrid .merge_class').show();
+        }
+
+        if ($j('#display_supplement').is(':visible') == true) {
+            $j('#display_DataGrid .supplement_class').show();
+        }
+
+        $j(".button_class").button();
+
+        if (str_CallBack == "") { refresh_cart_detail(); }
+        else {
+
+        }
+        ////console.log("#DataGridDetail tbody tr click start", new Date());
+        $j("#DataGridDetail tbody tr").click(function () {
+            var $this = $j(this);
+            var partsid = $this.attr("partsid");
+
+            show_product_info($j('#DataGridDetail tbody .ui-state-active'), $j('.product_info').position().top);
+
+            parts_detail_stock_place_default_store(partsid);
+
+            if ($j("#pickup_stock_place").css("display") != "none") {
+                var row = $this.attr("row");
+                var name = "btn_" + row + "_stock";
+
+                btn_stock($j("#" + name));
+            }
+
+            if (str_CallBack == "") {
+                if ($j("#display_DataGrid .user_input_qty").css("display") == "none") {
+                    $j("#div_user_input_qty").hide();
+                }
+
+                if ($j("#display_DataGrid .user_input_price").css("display") == "none") {
+                    $j("#div_user_input_price").hide();
+                }
+
+
+                if ($j("#div_user_input_price").css("display") != "none") {
+                    var row = $this.attr("row");
+                    var name = "btn_" + row + "_user_input_price";
+                    var value = $j("#ele_" + row + "_user_input_price").text();
+                    var note_value = $j("#ele_" + row + "_user_input_note").text();
+                    //                    //console.log("div_user_input_price row", row);
+                    //                    //console.log("note_value", note_value);
+                    $j("#textbox_user_input_price").attr("row", row);
+                    $j("#textbox_user_input_price").val(value);
+                    $j("#textbox_user_input_price").attr("old_value", value);
+
+                    $j("#textbox_user_input_note").attr("row", row);
+                    $j("#textbox_user_input_note").val(note_value);
+                    $j("#textbox_user_input_note").attr("old_value", note_value);
+
+                    btn_user_input_price($j("#" + name));
+
+                    //                if (textbox_user_input_price_flg == true)
+                    //                    setTimeout(function(){$j("#textbox_user_input_price").select().focus(); } , 100);
+                    if (textbox_user_input_flg == "price")
+                        setTimeout(function () { $j("#textbox_user_input_price").select().focus(); }, 100);
+                }
+
+                if ($j("#div_user_input_qty").css("display") != "none") {
+                    var row = $this.attr("row");
+                    var name = "btn_" + row + "_user_input_qty";
+                    var value = $j("#ele_" + row + "_user_input_qty").text();
+
+                    $j("#textbox_user_input_qty").attr("row", row);
+                    $j("#textbox_user_input_qty").val(value);
+                    $j("#textbox_user_input_qty").attr("old_value", value);
+                    //                //console.log("btn_user_input_price: " + name);
+                    btn_user_input_qty($j("#" + name));
+
+                    //                if (textbox_user_input_qty_flg == true)
+                    //                    setTimeout(function(){$j("#textbox_user_input_qty").select().focus(); } , 100);
+                    if (textbox_user_input_flg == "qty")
+                        setTimeout(function () { $j("#textbox_user_input_qty").select().focus(); }, 100);
+                }
+            }
+
+            set_grid_div_height('#display_DataGrid');
+            //set_auto_scroll_div('#DataGridDetail', '#Data_Grid_Navigate', '#display_DataGrid');
+        });
+        ////console.log("#DataGridDetail tbody tr click finish", new Date());
+        //        set_grid_div_height("#display_DataGrid");
+
+        arr_Selected_List = new Array();
+        ////console.log("sys_select start", new Date());
+        sys_select($j("#display_DataGrid .chk_Selected"), $j("#display_DataGrid .chk_Selected_All"), arr_Selected_List);
+        ////console.log("sys_select finish", new Date());
+        var $secret_field = $j("#DataGridDetail .secret_field");
+        ////console.log("$secret_field.each start", new Date());
+
+        $secret_field.each(function () {
+            var $this = $j(this);
+            var secret_name = $this.attr("secret_name");
+            var flg = dt_author_map_price_darkcode.getValueByIndex("operation_model_name", secret_name, "dark_code");
+
+            if (flg == "1") {
+                var value = $this.text();
+                var dark_code = TransDarkcode(value);
+
+                //$this.text(dark_code);
+
+                //console.log("value = " + value); //console.log("dark_code = " + dark_code);
+                $this.text(dark_code);
+                $this.attr("darkValue", dark_code);
+
+                //console.log("$this.attr('darkValue')", $this.attr("darkValue"));
+            }
+            else {
+                SYS_dark_flg = "clear";
+            }
+        });
+        ////console.log("$secret_field.each finish", new Date());
+        //author_map_field_proc();
+
+
+
+        if (str_CallBack == "") {
+            $j("#textbox_user_input_price").attr("row", "1");
+            $j("#textbox_user_input_price").val($j("#ele_1_user_input_price").text());
+            btn_user_input_price($j("#btn_1_user_input_price"));
+            $j("#textbox_user_input_qty").attr("row", "1");
+            $j("#textbox_user_input_qty").val($j("#ele_1_user_input_qty").text());
+            btn_user_input_qty($j("#btn_1_user_input_qty"));
+            $j("#textbox_user_input_price").select().focus();
+        }
+        //else {
+
+        //}
+
+        //setTimeout(function () { show_count(); show_media_count(); }, 100);
+
+
+        _sys_setting_price_color($j("#DataGridDetail tbody").find("tr"), "partsid");
+
+
+    }
+
+    if ($j.trim($j('#ele_search_keyword').val()) != '') {
+    }
+    else if ($j.trim($j('#ele_search_零件號碼').val()) != '')
+    { }
+    else if ($j.trim($j('#ele_search_車種名稱').val()) != '')
+    { }
+    else if ($j.trim($j('#ele_search_車種規格').val()) != '')
+    { }
+    else if ($j.trim($j('#ele_search_年份').val()) != '')
+    { }
+    else if ($j.trim($j('#ele_search_品名名稱').val()) != '')
+    { }
+    else if ($j.trim($j('#ele_search_規格').val()) != '')
+    { }
+    else if ($j.trim($j('#ele_search_品牌名稱').val()) != '')
+    { }
+    else if ($j.trim($j('#ele_search_儲位').val()) != '')
+    { }
+    else if ($j.trim($j('#ele_search_類別').val()) != '')
+    { }
+    else {
+        alertify.error('請鍵入適當條件...');
+
+        return (true);
+    }
+
+    var chk_blanktype = ($$GV("chk_blanktype_type_advance") == "1" || $$GV("chk_blanktype_chname_advance") == "1") ? "1" : "0";
+
+
+    $j.ajax(
+            {
+                url: ApiUrl
+                , cache: false
+                , global: false
+                , type: "POST"
+                , data: {
+                    "PageNum": $$GV("ele_PageControl_PageNum")
+                    , "PageSize": $$GV("ele_PageControl_PageSize")
+                    , "keyword": $$GV("ele_search_keyword")
+                    , "零件號碼": $$GV("ele_search_零件號碼")
+                    , "車種名稱": $$GV("ele_search_車種名稱")
+                    , "車種規格": $$GV("ele_search_車種規格")
+                    , "年份": $$GV("ele_search_年份")
+                    , "品名名稱": $$GV("ele_search_品名名稱")
+                    , "規格": $$GV("ele_search_規格")
+                    , "品牌名稱": $$GV("ele_search_品牌名稱")
+                    , "儲位": $$GV("ele_search_儲位")
+                    , "類別": $$GV("ele_search_類別")
+                    , "chk_qty_none_zero": $$GV("chk_qty_none_zero")
+                    , "chk_OrderBy_Experience": $$GV("chk_OrderBy_Experience")
+                    , "對象ID": $$GV("ele_對象ID")
+                    , "對象_type": $$GV("ele_對象_type")
+                    , "type_auto_complete_flg": $j("#ele_search_車種名稱").attr("selectautocomplete")
+                    , "chname_auto_complete_flg": $j("#ele_search_品名名稱").attr("selectautocomplete")
+                    , "chk_blanktype": chk_blanktype
+                }
+                , dataType: "json"
+                , async: false
+                , success: func
+            }
+    )
+
+}
+
+/**
+with (ele_list) {
+
+    push("ele_PageControl_PageNum");
+    push("ele_PageControl_PageSize");
+    push("ele_search_keyword");
+    push("ele_search_零件號碼");
+    push("ele_search_車種名稱");
+    push("ele_search_車種規格");
+    push("ele_search_年份");
+    push("ele_search_品名名稱");
+    push("ele_search_規格");
+    push("ele_search_品牌名稱");
+    push("ele_search_儲位");
+    push("ele_search_類別");
+    push("chk_qty_none_zero");
+
+}
+**/

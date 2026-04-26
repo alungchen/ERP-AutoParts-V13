@@ -80,7 +80,22 @@ const ProductDrawer = () => {
 
     useEffect(() => {
         if (selectedProduct) {
-            setFormData({ ...selectedProduct });
+            const data = { ...selectedProduct };
+            
+            // Sync the main part number's data UP to the root form fields
+            const mainPart = (data.part_numbers || []).find(p => p.is_main);
+            if (mainPart) {
+                // If root doesn't have these, or we want the main part to override:
+                data.part_number = mainPart.part_number || data.p_id;
+                data.car_model = mainPart.car_model || '';
+                data.year = mainPart.year || '';
+                data.name = mainPart.part_name || data.name || '';
+                data.specifications = mainPart.name_spec || data.specifications || '';
+                data.brand = mainPart.brand || data.brand || '';
+                data.notes = mainPart.note || data.notes || '';
+            }
+
+            setFormData(data);
             setIsEditing(!!selectedProduct.isNew);
         } else {
             setFormData(null);
@@ -610,13 +625,13 @@ const ProductDrawer = () => {
                                                 const updates = { part_numbers: newParts };
                                                 if (checked) {
                                                     const row = newParts[i];
-                                                    updates.part_number    = row.part_number || '';
+                                                    updates.part_number    = row.part_number || formData.p_id;
                                                     updates.car_model      = row.car_model   || '';
                                                     updates.year           = row.year         || '';
-                                                    updates.name           = row.part_name    || '';
-                                                    updates.specifications = row.name_spec    || '';
-                                                    updates.brand          = row.brand        || '';
-                                                    updates.notes          = row.note         || '';
+                                                    updates.name           = row.part_name    || formData.name || '';
+                                                    updates.specifications = row.name_spec    || formData.specifications || '';
+                                                    updates.brand          = row.brand        || formData.brand || '';
+                                                    updates.notes          = row.note         || formData.notes || '';
                                                 }
                                                 setFormData({ ...formData, ...updates });
                                             }}
