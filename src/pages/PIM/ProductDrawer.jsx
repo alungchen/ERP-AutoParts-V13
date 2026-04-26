@@ -160,7 +160,49 @@ const ProductDrawer = () => {
     };
 
     const handleSave = () => {
-        updateProduct(formData);
+        const productToSave = { ...formData };
+        
+        // Auto-sync main fields to the "main" part number before saving
+        let mainPartIdx = (productToSave.part_numbers || []).findIndex(p => p.is_main);
+        
+        if (mainPartIdx === -1) {
+            // 如果沒有勾選主的項目，預設使用第一項，或是新增一項
+            if (!productToSave.part_numbers) productToSave.part_numbers = [];
+            if (productToSave.part_numbers.length === 0) {
+                productToSave.part_numbers.push({
+                    pn_id: `PN-NEW-${Date.now()}`,
+                    type: "OE",
+                    is_main: true,
+                    part_number: "",
+                    brand: "",
+                    car_model: "",
+                    car_spec: "",
+                    year: "",
+                    part_name: "",
+                    name_spec: "",
+                    note: ""
+                });
+            }
+            mainPartIdx = 0;
+            productToSave.part_numbers[0].is_main = true;
+        }
+
+        // 將主表單的資料同步寫入到被標記為「主」的適用料號列中
+        if (mainPartIdx !== -1) {
+            productToSave.part_numbers[mainPartIdx] = {
+                ...productToSave.part_numbers[mainPartIdx],
+                part_number: productToSave.part_number || '',
+                car_model: productToSave.car_model || '',
+                year: productToSave.year || '',
+                part_name: productToSave.name || '',
+                name_spec: productToSave.specifications || '',
+                brand: productToSave.brand || '',
+                note: productToSave.notes || '',
+            };
+        }
+
+        setFormData(productToSave);
+        updateProduct(productToSave);
         setIsEditing(false);
     };
 
@@ -268,7 +310,7 @@ const ProductDrawer = () => {
             ...formData,
             part_numbers: [
                 ...currentPartNumbers,
-                { pn_id: newPnId, type: "OE", part_number: "", brand: "", car_model: "", year: "", note: "" }
+                { pn_id: newPnId, type: "OE", is_main: false, part_number: "", brand: "", car_model: "", car_spec: "", year: "", part_name: "", name_spec: "", note: "" }
             ]
         });
         setPendingFocusPnId(newPnId);
@@ -504,17 +546,48 @@ const ProductDrawer = () => {
                         <div className="flex-col gap-3">
                             {(p.part_numbers || []).length > 0 && (
                                 <div className="flex gap-2 items-center px-3 py-2 text-xs font-bold text-[#60a5fa] bg-[#3b82f622] rounded-md mb-[-4px]">
-                                    <div style={{ flex: 3, minWidth: '100px', display: 'flex', alignItems: 'center', paddingLeft: '24px' }}>適用號碼</div>
+                                    <div style={{ width: '30px', flexShrink: 0, textAlign: 'center' }}>主</div>
+                                    <div style={{ flex: 3, minWidth: '100px', display: 'flex', alignItems: 'center' }}>適用號碼</div>
                                     <div style={{ flex: 2, minWidth: '80px' }}>車種</div>
+                                    <div style={{ flex: 2, minWidth: '80px' }}>車種規格</div>
                                     <div style={{ flex: 1, minWidth: '60px' }}>年份</div>
-                                    <div style={{ flex: 1, minWidth: '60px' }}>品牌</div>
+                                    <div style={{ flex: 2, minWidth: '80px' }}>品名</div>
                                     <div style={{ flex: 2, minWidth: '80px' }}>品名規格</div>
+                                    <div style={{ flex: 1, minWidth: '60px' }}>品牌</div>
                                     <div style={{ flex: 3, minWidth: '100px' }}>備註</div>
                                     {isEditing && <div style={{ width: '20px', flexShrink: 0 }} />}
                                 </div>
                             )}
                             {(p.part_numbers || []).map((pn, i) => (
                                 <div key={pn.pn_id} className="flex gap-2 items-center p-2 bg-bg-secondary border border-border-color rounded-md overflow-x-auto text-sm w-full">
+                                    <div style={{ width: '30px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                                        <input
+                                            type="checkbox"
+                                            disabled={!isEditing}
+                                            checked={pn.is_main || false}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                const newParts = [...(formData.part_numbers || [])];
+                                                if (checked) {
+                                                    newParts.forEach(p => p.is_main = false);
+                                                }
+                                                newParts[i].is_main = checked;
+                                                
+                                                const updates = { part_numbers: newParts };
+                                                if (checked) {
+                                                    updates.part_number = newParts[i].part_number || '';
+                                                    updates.car_model = newParts[i].car_model || '';
+                                                    updates.year = newParts[i].year || '';
+                                                    updates.name = newParts[i].part_name || '';
+                                                    updates.specifications = newParts[i].name_spec || '';
+                                                    updates.brand = newParts[i].brand || '';
+                                                    updates.notes = newParts[i].note || '';
+                                                }
+                                                setFormData({ ...formData, ...updates });
+                                            }}
+                                            style={{ cursor: isEditing ? 'pointer' : 'default' }}
+                                        />
+                                    </div>
                                     <div style={{ flex: 3, minWidth: '100px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <button
                                             className="text-secondary hover:text-primary transition shrink-0 bg-transparent border-0 p-0 m-0 cursor-pointer"
@@ -565,6 +638,19 @@ const ProductDrawer = () => {
                                             disabled={!isEditing}
                                         />
                                     </div>
+                                    <div style={{ flex: 2, minWidth: '80px' }}>
+                                        <input
+                                            disabled={!isEditing}
+                                            className={`${styles.input} w-full`}
+                                            placeholder="車種規格"
+                                            value={pn.car_spec || ''}
+                                            onChange={(e) => {
+                                                const newParts = [...(formData.part_numbers || [])];
+                                                newParts[i].car_spec = e.target.value;
+                                                setFormData({ ...formData, part_numbers: newParts });
+                                            }}
+                                        />
+                                    </div>
                                     <div style={{ flex: 1, minWidth: '60px' }}>
                                         <input
                                             disabled={!isEditing}
@@ -574,6 +660,36 @@ const ProductDrawer = () => {
                                             onChange={(e) => {
                                                 const newParts = [...(formData.part_numbers || [])];
                                                 newParts[i].year = e.target.value;
+                                                setFormData({ ...formData, part_numbers: newParts });
+                                            }}
+                                        />
+                                    </div>
+                                    <div style={{ flex: 2, minWidth: '80px' }}>
+                                        <AutocompleteInput
+                                            value={pn.part_name || ''}
+                                            onChange={(val) => {
+                                                const newParts = [...(formData.part_numbers || [])];
+                                                newParts[i].part_name = val;
+                                                setFormData({ ...formData, part_numbers: newParts });
+                                            }}
+                                            placeholder="品名"
+                                            data={parts}
+                                            filterKey="shorthand"
+                                            labelKey="fullname"
+                                            required={false}
+                                            compact={true}
+                                            disabled={!isEditing}
+                                        />
+                                    </div>
+                                    <div style={{ flex: 2, minWidth: '80px' }}>
+                                        <input
+                                            disabled={!isEditing}
+                                            className={`${styles.input} w-full`}
+                                            placeholder="品名規格"
+                                            value={pn.name_spec || ''}
+                                            onChange={(e) => {
+                                                const newParts = [...(formData.part_numbers || [])];
+                                                newParts[i].name_spec = e.target.value;
                                                 setFormData({ ...formData, part_numbers: newParts });
                                             }}
                                         />
@@ -593,19 +709,6 @@ const ProductDrawer = () => {
                                             required={false}
                                             compact={true}
                                             disabled={!isEditing}
-                                        />
-                                    </div>
-                                    <div style={{ flex: 2, minWidth: '80px' }}>
-                                        <input
-                                            disabled={!isEditing}
-                                            className={`${styles.input} w-full`}
-                                            placeholder="品名規格"
-                                            value={pn.name_spec || ''}
-                                            onChange={(e) => {
-                                                const newParts = [...(formData.part_numbers || [])];
-                                                newParts[i].name_spec = e.target.value;
-                                                setFormData({ ...formData, part_numbers: newParts });
-                                            }}
                                         />
                                     </div>
                                     <div style={{ flex: 3, minWidth: '100px' }}>

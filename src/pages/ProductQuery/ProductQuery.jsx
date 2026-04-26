@@ -323,7 +323,7 @@ const ProductQuery = () => {
                                     <tr>
                                         <th className={styles.thList}>{t('pim.thIndex')}</th>
                                         <th className={styles.thList}>零件號碼 (ID)</th>
-                                        <th className={styles.thList}>車型 / 年份</th>
+                                        <th className={styles.thList}>車種 / 年份</th>
                                         <th className={styles.thList}>品名 / 規格</th>
                                         <th className={styles.thList}>品牌</th>
                                         <th className={styles.thList}>庫存狀態</th>

@@ -933,7 +933,7 @@ const ProductList = () => {
                             <tr>
                                 <th style="width:40px;">#</th>
                                 <th style="width:120px;">零件號碼</th>
-                                <th style="width:160px;">車型 / 年份</th>
+                                <th style="width:160px;">車種 / 年份</th>
                                 <th style="width:180px;">品名 / 規格</th>
                                 <th style="width:90px;">品牌</th>
                                 <th style="width:110px;">庫存</th>
@@ -1287,7 +1287,7 @@ const ProductList = () => {
                             </th>
                             <th className={styles.thList}>{t('pim.thIndex')}</th>
                             <th className={styles.thList}>零件號碼 (ID)</th>
-                            <th className={styles.thList}>車型 / 年份</th>
+                            <th className={styles.thList}>車種 / 年份</th>
                             <th className={styles.thList}>品名 / 規格</th>
                             <th className={styles.thList}>品牌</th>
                             <th className={styles.thList}>庫存狀態</th>

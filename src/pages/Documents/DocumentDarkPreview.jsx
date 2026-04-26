@@ -200,7 +200,7 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
                         <thead style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
                             <tr>
                                 <th style={{ padding: '1rem' }}>零件號碼 (ID)</th>
-                                <th style={{ padding: '1rem' }}>車型 / 年份</th>
+                                <th style={{ padding: '1rem' }}>車種 / 年份</th>
                                 <th style={{ padding: '1rem' }}>品名 / 規格</th>
                                 <th style={{ padding: '1rem' }}>品牌</th>
                                 <th style={{ padding: '1rem', width: '80px', textAlign: 'center' }}>庫存狀況</th>

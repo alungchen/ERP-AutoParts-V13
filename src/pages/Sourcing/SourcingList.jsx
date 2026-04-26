@@ -1033,7 +1033,7 @@ const SourcingList = () => {
                                     <tr>
                                         <th className={styles.thNarrow}>{t('pim.thIndex')}</th>
                                         <th>零件號碼 (ID)</th>
-                                        <th>車型 / 年份</th>
+                                        <th>車種 / 年份</th>
                                         <th>品名 / 規格</th>
                                         <th>品牌</th>
                                         <th>庫存狀態</th>
