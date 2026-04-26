@@ -68,15 +68,15 @@ export const useProductStore = create((set, get) => ({
   deleteProduct: async (productId) => {
     try {
       const res = await fetch(`/api/products?id=${productId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error("Failed to delete product from DB");
+      if (!res.ok) throw new Error(`Failed to delete product from DB (${res.status})`);
 
       set((state) => ({
         products: state.products.filter((p) => p.p_id !== productId),
         selectedProduct: state.selectedProduct?.p_id === productId ? null : state.selectedProduct
       }));
     } catch (err) {
-      console.error(err);
-      alert('刪除產品失敗！');
+      console.error('deleteProduct error:', err);
+      throw err; // Let callers handle the error
     }
   },
 

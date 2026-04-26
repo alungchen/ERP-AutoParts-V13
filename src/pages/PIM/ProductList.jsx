@@ -1,11 +1,12 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Plus, Filter, Download, Upload, Layers, Eye, EyeOff, RotateCcw, Printer, History, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ChevronDown, FileSpreadsheet } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { Plus, Filter, Download, Upload, Layers, Eye, EyeOff, RotateCcw, Printer, History, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ChevronDown, FileSpreadsheet, Trash2 } from 'lucide-react';
 import { useProductStore } from '../../store/useProductStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../store/useAppStore';
 import AutocompleteInput from '../../components/AutocompleteInput';
+import ConfirmModal from '../../components/ConfirmModal';
 import ProductDrawer from './ProductDrawer';
 import PartMappingModal from './PartMappingModal';
 import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
@@ -127,7 +128,7 @@ const filterProductsByQuery = (sourceProducts, query) => {
 };
 
 const ProductList = () => {
-    const { products, setSelectedProduct, bulkUpdateProducts, selectedProduct } = useProductStore();
+    const { products, setSelectedProduct, bulkUpdateProducts, selectedProduct, deleteProduct } = useProductStore();
     const {
         purchaseOrders = [],
         salesOrders = [],
@@ -138,6 +139,7 @@ const ProductList = () => {
     const { models, parts, brands } = useShorthandStore();
     const { t } = useTranslation();
     const showImportExport = useAppStore((s) => s.showImportExport);
+    const showBatchDelete = useAppStore((s) => s.showBatchDelete);
     const setProductHistoryFocusPId = useAppStore((s) => s.setProductHistoryFocusPId);
 
     const [query, setQuery] = useState(() => {
@@ -177,6 +179,8 @@ const ProductList = () => {
     const [imagePreviewZoom, setImagePreviewZoom] = useState(1);
     const [outputMenuOpen, setOutputMenuOpen] = useState(false);
     const outputMenuRef = useRef(null);
+    // ConfirmModal state
+    const [confirmModalState, setConfirmModalState] = useState({ open: false, title: '', message: '', onConfirm: null });
     const [exportFields, setExportFields] = useState(() => {
         const defaultFields = {
             part_number: true, // mandatory key
@@ -521,6 +525,59 @@ const ProductList = () => {
         addProductsToShortageBook(selectedProducts, purchaseOrders);
         setSelectedProductIds([]);
         alert(`已將 ${selectedProducts.length} 項加入缺貨簿`);
+    };
+
+    const handleBatchDelete = () => {
+        if (selectedProductIds.length === 0) {
+            setConfirmModalState({
+                open: true,
+                title: '請先勾選產品',
+                message: '請勾選至少一筆要刪除的產品。',
+                confirmLabel: '了解',
+                danger: false,
+                onConfirm: () => setConfirmModalState(s => ({ ...s, open: false })),
+            });
+            return;
+        }
+        const count = selectedProductIds.length;
+        const idsToDelete = [...selectedProductIds];
+        setConfirmModalState({
+            open: true,
+            title: '批次刪除確認',
+            message: `確定要刪除選取的 ${count} 筆資料嗎？\n\n此操作無法復原，將直接從資料庫中刪除！`,
+            confirmLabel: `刪除 ${count} 筆`,
+            danger: true,
+            onConfirm: async () => {
+                setConfirmModalState(s => ({ ...s, open: false }));
+                setSelectedProductIds([]);
+                let failCount = 0;
+                await Promise.allSettled(idsToDelete.map(id =>
+                    deleteProduct(id).catch(err => {
+                        failCount++;
+                        console.error(`Failed to delete ${id}:`, err);
+                    })
+                ));
+                if (failCount === 0) {
+                    setConfirmModalState({
+                        open: true,
+                        title: '刪除完成',
+                        message: `成功刪除 ${count} 筆資料。`,
+                        confirmLabel: '關閉',
+                        danger: false,
+                        onConfirm: () => setConfirmModalState(s => ({ ...s, open: false })),
+                    });
+                } else {
+                    setConfirmModalState({
+                        open: true,
+                        title: '部分刪除失敗',
+                        message: `共 ${count} 筆，其中 ${failCount} 筆刪除失敗，請檢查主控台。`,
+                        confirmLabel: '了解',
+                        danger: true,
+                        onConfirm: () => setConfirmModalState(s => ({ ...s, open: false })),
+                    });
+                }
+            },
+        });
     };
 
     const getPrimaryPartNumber = (p) => p.part_number || p?.part_numbers?.[0]?.part_number || '';
@@ -1246,21 +1303,48 @@ const ProductList = () => {
                         flexShrink: 0
                     }}
                 >
-                    <button
-                        onClick={handleAddSelectedToShortageBook}
-                        disabled={selectedProductIds.length === 0}
-                        style={{
-                            background: selectedProductIds.length === 0 ? 'var(--bg-tertiary)' : '#dc2626',
-                            color: selectedProductIds.length === 0 ? 'var(--text-muted)' : 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '0.45rem 0.85rem',
-                            fontWeight: 700,
-                            cursor: selectedProductIds.length === 0 ? 'not-allowed' : 'pointer'
-                        }}
-                    >
-                        加到缺貨簿
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                        <button
+                            type="button"
+                            onClick={handleAddSelectedToShortageBook}
+                            disabled={selectedProductIds.length === 0}
+                            style={{
+                                background: selectedProductIds.length === 0 ? 'var(--bg-tertiary)' : '#dc2626',
+                                color: selectedProductIds.length === 0 ? 'var(--text-muted)' : 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '0.45rem 0.85rem',
+                                fontWeight: 700,
+                                cursor: selectedProductIds.length === 0 ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            加到缺貨簿
+                        </button>
+
+                        {showBatchDelete && (
+                            <button
+                                type="button"
+                                onClick={handleBatchDelete}
+                                disabled={selectedProductIds.length === 0}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    background: selectedProductIds.length === 0 ? 'var(--bg-tertiary)' : '#ef4444',
+                                    color: selectedProductIds.length === 0 ? 'var(--text-muted)' : 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    padding: '0.45rem 0.85rem',
+                                    fontWeight: 700,
+                                    cursor: selectedProductIds.length === 0 ? 'not-allowed' : 'pointer'
+                                }}
+                                title="批次刪除選取的項目"
+                            >
+                                <Trash2 size={16} />
+                                批次刪除
+                            </button>
+                        )}
+                    </div>
                     <span
                         style={{
                             fontSize: '0.8125rem',
@@ -1898,6 +1982,17 @@ const ProductList = () => {
                     </div>
                 </div>
             )}
+
+            {/* Custom Confirm Modal - replaces window.confirm */}
+            <ConfirmModal
+                open={confirmModalState.open}
+                title={confirmModalState.title}
+                message={confirmModalState.message}
+                confirmLabel={confirmModalState.confirmLabel}
+                danger={confirmModalState.danger}
+                onConfirm={confirmModalState.onConfirm}
+                onCancel={() => setConfirmModalState(s => ({ ...s, open: false }))}
+            />
         </div>
     );
 };

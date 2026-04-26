@@ -4,6 +4,7 @@ import { useProductStore } from '../../store/useProductStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
 import { useTranslation } from '../../i18n';
 import AutocompleteInput from '../../components/AutocompleteInput';
+import ConfirmModal from '../../components/ConfirmModal';
 import styles from './ProductDrawer.module.css';
 
 const ProductDrawer = () => {
@@ -33,6 +34,7 @@ const ProductDrawer = () => {
     const closeBtnRef = useRef(null);
     const partNumberInputRef = useRef(null);
     const drawerRef = useRef(null);
+    const [confirmModalState, setConfirmModalState] = useState({ open: false, title: '', message: '', onConfirm: null });
 
     const handleImageUpload = async (e) => {
         const files = Array.from(e.target.files);
@@ -153,7 +155,9 @@ const ProductDrawer = () => {
     }, [formData?.part_numbers, pendingFocusPnId]);
 
     const hasData = !!(selectedProduct && formData);
-    const p = hasData ? (isEditing ? formData : selectedProduct) : null;
+    // Always use formData so that changes (e.g. checking 主) are immediately visible
+    // formData is initialized from selectedProduct when the drawer opens
+    const p = hasData ? formData : null;
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
@@ -375,12 +379,34 @@ const ProductDrawer = () => {
                                     <Edit2 size={20} />
                                 </button>
                                 <button
+                                    type="button"
                                     ref={deleteBtnRef}
                                     className={`${styles.closeBtn} ${styles.headerActionBtn} text-danger hover:bg-danger-subtle`}
                                     title={t('pim.delete')}
                                     onClick={() => {
-                                        if (!confirmDelete(p.name || p.p_id)) return;
-                                        deleteProduct(p.p_id);
+                                        setConfirmModalState({
+                                            open: true,
+                                            title: '刪除產品',
+                                            message: `確定要刪除「${p.name || p.p_id}」嗎？\n此操作無法復原！`,
+                                            confirmLabel: '確認刪除',
+                                            danger: true,
+                                            onConfirm: async () => {
+                                                setConfirmModalState(s => ({ ...s, open: false }));
+                                                try {
+                                                    await deleteProduct(p.p_id);
+                                                    setSelectedProduct(null);
+                                                } catch (err) {
+                                                    setConfirmModalState({
+                                                        open: true,
+                                                        title: '刪除失敗',
+                                                        message: `刪除失敗：${err.message}`,
+                                                        confirmLabel: '關閉',
+                                                        danger: true,
+                                                        onConfirm: () => setConfirmModalState(s => ({ ...s, open: false })),
+                                                    });
+                                                }
+                                            },
+                                        });
                                     }}
                                     onKeyDown={(e) => handleHeaderActionKeyDown(e, deleteBtnRef)}
                                 >
@@ -559,33 +585,42 @@ const ProductDrawer = () => {
                                 </div>
                             )}
                             {(p.part_numbers || []).map((pn, i) => (
-                                <div key={pn.pn_id} className="flex gap-2 items-center p-2 bg-bg-secondary border border-border-color rounded-md overflow-x-auto text-sm w-full">
-                                    <div style={{ width: '30px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                                <div
+                                    key={pn.pn_id}
+                                    className="flex gap-2 items-center p-2 rounded-md overflow-x-auto text-sm w-full"
+                                    style={{
+                                        background: pn.is_main ? 'rgba(59,130,246,0.08)' : 'var(--bg-secondary)',
+                                        border: pn.is_main ? '1.5px solid #3b82f6' : '1px solid var(--border-color)',
+                                        transition: 'border-color 0.2s, background 0.2s',
+                                    }}
+                                >
+                                     <div style={{ width: '30px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
                                         <input
                                             type="checkbox"
                                             disabled={!isEditing}
                                             checked={pn.is_main || false}
+                                            title={pn.is_main ? '目前為主料號' : '設為主料號（同步至上方欄位，需儲存後生效）'}
                                             onChange={(e) => {
                                                 const checked = e.target.checked;
-                                                const newParts = [...(formData.part_numbers || [])];
-                                                if (checked) {
-                                                    newParts.forEach(p => p.is_main = false);
-                                                }
-                                                newParts[i].is_main = checked;
-                                                
+                                                const newParts = [...(formData.part_numbers || [])].map((part, idx) => ({
+                                                    ...part,
+                                                    is_main: idx === i ? checked : (checked ? false : part.is_main)
+                                                }));
+
                                                 const updates = { part_numbers: newParts };
                                                 if (checked) {
-                                                    updates.part_number = newParts[i].part_number || '';
-                                                    updates.car_model = newParts[i].car_model || '';
-                                                    updates.year = newParts[i].year || '';
-                                                    updates.name = newParts[i].part_name || '';
-                                                    updates.specifications = newParts[i].name_spec || '';
-                                                    updates.brand = newParts[i].brand || '';
-                                                    updates.notes = newParts[i].note || '';
+                                                    const row = newParts[i];
+                                                    updates.part_number    = row.part_number || '';
+                                                    updates.car_model      = row.car_model   || '';
+                                                    updates.year           = row.year         || '';
+                                                    updates.name           = row.part_name    || '';
+                                                    updates.specifications = row.name_spec    || '';
+                                                    updates.brand          = row.brand        || '';
+                                                    updates.notes          = row.note         || '';
                                                 }
                                                 setFormData({ ...formData, ...updates });
                                             }}
-                                            style={{ cursor: isEditing ? 'pointer' : 'default' }}
+                                            style={{ cursor: isEditing ? 'pointer' : 'default', width: '16px', height: '16px', accentColor: '#3b82f6' }}
                                         />
                                     </div>
                                     <div style={{ flex: 3, minWidth: '100px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -725,10 +760,25 @@ const ProductDrawer = () => {
                                         />
                                     </div>
                                     {isEditing && (
-                                        <button className="text-secondary hover:text-danger shrink-0 ml-1" onClick={() => {
-                                            const newParts = (formData.part_numbers || []).filter((_, idx) => idx !== i);
-                                            setFormData({ ...formData, part_numbers: newParts });
-                                        }}>
+                                        <button 
+                                            type="button"
+                                            className="text-secondary hover:text-danger shrink-0 ml-1" 
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setConfirmModalState({
+                                                    open: true,
+                                                    title: '刪除料號',
+                                                    message: '確定要刪除這筆適用料號嗎？',
+                                                    confirmLabel: '確認刪除',
+                                                    danger: true,
+                                                    onConfirm: () => {
+                                                        setConfirmModalState(s => ({ ...s, open: false }));
+                                                        const newParts = (formData.part_numbers || []).filter((_, idx) => idx !== i);
+                                                        setFormData({ ...formData, part_numbers: newParts });
+                                                    },
+                                                });
+                                            }}>
                                             <Trash2 size={16} />
                                         </button>
                                     )}
@@ -818,6 +868,17 @@ const ProductDrawer = () => {
                     </div>
                 </div>
             )}
+
+            {/* Custom Confirm Modal */}
+            <ConfirmModal
+                open={confirmModalState.open}
+                title={confirmModalState.title}
+                message={confirmModalState.message}
+                confirmLabel={confirmModalState.confirmLabel}
+                danger={confirmModalState.danger}
+                onConfirm={confirmModalState.onConfirm}
+                onCancel={() => setConfirmModalState(s => ({ ...s, open: false }))}
+            />
         </div>
     );
 };

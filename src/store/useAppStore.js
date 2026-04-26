@@ -50,6 +50,9 @@ export const useAppStore = create(persist((set) => ({
     showImportExport: false,
     setShowImportExport: (enabled) => set({ showImportExport: enabled }),
 
+    showBatchDelete: false,
+    setShowBatchDelete: (enabled) => set({ showBatchDelete: enabled }),
+
     enablePermissionRole: true,
     setEnablePermissionRole: (enabled) => set({ enablePermissionRole: enabled }),
 

@@ -4,7 +4,7 @@ import { useTranslation } from '../../i18n';
 import { pullStoresFromD1 } from '../../lib/d1Bootstrap';
 import { pushAllStoresToD1 } from '../../lib/erpPersistStorage';
 import { apiUrl } from '../../lib/apiUrl';
-import { Settings, Globe, CircleDollarSign, Database, LayoutPanelTop, ShieldCheck, LockKeyhole, Palette, CloudDownload, CloudUpload } from 'lucide-react';
+import { Settings, Globe, CircleDollarSign, Database, LayoutPanelTop, ShieldCheck, LockKeyhole, Palette, CloudDownload, CloudUpload, Trash2 } from 'lucide-react';
 
 const DISPLAY_MODE_CARDS = {
     nightclub: {
@@ -41,6 +41,7 @@ const SystemSettings = () => {
         vatRate, setVatRate,
         isMultiCountryMode, setMultiCountryMode,
         showImportExport, setShowImportExport,
+        showBatchDelete, setShowBatchDelete,
         enablePermissionRole, setEnablePermissionRole,
         enableLoginSystem, setEnableLoginSystem,
         operationMode, setOperationMode,
@@ -214,8 +215,8 @@ const SystemSettings = () => {
                     </div>
                 </div>
 
-                {/* Import/Export Features */}
-                <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                {/* Import/Export & Batch Delete Features */}
+                <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                             <Database className="text-success" />
@@ -232,6 +233,27 @@ const SystemSettings = () => {
                             style={{ ...switchTrackStyle, background: showImportExport ? '#2563eb' : '#334155' }}
                         >
                             <span style={{ ...switchThumbStyle, transform: showImportExport ? 'translateX(20px)' : 'translateX(0)' }} />
+                        </button>
+                    </div>
+
+                    <div style={{ width: '100%', height: '1px', background: 'var(--border-color)' }} />
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <Layers className="text-danger" color="#ef4444" />
+                            <div>
+                                <div style={{ fontWeight: 800 }}>批次刪除 功能開啟</div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                    開啟後將在產品資料庫頁面顯示批次刪除按鈕。
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowBatchDelete(!showBatchDelete)}
+                            style={{ ...switchTrackStyle, background: showBatchDelete ? '#2563eb' : '#334155' }}
+                        >
+                            <span style={{ ...switchThumbStyle, transform: showBatchDelete ? 'translateX(20px)' : 'translateX(0)' }} />
                         </button>
                     </div>
                 </div>
