@@ -206,18 +206,17 @@ const ProductDrawer = () => {
             productToSave.part_numbers[0].is_main = true;
         }
 
-        // 將主表單的資料同步寫入到被標記為「主」的適用料號列中
+        // 1 應該向 2 看齊 (Top fields follow the Main Grid Row)
         if (mainPartIdx !== -1) {
-            productToSave.part_numbers[mainPartIdx] = {
-                ...productToSave.part_numbers[mainPartIdx],
-                part_number: productToSave.part_number || '',
-                car_model: productToSave.car_model || '',
-                year: productToSave.year || '',
-                part_name: productToSave.name || '',
-                name_spec: productToSave.specifications || '',
-                brand: productToSave.brand || '',
-                note: productToSave.notes || '',
-            };
+            const mainPart = productToSave.part_numbers[mainPartIdx];
+            // Update root fields from the main part
+            if (mainPart.part_number) productToSave.part_number = mainPart.part_number;
+            if (mainPart.car_model) productToSave.car_model = mainPart.car_model;
+            if (mainPart.year) productToSave.year = mainPart.year;
+            if (mainPart.part_name) productToSave.name = mainPart.part_name;
+            if (mainPart.name_spec) productToSave.specifications = mainPart.name_spec;
+            if (mainPart.brand) productToSave.brand = mainPart.brand;
+            if (mainPart.note) productToSave.notes = mainPart.note;
         }
 
         setFormData(productToSave);
@@ -667,7 +666,9 @@ const ProductDrawer = () => {
                                             onChange={(e) => {
                                                 const newParts = [...(formData.part_numbers || [])];
                                                 newParts[i].part_number = e.target.value;
-                                                setFormData({ ...formData, part_numbers: newParts });
+                                                const updates = { part_numbers: newParts };
+                                                if (pn.is_main) updates.part_number = e.target.value;
+                                                setFormData({ ...formData, ...updates });
                                             }}
                                         />
                                     </div>
@@ -677,7 +678,9 @@ const ProductDrawer = () => {
                                             onChange={(val) => {
                                                 const newParts = [...(formData.part_numbers || [])];
                                                 newParts[i].car_model = val;
-                                                setFormData({ ...formData, part_numbers: newParts });
+                                                const updates = { part_numbers: newParts };
+                                                if (pn.is_main) updates.car_model = val;
+                                                setFormData({ ...formData, ...updates });
                                             }}
                                             placeholder="車型"
                                             data={models}
@@ -710,7 +713,9 @@ const ProductDrawer = () => {
                                             onChange={(e) => {
                                                 const newParts = [...(formData.part_numbers || [])];
                                                 newParts[i].year = e.target.value;
-                                                setFormData({ ...formData, part_numbers: newParts });
+                                                const updates = { part_numbers: newParts };
+                                                if (pn.is_main) updates.year = e.target.value;
+                                                setFormData({ ...formData, ...updates });
                                             }}
                                         />
                                     </div>
@@ -720,7 +725,9 @@ const ProductDrawer = () => {
                                             onChange={(val) => {
                                                 const newParts = [...(formData.part_numbers || [])];
                                                 newParts[i].part_name = val;
-                                                setFormData({ ...formData, part_numbers: newParts });
+                                                const updates = { part_numbers: newParts };
+                                                if (pn.is_main) updates.name = val;
+                                                setFormData({ ...formData, ...updates });
                                             }}
                                             placeholder="品名"
                                             data={parts}
@@ -740,7 +747,9 @@ const ProductDrawer = () => {
                                             onChange={(e) => {
                                                 const newParts = [...(formData.part_numbers || [])];
                                                 newParts[i].name_spec = e.target.value;
-                                                setFormData({ ...formData, part_numbers: newParts });
+                                                const updates = { part_numbers: newParts };
+                                                if (pn.is_main) updates.specifications = e.target.value;
+                                                setFormData({ ...formData, ...updates });
                                             }}
                                         />
                                     </div>
@@ -750,7 +759,9 @@ const ProductDrawer = () => {
                                             onChange={(val) => {
                                                 const newParts = [...(formData.part_numbers || [])];
                                                 newParts[i].brand = val;
-                                                setFormData({ ...formData, part_numbers: newParts });
+                                                const updates = { part_numbers: newParts };
+                                                if (pn.is_main) updates.brand = val;
+                                                setFormData({ ...formData, ...updates });
                                             }}
                                             placeholder="品牌"
                                             data={brands}
@@ -770,7 +781,9 @@ const ProductDrawer = () => {
                                             onChange={(e) => {
                                                 const newParts = [...(formData.part_numbers || [])];
                                                 newParts[i].note = e.target.value;
-                                                setFormData({ ...formData, part_numbers: newParts });
+                                                const updates = { part_numbers: newParts };
+                                                if (pn.is_main) updates.notes = e.target.value;
+                                                setFormData({ ...formData, ...updates });
                                             }}
                                         />
                                     </div>
