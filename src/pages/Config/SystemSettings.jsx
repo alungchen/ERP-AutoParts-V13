@@ -4,7 +4,7 @@ import { useTranslation } from '../../i18n';
 import { pullStoresFromD1 } from '../../lib/d1Bootstrap';
 import { pushAllStoresToD1 } from '../../lib/erpPersistStorage';
 import { apiUrl } from '../../lib/apiUrl';
-import { Settings, Globe, CircleDollarSign, Database, LayoutPanelTop, ShieldCheck, LockKeyhole, Palette, CloudDownload, CloudUpload, Trash2 } from 'lucide-react';
+import { Settings, Globe, CircleDollarSign, Database, LayoutPanelTop, ShieldCheck, LockKeyhole, Palette, CloudDownload, CloudUpload, Trash2, Layers } from 'lucide-react';
 
 const DISPLAY_MODE_CARDS = {
     nightclub: {

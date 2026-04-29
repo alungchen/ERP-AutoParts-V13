@@ -6,7 +6,6 @@ import { useShorthandStore } from '../../store/useShorthandStore';
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../store/useAppStore';
 import AutocompleteInput from '../../components/AutocompleteInput';
-import ErrorModal from '../../components/ErrorModal';
 import { getSafeImageUrl } from '../../utils/imageUtils';
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductDrawer from './ProductDrawer';

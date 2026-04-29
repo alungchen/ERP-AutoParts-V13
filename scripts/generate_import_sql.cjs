@@ -16,6 +16,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const MAIN_CSV    = path.join(__dirname, '..', 'output', 'products_main.csv');
 const COMPAT_CSV  = path.join(__dirname, '..', 'output', 'products_compatible.csv');
@@ -44,7 +45,7 @@ function parseCSVLine(line) {
 
 // ── SQL 字串轉義 ──────────────────────────────────────
 function sqlStr(s) {
-  if (s === null || s === undefined || s === '') return 'NULL';
+  if (s === null || s === undefined) return 'NULL';
   return "'" + String(s).replace(/'/g, "''") + "'";
 }
 
@@ -107,9 +108,23 @@ sqlLines.push(`-- Total: ${rowsMain.length - 1} products`);
 sqlLines.push('-- First we delete existing matching records to allow fresh insert');
 sqlLines.push('');
 
+console.log('\n🔄 正在從遠端資料庫抓取現有零件號碼以比對重複...');
+const existingIds = new Set();
+try {
+  const result = execSync('npx wrangler d1 execute erp-db --remote --command="SELECT p_id FROM products;" --json', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+  const parsed = JSON.parse(result);
+  if (parsed && parsed[0] && parsed[0].results) {
+    parsed[0].results.forEach(r => existingIds.add(r.p_id));
+  }
+  console.log(`✅ 成功抓取到 ${existingIds.size} 筆現有零件號碼。`);
+} catch (err) {
+  console.log('⚠️ 無法抓取遠端資料庫，將跳過重複比對機制。');
+}
+
 let inserted = 0;
 const skipped = [];
 const allPids = [];
+const duplicatesCsvRows = [];
 
 for (let i = 1; i < rowsMain.length; i++) {
   const line = rowsMain[i];
@@ -119,18 +134,31 @@ for (let i = 1; i < rowsMain.length; i++) {
 
   // === 欄位對應（對齊實際 CSV 內容）===
   const p_id         = cols[0]  || '';  
-  const car_model_raw= cols[1]  || '';  // 實際車種
-  const prod_name    = cols[2]  || '';  // 實際品名
-  const spec_raw     = cols[3]  || '';  // 實際規格
-  const year_raw     = cols[4]  || '';  // 實際年份
-  const brand_raw    = cols[7]  || '';  // 實際品牌
-  const stock_raw    = cols[8]  || '0'; // 實際庫存
+  const prod_name    = cols[1]  || '';  
+  const brand_raw    = cols[2]  || '';  
+  const spec_raw     = cols[4]  || '';  
+  const car_model_raw= cols[5]  || '';  
+  const year_raw     = cols[6]  || '';  
+  const stock_raw    = cols[3]  || '0'; 
 
-  if (!p_id || !/^[A-Z]+-/.test(p_id)) {
+  if (!p_id || !/^[A-Z0-9]+-/.test(p_id)) {
     skipped.push(`Row ${i}: invalid p_id "${p_id}"`);
     continue;
   }
   
+  if (allPids.includes(p_id)) {
+    // 避免 CSV 內部重複相同的 p_id 導致 INSERT 失敗
+    continue;
+  }
+
+  const FORCE_OVERWRITE = process.argv.includes('--force');
+  if (!FORCE_OVERWRITE && existingIds.has(p_id)) {
+    duplicatesCsvRows.push(line);
+    skipped.push(`Row ${i}: Duplicate p_id "${p_id}" (Isolated for review)`);
+    continue;
+  }
+  
+  existingIds.add(p_id); // Prevent duplicates WITHIN the current CSV
   allPids.push(p_id);
 
   // 清理年份
@@ -209,6 +237,14 @@ fs.writeFileSync(SQL_FILE, sqlLines.join('\n'), 'utf8');
 console.log(`\n✅ SQL generated: ${SQL_FILE}`);
 console.log(`   INSERT count : ${inserted}`);
 console.log(`   Skipped      : ${skipped.length}`);
+
+if (duplicatesCsvRows.length > 0) {
+  const dupPath = path.join(__dirname, '..', 'output', 'duplicates_review.csv');
+  const dupContent = [rowsMain[0], ...duplicatesCsvRows].join('\n');
+  fs.writeFileSync(dupPath, '\uFEFF' + dupContent, 'utf8');
+  console.log(`\n⚠️ 發現 ${duplicatesCsvRows.length} 筆重複零件！已成功隔離至：${dupPath}`);
+  console.log('請人工審核該檔案，決定是否在系統內手動更新。');
+}
+
 console.log('\nTo import:');
 console.log('  npx wrangler d1 execute erp-db --remote --file=output/import_products.sql');
-
