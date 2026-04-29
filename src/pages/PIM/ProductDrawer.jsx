@@ -4,6 +4,7 @@ import { useProductStore } from '../../store/useProductStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
 import { useTranslation } from '../../i18n';
 import AutocompleteInput from '../../components/AutocompleteInput';
+import { getSafeImageUrl } from '../../utils/imageUtils';
 import ConfirmModal from '../../components/ConfirmModal';
 import styles from './ProductDrawer.module.css';
 
@@ -854,7 +855,7 @@ const ProductDrawer = () => {
                             {(p.images || []).map((img, idx) => (
                                 <div key={idx} style={{ width: '80px', height: '80px', flexShrink: 0, position: 'relative', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); setEnlargedImageIndex(idx); }}>
                                     {img.startsWith('blob:') || img.startsWith('http') || img.startsWith('data:') || img.startsWith('/api') ? (
-                                        <img src={img} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <img src={getSafeImageUrl(img)} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
                                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-tertiary)', fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', padding: '4px', wordBreak: 'break-all' }}>
                                             {img}
@@ -886,7 +887,7 @@ const ProductDrawer = () => {
             {enlargedImageIndex !== null && hasData && (p?.images || [])[enlargedImageIndex] && (
                 <div className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4 anim-fade-in" onClick={(e) => { e.stopPropagation(); setEnlargedImageIndex(null); }}>
                     <div className="relative max-w-full max-h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
-                        <img src={(p.images || [])[enlargedImageIndex]} style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain' }} alt="Enlarged" className="rounded shadow-2xl" />
+                        <img src={getSafeImageUrl((p.images || [])[enlargedImageIndex])} style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain' }} alt="Enlarged" className="rounded shadow-2xl" />
                         <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs text-white/80 bg-black/50 px-3 py-1 rounded-full">
                             ← / → 切換照片
                         </div>

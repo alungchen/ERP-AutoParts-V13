@@ -21,6 +21,7 @@ import {
     Download,
     Upload,
 } from 'lucide-react';
+import { getSafeImageUrl } from '../../utils/imageUtils';
 import {
     loadTariffTable,
     findByHsCode,
@@ -1116,7 +1117,7 @@ const SourcingList = () => {
                                                         {p && (p?.images?.length || 0) > 0 ? (
                                                             <div className="flex items-center gap-1">
                                                                 {(p.images[0] || '').match(/^(data:|blob:|https?:)/) ? (
-                                                                    <img src={p.images[0]} alt="" className={styles.pimThumb} />
+                                                                    <img src={getSafeImageUrl(p.images[0])} alt="" className={styles.pimThumb} />
                                                                 ) : null}
                                                                 <span className="text-xs text-accent-primary flex items-center gap-0.5">
                                                                     <Layers size={10} /> {p.images.length}

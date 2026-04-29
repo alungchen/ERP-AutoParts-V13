@@ -6,6 +6,8 @@ import { useShorthandStore } from '../../store/useShorthandStore';
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../store/useAppStore';
 import AutocompleteInput from '../../components/AutocompleteInput';
+import ErrorModal from '../../components/ErrorModal';
+import { getSafeImageUrl } from '../../utils/imageUtils';
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductDrawer from './ProductDrawer';
 import PartMappingModal from './PartMappingModal';
@@ -1686,7 +1688,7 @@ const ProductList = () => {
                                     }}
                                 >
                                     <img
-                                        src={src}
+                                        src={getSafeImageUrl(src)}
                                         alt={`${imagePreviewProduct.name || '產品'} 照片 ${i + 1}`}
                                         style={{ width: '100%', height: 'auto', maxHeight: '320px', objectFit: 'contain', display: 'block', pointerEvents: 'none' }}
                                         loading="lazy"
@@ -1907,7 +1909,7 @@ const ProductList = () => {
                             onClick={(e) => e.stopPropagation()}
                         >
                             <img
-                                src={(imagePreviewProduct.images || [])[imagePreviewEnlargedIndex]}
+                                src={getSafeImageUrl((imagePreviewProduct.images || [])[imagePreviewEnlargedIndex])}
                                 alt={`${imagePreviewProduct.name || '產品'} 放大 ${imagePreviewEnlargedIndex + 1}`}
                                 style={{
                                     maxWidth: 'min(92vw, 1400px)',
