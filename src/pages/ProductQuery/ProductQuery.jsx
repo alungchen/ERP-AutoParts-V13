@@ -55,10 +55,24 @@ const ProductQuery = () => {
     const handleSearch = (e) => {
         if (e) e.preventDefault();
 
+        // ── 片語代碼轉換：輸入代碼 → 取得顯示名 ──
+        const resolveShorthand = (inputVal, list) => {
+            if (!inputVal) return inputVal;
+            const v = inputVal.toLowerCase();
+            const matched = list.find(item =>
+                (item.shorthand || '').toLowerCase() === v
+            );
+            return matched ? matched.fullname : inputVal;
+        };
+
+        const modelQ  = resolveShorthand(query.model,  models);
+        const partQ   = resolveShorthand(query.part,   parts);
+        const brandQ  = resolveShorthand(query.brand,  brands);
+
         let filtered = products;
 
-        if (query.model) {
-            const q = query.model.toLowerCase();
+        if (modelQ) {
+            const q = modelQ.toLowerCase();
             filtered = filtered.filter(p =>
                 // ✅ Top-level car_model field (used by new ProductDrawer)
                 (p.car_model || '').toLowerCase().includes(q) ||
@@ -76,8 +90,8 @@ const ProductQuery = () => {
             );
         }
 
-        if (query.part) {
-            const q = query.part.toLowerCase();
+        if (partQ) {
+            const q = partQ.toLowerCase();
             filtered = filtered.filter(p =>
                 (p.name || '').toLowerCase().includes(q) ||
                 (p.category || '').toLowerCase().includes(q) ||
@@ -120,8 +134,8 @@ const ProductQuery = () => {
             );
         }
 
-        if (query.brand) {
-            const q = query.brand.toLowerCase();
+        if (brandQ) {
+            const q = brandQ.toLowerCase();
             filtered = filtered.filter(p =>
                 (p.brand || '').toLowerCase().includes(q) ||
                 (p.part_numbers || []).some(pn => (pn.brand || '').toLowerCase().includes(q))
@@ -131,6 +145,7 @@ const ProductQuery = () => {
         setResults(filtered);
         setHasSearched(true);
     };
+
 
     const handleJumpToSearch = (e) => {
         if (e.key === 'Tab') {
