@@ -24,6 +24,7 @@ const ProductQuery = () => {
 
     const [results, setResults] = useState([]);
     const [hasSearched, setHasSearched] = useState(false);
+    const [activeSearchTerms, setActiveSearchTerms] = useState(null);
     const searchBtnRef = useRef(null);
     const clearBtnRef = useRef(null);
 
@@ -50,6 +51,7 @@ const ProductQuery = () => {
         });
         setResults([]);
         setHasSearched(false);
+        setActiveSearchTerms(null);
     };
 
     const handleSearch = (e) => {
@@ -68,6 +70,15 @@ const ProductQuery = () => {
         const modelQ  = resolveShorthand(query.model,  models);
         const partQ   = resolveShorthand(query.part,   parts);
         const brandQ  = resolveShorthand(query.brand,  brands);
+
+        setActiveSearchTerms({
+            model: modelQ,
+            part: partQ,
+            brand: brandQ,
+            partNumber: query.partNumber,
+            year: query.year,
+            spec: query.spec
+        });
 
         let filtered = products;
 
@@ -372,19 +383,38 @@ const ProductQuery = () => {
                                 </thead>
                                 <tbody>
                                     {results.map((p, idx) => {
-                                        const mainPN = (p.part_numbers || [])[0] || {};
+                                        const getBestPn = () => {
+                                            if (activeSearchTerms && p.part_numbers?.length > 0) {
+                                                const match = p.part_numbers.find(pn => {
+                                                    let isMatch = false;
+                                                    if (activeSearchTerms.model && (pn.car_model || '').toLowerCase().includes(activeSearchTerms.model.toLowerCase())) isMatch = true;
+                                                    if (activeSearchTerms.partNumber && (pn.part_number || '').toLowerCase().includes(activeSearchTerms.partNumber.toLowerCase())) isMatch = true;
+                                                    if (activeSearchTerms.brand && (pn.brand || '').toLowerCase().includes(activeSearchTerms.brand.toLowerCase())) isMatch = true;
+                                                    if (activeSearchTerms.year && (pn.year || '').includes(activeSearchTerms.year)) isMatch = true;
+                                                    if (activeSearchTerms.part && (pn.note || '').toLowerCase().includes(activeSearchTerms.part.toLowerCase())) isMatch = true;
+                                                    return isMatch;
+                                                });
+                                                if (match) return match;
+                                            }
+                                            return null;
+                                        };
+                                        const matchedPn = getBestPn();
+                                        const displayPN = matchedPn || (p.part_numbers || [])[0] || {};
+                                        
                                         return (
                                             <tr key={p.p_id} className={styles.trList}>
                                                 <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>{idx + 1}</td>
 
                                                 <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
                                                     <div className="font-mono text-accent-hover font-bold hover:underline">
-                                                        {p.part_number || mainPN.part_number || '-'}
+                                                        {matchedPn ? matchedPn.part_number : (p.part_number || displayPN.part_number || '-')}
                                                     </div>
                                                     <div className="text-xs text-muted mt-1">{p.p_id}</div>
                                                     {(p.part_numbers || []).length > 0 && (
-                                                        <div className="mt-1 text-[10px] bg-bg-tertiary px-1.5 py-0.5 inline-block rounded border border-border-color text-secondary cursor-pointer hover:bg-border-color" onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }}>
-                                                            +{p.part_numbers.length} 適用
+                                                        <div className="mt-1 text-[10px] bg-bg-tertiary px-1.5 py-0.5 inline-block rounded border border-border-color text-secondary cursor-pointer hover:bg-border-color" 
+                                                             style={matchedPn ? { color: 'var(--accent-hover)', background: 'var(--accent-subtle)' } : {}} 
+                                                             onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }}>
+                                                            {matchedPn ? '含符合搜尋的對應' : `+${p.part_numbers.length} 適用`}
                                                         </div>
                                                     )}
                                                 </td>
@@ -392,6 +422,7 @@ const ProductQuery = () => {
                                                 <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
                                                     <div className="font-semibold text-primary">
                                                         {(() => {
+                                                            if (matchedPn && matchedPn.car_model) return matchedPn.car_model;
                                                             const activeCar = (p.part_numbers || []).find(pn => pn.car_model);
                                                             if (activeCar) return activeCar.car_model;
                                                             const c0 = (p.car_models || [])[0];
@@ -405,6 +436,7 @@ const ProductQuery = () => {
                                                     }
                                                     <div className="text-xs text-muted mt-1">
                                                         {(() => {
+                                                            if (matchedPn && matchedPn.year) return matchedPn.year;
                                                             const activeCar = (p.part_numbers || []).find(pn => pn.year);
                                                             if (activeCar) return activeCar.year;
                                                             const c0 = (p.car_models || [])[0];
@@ -420,7 +452,7 @@ const ProductQuery = () => {
                                                 </td>
 
                                                 <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
-                                                    <span className="font-bold text-accent-primary">{p.brand || mainPN.brand || '-'}</span>
+                                                    <span className="font-bold text-accent-primary">{matchedPn?.brand || p.brand || displayPN.brand || '-'}</span>
                                                 </td>
 
                                                 <td className={styles.tdList} onClick={() => setSelectedProduct(p)}>
@@ -492,6 +524,7 @@ const ProductQuery = () => {
             {mappingProduct && (
                 <PartMappingModal
                     product={mappingProduct}
+                    activeSearchTerms={activeSearchTerms}
                     onClose={() => setMappingProduct(null)}
                 />
             )}

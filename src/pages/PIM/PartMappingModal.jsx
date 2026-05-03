@@ -3,7 +3,7 @@ import { X, Copy, Check } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import styles from './ProductList.module.css';
 
-const PartMappingModal = ({ product, onClose }) => {
+const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
     const { t } = useTranslation();
     const [copiedId, setCopiedId] = useState(null);
 
@@ -98,8 +98,22 @@ const PartMappingModal = ({ product, onClose }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {product.part_numbers.map((pn, idx) => (
-                                    <tr key={pn.pn_id} style={{ borderBottom: '1px solid var(--border-color)', background: idx % 2 === 0 ? 'transparent' : 'var(--bg-tertiary)' }}>
+                                {product.part_numbers.map((pn, idx) => {
+                                    let isMatch = false;
+                                    if (activeSearchTerms) {
+                                        if (activeSearchTerms.model && (pn.car_model || '').toLowerCase().includes(activeSearchTerms.model.toLowerCase())) isMatch = true;
+                                        if (activeSearchTerms.partNumber && (pn.part_number || '').toLowerCase().includes(activeSearchTerms.partNumber.toLowerCase())) isMatch = true;
+                                        if (activeSearchTerms.brand && (pn.brand || '').toLowerCase().includes(activeSearchTerms.brand.toLowerCase())) isMatch = true;
+                                        if (activeSearchTerms.year && (pn.year || '').includes(activeSearchTerms.year)) isMatch = true;
+                                        if (activeSearchTerms.part && (pn.note || '').toLowerCase().includes(activeSearchTerms.part.toLowerCase())) isMatch = true;
+                                    }
+
+                                    return (
+                                        <tr key={pn.pn_id} style={{ 
+                                            borderBottom: '1px solid var(--border-color)', 
+                                            background: isMatch ? 'var(--accent-subtle)' : (idx % 2 === 0 ? 'transparent' : 'var(--bg-tertiary)'),
+                                            boxShadow: isMatch ? 'inset 0 0 0 2px var(--accent-primary)' : 'none'
+                                        }}>
                                         <td style={{ padding: '0.75rem' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <button
@@ -127,7 +141,8 @@ const PartMappingModal = ({ product, onClose }) => {
                                         <td style={{ padding: '0.75rem' }}>{pn.name_spec || '-'}</td>
                                         <td style={{ padding: '0.75rem' }}>{pn.note || '-'}</td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
