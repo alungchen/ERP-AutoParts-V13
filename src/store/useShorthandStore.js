@@ -26,15 +26,28 @@ export const useShorthandStore = create(persist((set) => ({
     parts: initialParts,
     brands: initialBrands,
 
-    addModel: (model) => set((state) => ({ models: [...state.models, { ...model, id: Date.now() }] })),
+    // ── 單筆操作 ──
+    addModel: (model) => set((state) => ({ models: [...state.models, { ...model, id: Date.now() + Math.random() }] })),
     updateModel: (model) => set((state) => ({ models: state.models.map(m => m.id === model.id ? model : m) })),
     deleteModel: (id) => set((state) => ({ models: state.models.filter(m => m.id !== id) })),
 
-    addPart: (part) => set((state) => ({ parts: [...state.parts, { ...part, id: Date.now() }] })),
+    addPart: (part) => set((state) => ({ parts: [...state.parts, { ...part, id: Date.now() + Math.random() }] })),
     updatePart: (part) => set((state) => ({ parts: state.parts.map(p => p.id === part.id ? part : p) })),
     deletePart: (id) => set((state) => ({ parts: state.parts.filter(p => p.id !== id) })),
 
-    addBrand: (brand) => set((state) => ({ brands: [...state.brands, { ...brand, id: Date.now() }] })),
+    addBrand: (brand) => set((state) => ({ brands: [...state.brands, { ...brand, id: Date.now() + Math.random() }] })),
     updateBrand: (brand) => set((state) => ({ brands: state.brands.map(b => b.id === brand.id ? brand : b) })),
     deleteBrand: (id) => set((state) => ({ brands: state.brands.filter(b => b.id !== id) })),
+
+    // ── 批次設定（匯入用）──
+    setModels: (list) => set({ models: list.map((item, i) => ({ ...item, id: i + 1 })) }),
+    setParts:  (list) => set({ parts:  list.map((item, i) => ({ ...item, id: i + 1 })) }),
+    setBrands: (list) => set({ brands: list.map((item, i) => ({ ...item, id: i + 1 })) }),
+
+    // ── 清空表格 ──
+    clearModels: () => set({ models: [] }),
+    clearParts:  () => set({ parts: [] }),
+    clearBrands: () => set({ brands: [] }),
+
 }), { name: 'erp-shorthand-store', storage: erpPersistStorage }));
+

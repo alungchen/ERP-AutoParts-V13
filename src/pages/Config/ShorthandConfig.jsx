@@ -9,7 +9,9 @@ const ShorthandConfig = () => {
         models, parts, brands,
         addModel, deleteModel, updateModel,
         addPart, deletePart, updatePart,
-        addBrand, deleteBrand, updateBrand
+        addBrand, deleteBrand, updateBrand,
+        setModels, setParts, setBrands,
+        clearModels, clearParts, clearBrands,
     } = useShorthandStore();
 
     const [activeTab, setActiveTab] = useState('model'); // 'model', 'part', 'brand'
@@ -238,60 +240,67 @@ const ShorthandConfig = () => {
         reader.onload = (event) => {
             try {
                 const text = String(event.target?.result || '');
-                const rows = text.split('\n').map((r) => r.trim()).filter(Boolean);
+                const rows = text.replace(/^\uFEFF/, '').split('\n').map((r) => r.trim()).filter(Boolean);
                 if (rows.length < 2) return;
 
                 const headers = parseCsvRow(rows[0]).map((h) => h.toLowerCase());
-                const idxShorthand = headers.findIndex((h) => ['shorthand', '片語', '自定義片語'].includes(h));
-                const idxFullname = headers.findIndex((h) => ['fullname', 'full name', '完整名稱', '完整車型名稱', '完整零件名稱', '完整品牌名稱'].includes(h));
+
+                // 支援中文欄位（代碼/顯示名）和英文欄位（shorthand/fullname）
+                const idxShorthand = headers.findIndex((h) =>
+                    ['shorthand', '片語', '自定義片語', '代碼'].includes(h));
+                const idxFullname = headers.findIndex((h) =>
+                    ['fullname', 'full name', '完整名稱', '完整車型名稱', '完整零件名稱', '完整品牌名稱', '顯示名'].includes(h));
+
+                if (idxShorthand === -1 || idxFullname === -1) {
+                    alert('匯入失敗：缺少必要欄位（代碼 / 顯示名 或 Shorthand / Fullname）。');
+                    return;
+                }
+
+                // 偵測目標分類（依欄位或檔名）
+                const fName = file.name.toLowerCase();
+                const targetTab =
+                    (headers.includes('廠牌') || headers.includes('brand') || fName.includes('model')) ? 'model' :
+                    (headers.includes('分類') || headers.includes('category') || fName.includes('part')) ? 'part' :
+                    (headers.includes('備註') || headers.includes('remark') || fName.includes('brand')) ? 'brand' :
+                    activeTab;
+
+                if (targetTab !== activeTab) {
+                    alert(`匯入失敗：檔案格式與目前頁籤不符！\n目前頁籤：${activeTab === 'model' ? 'A.車型' : activeTab === 'part' ? 'B.品名' : 'C.品牌'}\n偵測到的格式：${targetTab === 'model' ? 'A.車型' : targetTab === 'part' ? 'B.品名' : 'C.品牌'}`);
+                    return;
+                }
+
+                // 第三欄（廠牌/分類）
                 const idxThird = activeTab === 'model'
                     ? headers.findIndex((h) => ['brand', '廠牌'].includes(h))
                     : activeTab === 'part'
                         ? headers.findIndex((h) => ['category', '分類'].includes(h))
                         : -1;
 
-                if (idxShorthand === -1 || idxFullname === -1) {
-                    alert('匯入失敗：缺少必要欄位（Shorthand / Fullname）。');
-                    return;
-                }
-
-                const updateFn = activeTab === 'model' ? updateModel : activeTab === 'part' ? updatePart : updateBrand;
-                const addFn = activeTab === 'model' ? addModel : activeTab === 'part' ? addPart : addBrand;
-                const existingList = activeTab === 'model' ? models : activeTab === 'part' ? parts : brands;
-
-                let processed = 0;
-                let updated = 0;
-                let added = 0;
+                // 解析所有資料列
+                const newList = [];
                 let skipped = 0;
-
                 rows.slice(1).forEach((row) => {
                     const cols = parseCsvRow(row);
                     const shorthand = (cols[idxShorthand] || '').trim();
-                    const fullname = (cols[idxFullname] || '').trim();
-                    const thirdVal = idxThird >= 0 ? (cols[idxThird] || '').trim() : '';
-                    if (!shorthand || !fullname) {
-                        skipped += 1;
-                        return;
-                    }
+                    const fullname  = (cols[idxFullname]  || '').trim();
+                    const thirdVal  = idxThird >= 0 ? (cols[idxThird] || '').trim() : '';
+                    if (!shorthand || !fullname) { skipped += 1; return; }
 
-                    const existing = existingList.find((x) => String(x.shorthand || '').trim().toLowerCase() === shorthand.toLowerCase());
-                    const next = activeTab === 'model'
-                        ? { shorthand, fullname, brand: thirdVal }
-                        : activeTab === 'part'
-                            ? { shorthand, fullname, category: thirdVal }
-                            : { shorthand, fullname };
-
-                    if (existing) {
-                        updateFn({ ...existing, ...next });
-                        updated += 1;
+                    if (activeTab === 'model') {
+                        newList.push({ shorthand, fullname, brand: thirdVal });
+                    } else if (activeTab === 'part') {
+                        newList.push({ shorthand, fullname, category: thirdVal });
                     } else {
-                        addFn(next);
-                        added += 1;
+                        newList.push({ shorthand, fullname });
                     }
-                    processed += 1;
                 });
 
-                alert(`匯入完成：處理 ${processed} 筆，更新 ${updated} 筆，新增 ${added} 筆，略過 ${skipped} 筆。`);
+                // 批次寫入（覆蓋，不是逐筆 add）
+                if (activeTab === 'model') setModels(newList);
+                else if (activeTab === 'part') setParts(newList);
+                else setBrands(newList);
+
+                alert(`匯入完成：共匯入 ${newList.length} 筆，略過 ${skipped} 筆空白資料。`);
             } catch (err) {
                 console.error('Import shorthand failed:', err);
                 alert('匯入失敗：檔案格式不正確。');
@@ -409,6 +418,23 @@ const ShorthandConfig = () => {
                         <Upload size={16} /> 匯出表格
                     </button>
                     <button
+                        type="button"
+                        onClick={() => {
+                            if (window.confirm(`確定要清空目前頁籤的所有片語嗎？\n此操作無法復原，請確認您已備份或準備重新匯入。`)) {
+                                if (activeTab === 'model') clearModels();
+                                else if (activeTab === 'part') clearParts();
+                                else clearBrands();
+                            }
+                        }}
+                        style={{
+                            background: 'var(--danger-subtle)', color: 'var(--danger)', padding: '8px 14px', borderRadius: '6px',
+                            fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', border: '1px solid var(--danger)',
+                            flexShrink: 0
+                        }}
+                    >
+                        <Trash2 size={16} /> 清空表格
+                    </button>
+                    <button
                         ref={addPhraseBtnRef}
                         onClick={handleAddInit}
                         type="button"
@@ -435,9 +461,9 @@ const ShorthandConfig = () => {
                 <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                     <thead style={{ background: 'var(--bg-tertiary)' }}>
                         <tr>
-                            <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '20%' }}>自定義片語</th>
+                            <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '20%' }}>代碼</th>
                             <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '40%' }}>
-                                {activeTab === 'model' ? '完整車型名稱' : activeTab === 'part' ? '完整零件名稱' : '完整品牌名稱'}
+                                顯示名
                             </th>
                             {activeTab !== 'brand' && (
                                 <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '25%' }}>
