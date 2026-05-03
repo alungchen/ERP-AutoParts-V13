@@ -163,7 +163,7 @@ function writeCSV(filePath, headers, rows) {
     const gridRows = await page.evaluate(() => {
       const container = document.querySelector('#display_DataGrid') || document.body;
       return Array.from(container.querySelectorAll('tr'))
-        .filter(tr => tr.querySelectorAll('td').length >= 4)
+        .filter(tr => tr.hasAttribute('row') && tr.querySelectorAll('td').length >= 4)
         .map(tr => ({
           rowAttr: tr.getAttribute('row') || '',
           cells: Array.from(tr.querySelectorAll('td')).map(td => {
@@ -176,12 +176,23 @@ function writeCSV(filePath, headers, rows) {
     console.log(`  DOM rows: ${gridRows.length}`);
 
     for (const { rowAttr, cells } of gridRows) {
-      // 找料號欄
+      // 找料號欄 (料號可能包含數字，例如 Z2R-001S)
       let pnIdx = -1;
       for (let ci = 0; ci < cells.length; ci++) {
-        if (/^[A-Z]{2,10}-[A-Z0-9][A-Z0-9-]{0,20}$/i.test(cells[ci])) { pnIdx = ci; break; }
+        if (/^[A-Z0-9]{2,10}-[A-Z0-9-]{1,20}$/i.test(cells[ci]) || /^[A-Z0-9]{3,20}$/i.test(cells[ci])) { 
+            // 嘗試確保這欄真的是料號，通常料號在 index 1 或 2
+            if (ci <= 3) {
+                pnIdx = ci; 
+                break; 
+            }
+        }
       }
-      if (pnIdx < 0) continue;
+      // 如果正規表示式都找不到，強制預設為 index 1 (通常 index 0 是勾選框/序號)
+      if (pnIdx < 0 && cells.length >= 8) {
+          pnIdx = 1;
+      }
+      
+      if (pnIdx < 0 || !cells[pnIdx]) continue;
 
       const partNo   = cells[pnIdx];
       const selfCode = cells[pnIdx+1]  || '';
@@ -371,6 +382,7 @@ function writeCSV(filePath, headers, rows) {
   } catch (err) {
     console.error('\n❌ 匯入資料庫時發生錯誤：', err.message);
     console.log('您可以稍後手動執行以下指令來匯入：\n  node scripts/generate_import_sql.cjs\n  npx wrangler d1 execute erp-db --remote --file=output/import_products.sql');
+    process.exit(1);
   }
 
 })().catch(err => { console.error('\n❌', err.message); process.exit(1); });
