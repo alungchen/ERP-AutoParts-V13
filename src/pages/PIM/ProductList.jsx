@@ -1406,7 +1406,24 @@ const ProductList = () => {
                     </thead>
                     <tbody ref={productTbodyRef}>
                         {results.map((p, idx) => {
-                            const mainPN = p?.part_numbers?.[0] || {};
+                            const getBestPn = () => {
+                                if (hasSearched && p.part_numbers?.length > 0) {
+                                    const match = p.part_numbers.find(pn => {
+                                        let isMatch = false;
+                                        if (query.model && (pn.car_model || '').toLowerCase().includes(query.model.toLowerCase())) isMatch = true;
+                                        if (query.partNumber && (pn.part_number || '').toLowerCase().includes(query.partNumber.toLowerCase())) isMatch = true;
+                                        if (query.brand && (pn.brand || '').toLowerCase().includes(query.brand.toLowerCase())) isMatch = true;
+                                        if (query.year && (pn.year || '').includes(query.year)) isMatch = true;
+                                        if (query.part && (pn.note || '').toLowerCase().includes(query.part.toLowerCase())) isMatch = true;
+                                        return isMatch;
+                                    });
+                                    if (match) return match;
+                                }
+                                return null;
+                            };
+                            const matchedPn = getBestPn();
+                            const displayPN = matchedPn || p?.part_numbers?.[0] || {};
+
                             const stockNum = Number(p.stock) || 0;
                             const safetyNum = Number(p.safety_stock) || 0;
                             const belowSafety = safetyNum > 0 && stockNum < safetyNum;
@@ -1448,12 +1465,14 @@ const ProductList = () => {
 
                                     <td className={styles.tdList}>
                                         <div className="font-mono text-accent-hover font-bold hover:underline" onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }} onDoubleClick={(e) => e.stopPropagation()}>
-                                            {p.part_number || mainPN.part_number || '-'}
+                                            {matchedPn ? matchedPn.part_number : (p.part_number || displayPN.part_number || '-')}
                                         </div>
                                         <div className="text-xs text-muted mt-1">{p?.p_id}</div>
                                         {(p?.part_numbers?.length || 0) > 0 && (
-                                            <div className="mt-1 text-[10px] bg-bg-tertiary px-1.5 py-0.5 inline-block rounded border border-border-color text-secondary cursor-pointer hover:bg-border-color" onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }} onDoubleClick={(e) => e.stopPropagation()}>
-                                                +{(p?.part_numbers?.length || 0)} 適用
+                                            <div className="mt-1 text-[10px] bg-bg-tertiary px-1.5 py-0.5 inline-block rounded border border-border-color text-secondary cursor-pointer hover:bg-border-color" 
+                                                 style={matchedPn ? { color: 'var(--accent-hover)', background: 'var(--accent-subtle)' } : {}} 
+                                                 onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }} onDoubleClick={(e) => e.stopPropagation()}>
+                                                {matchedPn ? '含符合搜尋的對應' : `+${p.part_numbers.length} 適用`}
                                             </div>
                                         )}
                                     </td>
@@ -1461,6 +1480,7 @@ const ProductList = () => {
                                     <td className={styles.tdList}>
                                         <div className="font-semibold text-primary">
                                             {(() => {
+                                                if (matchedPn && matchedPn.car_model) return matchedPn.car_model;
                                                 const activeCar = (p.part_numbers || []).find(pn => pn.car_model);
                                                 if (activeCar) return activeCar.car_model;
                                                 const c0 = (p.car_models || [])[0];
@@ -1474,6 +1494,7 @@ const ProductList = () => {
                                         }
                                         <div className="text-xs text-muted mt-1">
                                             {(() => {
+                                                if (matchedPn && matchedPn.year) return matchedPn.year;
                                                 const activeCar = (p.part_numbers || []).find(pn => pn.year);
                                                 if (activeCar) return activeCar.year;
                                                 const c0 = (p.car_models || [])[0];
@@ -1485,11 +1506,11 @@ const ProductList = () => {
 
                                     <td className={styles.tdList}>
                                         <div className="font-bold text-primary max-w-[180px] truncate" title={p.name}>{p.name || '-'}</div>
-                                        <div className="text-xs text-muted mt-1 max-w-[180px] truncate" title={p.specifications}>{p.specifications || '-'}</div>
+                                        <div className="text-xs text-muted mt-1 max-w-[180px] truncate" title={matchedPn?.note || p.specifications}>{matchedPn?.note || p.specifications || '-'}</div>
                                     </td>
 
                                     <td className={styles.tdList}>
-                                        <span className="font-bold text-accent-primary">{p.brand || mainPN.brand || '-'}</span>
+                                        <span className="font-bold text-accent-primary">{matchedPn?.brand || p.brand || displayPN.brand || '-'}</span>
                                     </td>
 
                                     <td className={styles.tdList}>
@@ -1931,6 +1952,7 @@ const ProductList = () => {
             {mappingProduct && (
                 <PartMappingModal
                     product={mappingProduct}
+                    activeSearchTerms={hasSearched ? query : null}
                     onClose={() => setMappingProduct(null)}
                 />
             )}
