@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2, Save, Edit2, Settings, Download, Upload } from 'lucide-react';
 import { useShorthandStore } from '../../store/useShorthandStore';
+import { useAppStore } from '../../store/useAppStore';
 import { useTranslation } from '../../i18n';
 
 const ShorthandConfig = () => {
@@ -14,7 +15,10 @@ const ShorthandConfig = () => {
         clearModels, clearParts, clearBrands,
     } = useShorthandStore();
 
+    const showBatchDelete = useAppStore((s) => s.showBatchDelete);
+
     const [activeTab, setActiveTab] = useState('model'); // 'model', 'part', 'brand'
+    const [selectedIds, setSelectedIds] = useState(new Set());
 
     const [newRow, setNewRow] = useState(null); // null means not adding
     const [editingRowId, setEditingRowId] = useState(null);
@@ -327,7 +331,7 @@ const ShorthandConfig = () => {
             >
                 <button
                     ref={(el) => { tabBtnRefs.current.model = el; }}
-                    onClick={() => { setActiveTab('model'); setNewRow(null); setEditingRowId(null); }}
+                    onClick={() => { setActiveTab('model'); setNewRow(null); setEditingRowId(null); setSelectedIds(new Set()); }}
                     type="button"
                     style={{
                         padding: '10px 20px',
@@ -344,7 +348,7 @@ const ShorthandConfig = () => {
                 </button>
                 <button
                     ref={(el) => { tabBtnRefs.current.part = el; }}
-                    onClick={() => { setActiveTab('part'); setNewRow(null); setEditingRowId(null); }}
+                    onClick={() => { setActiveTab('part'); setNewRow(null); setEditingRowId(null); setSelectedIds(new Set()); }}
                     type="button"
                     style={{
                         padding: '10px 20px',
@@ -361,7 +365,7 @@ const ShorthandConfig = () => {
                 </button>
                 <button
                     ref={(el) => { tabBtnRefs.current.brand = el; }}
-                    onClick={() => { setActiveTab('brand'); setNewRow(null); setEditingRowId(null); }}
+                    onClick={() => { setActiveTab('brand'); setNewRow(null); setEditingRowId(null); setSelectedIds(new Set()); }}
                     type="button"
                     style={{
                         padding: '10px 20px',
@@ -417,23 +421,30 @@ const ShorthandConfig = () => {
                     >
                         <Upload size={16} /> 匯出表格
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (window.confirm(`確定要清空目前頁籤的所有片語嗎？\n此操作無法復原，請確認您已備份或準備重新匯入。`)) {
-                                if (activeTab === 'model') clearModels();
-                                else if (activeTab === 'part') clearParts();
-                                else clearBrands();
-                            }
-                        }}
-                        style={{
-                            background: 'var(--danger-subtle)', color: 'var(--danger)', padding: '8px 14px', borderRadius: '6px',
-                            fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', border: '1px solid var(--danger)',
-                            flexShrink: 0
-                        }}
-                    >
-                        <Trash2 size={16} /> 清空表格
-                    </button>
+                    {showBatchDelete && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (selectedIds.size === 0) {
+                                    alert('請先勾選要刪除的片語！');
+                                    return;
+                                }
+                                if (window.confirm(`確定要刪除已勾選的 ${selectedIds.size} 筆片語嗎？此操作無法復原。`)) {
+                                    if (activeTab === 'model') selectedIds.forEach(id => deleteModel(id));
+                                    else if (activeTab === 'part') selectedIds.forEach(id => deletePart(id));
+                                    else selectedIds.forEach(id => deleteBrand(id));
+                                    setSelectedIds(new Set());
+                                }
+                            }}
+                            style={{
+                                background: 'var(--danger-subtle)', color: 'var(--danger)', padding: '8px 14px', borderRadius: '6px',
+                                fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', border: '1px solid var(--danger)',
+                                flexShrink: 0
+                            }}
+                        >
+                            <Trash2 size={16} /> 批次刪除{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+                        </button>
+                    )}
                     <button
                         ref={addPhraseBtnRef}
                         onClick={handleAddInit}
@@ -461,6 +472,23 @@ const ShorthandConfig = () => {
                 <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                     <thead style={{ background: 'var(--bg-tertiary)' }}>
                         <tr>
+                            {showBatchDelete && (
+                                <th style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', width: '40px', textAlign: 'center' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={filteredList.length > 0 && filteredList.every(item => selectedIds.has(item.id))}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedIds(new Set(filteredList.map(item => item.id)));
+                                            } else {
+                                                setSelectedIds(new Set());
+                                            }
+                                        }}
+                                        title="全選/取消全選"
+                                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                                    />
+                                </th>
+                            )}
                             <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '20%' }}>代碼</th>
                             <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '40%' }}>
                                 顯示名
@@ -618,7 +646,22 @@ const ShorthandConfig = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }} className="hover:bg-bg-tertiary transition">
+                                <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)', background: selectedIds.has(item.id) ? 'var(--accent-subtle)' : undefined }} className="hover:bg-bg-tertiary transition">
+                                    {showBatchDelete && (
+                                        <td style={{ padding: '12px 1rem', textAlign: 'center' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.has(item.id)}
+                                                onChange={(e) => {
+                                                    const next = new Set(selectedIds);
+                                                    if (e.target.checked) next.add(item.id);
+                                                    else next.delete(item.id);
+                                                    setSelectedIds(next);
+                                                }}
+                                                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                                            />
+                                        </td>
+                                    )}
                                     <td style={{ padding: '12px 1.5rem', fontWeight: 600, color: 'var(--accent-hover)' }}>{item.shorthand}</td>
                                     <td style={{ padding: '12px 1.5rem', fontWeight: 600 }}>{item.fullname}</td>
                                     {activeTab !== 'brand' && (
@@ -659,7 +702,7 @@ const ShorthandConfig = () => {
 
                         {filteredList.length === 0 && !newRow && (
                             <tr>
-                                <td colSpan={activeTab === 'brand' ? 3 : 4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                <td colSpan={showBatchDelete ? (activeTab === 'brand' ? 4 : 5) : (activeTab === 'brand' ? 3 : 4)} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                                     {keyword ? '找不到符合搜尋條件的片語。' : '目前無片語資料。'}
                                 </td>
                             </tr>
