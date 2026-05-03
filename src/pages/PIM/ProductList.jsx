@@ -1139,7 +1139,7 @@ const ProductList = () => {
 
             {/* Merged Advanced Search Bar */}
             <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                <form ref={formRef} data-search-form onSubmit={(e) => e.preventDefault()} onKeyDown={handleSearchFormKeyDown} style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', gap: '0.75rem', alignItems: 'flex-end' }}>
+                <form ref={formRef} data-search-form onSubmit={(e) => e.preventDefault()} onKeyDown={handleSearchFormKeyDown} style={{ display: 'flex', flexWrap: 'wrap', overflow: 'visible', gap: '0.75rem', alignItems: 'flex-end' }}>
                     <button ref={resetBtnRef} type="button" data-search-reset="true" className={styles.searchResetBtn} onClick={handleClear} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0 12px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', height: '36px', transition: '0.2s' }} title="重設全部條件">
                         <RotateCcw size={16} />
                     </button>

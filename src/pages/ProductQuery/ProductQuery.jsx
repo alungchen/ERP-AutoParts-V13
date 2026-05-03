@@ -204,7 +204,7 @@ const ProductQuery = () => {
             </div>
 
             <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                <form onSubmit={handleSearch} style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', gap: '0.75rem', alignItems: 'flex-end', paddingBottom: '0.5rem' }}>
+                <form onSubmit={handleSearch} style={{ display: 'flex', flexWrap: 'wrap', overflow: 'visible', gap: '0.75rem', alignItems: 'flex-end', paddingBottom: '0.5rem' }}>
 
                     <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0, paddingRight: '0.5rem' }}>
                         <button ref={clearBtnRef} type="button" onClick={handleClear} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0 16px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', height: '36px', transition: 'all 0.2s', whiteSpace: 'nowrap' }} className="hover:bg-bg-secondary focus-ring-blue">

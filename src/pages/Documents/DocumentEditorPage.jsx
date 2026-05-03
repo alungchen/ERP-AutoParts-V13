@@ -1407,7 +1407,7 @@ const DocumentEditorPage = () => {
 
                     {/* Search Panel */}
                     <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                        <form ref={pickerFormRef} onSubmit={(e) => e.preventDefault()} onKeyDown={handlePickerFormKeyDown} style={{ display: 'flex', flexWrap: 'nowrap', gap: '0.75rem', alignItems: 'flex-end', overflowX: 'auto', paddingBottom: '0.15rem' }}>
+                        <form ref={pickerFormRef} onSubmit={(e) => e.preventDefault()} onKeyDown={handlePickerFormKeyDown} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end', overflow: 'visible', paddingBottom: '0.15rem' }}>
                             <button
                                 ref={pickerResetBtnRef}
                                 type="button"
