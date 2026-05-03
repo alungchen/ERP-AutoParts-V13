@@ -39,6 +39,11 @@ export const useShorthandStore = create(persist((set) => ({
     updateBrand: (brand) => set((state) => ({ brands: state.brands.map(b => b.id === brand.id ? brand : b) })),
     deleteBrand: (id) => set((state) => ({ brands: state.brands.filter(b => b.id !== id) })),
 
+    // ── 批次刪除 ──
+    deleteModels: (ids) => set((state) => ({ models: state.models.filter(m => !ids.includes(m.id)) })),
+    deleteParts: (ids) => set((state) => ({ parts: state.parts.filter(p => !ids.includes(p.id)) })),
+    deleteBrands: (ids) => set((state) => ({ brands: state.brands.filter(b => !ids.includes(b.id)) })),
+
     // ── 批次設定（匯入用）──
     setModels: (list) => set({ models: list.map((item, i) => ({ ...item, id: i + 1 })) }),
     setParts:  (list) => set({ parts:  list.map((item, i) => ({ ...item, id: i + 1 })) }),

@@ -8,17 +8,16 @@ const ShorthandConfig = () => {
     const { t } = useTranslation();
     const {
         models, parts, brands,
-        addModel, deleteModel, updateModel,
-        addPart, deletePart, updatePart,
-        addBrand, deleteBrand, updateBrand,
+        addModel, deleteModel, updateModel, deleteModels,
+        addPart, deletePart, updatePart, deleteParts,
+        addBrand, deleteBrand, updateBrand, deleteBrands,
         setModels, setParts, setBrands,
         clearModels, clearParts, clearBrands,
     } = useShorthandStore();
-
-    const showBatchDelete = useAppStore((s) => s.showBatchDelete);
+    const { showBatchDelete } = useAppStore();
 
     const [activeTab, setActiveTab] = useState('model'); // 'model', 'part', 'brand'
-    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [selectedIds, setSelectedIds] = useState([]);
 
     const [newRow, setNewRow] = useState(null); // null means not adding
     const [editingRowId, setEditingRowId] = useState(null);
@@ -104,6 +103,10 @@ const ShorthandConfig = () => {
         // 進入系統片語設定時，預設聚焦 A. 車型片語表
         tabBtnRefs.current.model?.focus();
     }, []);
+
+    useEffect(() => {
+        setSelectedIds([]);
+    }, [activeTab, searchKeywords]);
 
     const handleTabKeyDown = (e) => {
         const currentIdx = tabOrder.indexOf(activeTab);
@@ -331,7 +334,7 @@ const ShorthandConfig = () => {
             >
                 <button
                     ref={(el) => { tabBtnRefs.current.model = el; }}
-                    onClick={() => { setActiveTab('model'); setNewRow(null); setEditingRowId(null); setSelectedIds(new Set()); }}
+                    onClick={() => { setActiveTab('model'); setNewRow(null); setEditingRowId(null); }}
                     type="button"
                     style={{
                         padding: '10px 20px',
@@ -348,7 +351,7 @@ const ShorthandConfig = () => {
                 </button>
                 <button
                     ref={(el) => { tabBtnRefs.current.part = el; }}
-                    onClick={() => { setActiveTab('part'); setNewRow(null); setEditingRowId(null); setSelectedIds(new Set()); }}
+                    onClick={() => { setActiveTab('part'); setNewRow(null); setEditingRowId(null); }}
                     type="button"
                     style={{
                         padding: '10px 20px',
@@ -365,7 +368,7 @@ const ShorthandConfig = () => {
                 </button>
                 <button
                     ref={(el) => { tabBtnRefs.current.brand = el; }}
-                    onClick={() => { setActiveTab('brand'); setNewRow(null); setEditingRowId(null); setSelectedIds(new Set()); }}
+                    onClick={() => { setActiveTab('brand'); setNewRow(null); setEditingRowId(null); }}
                     type="button"
                     style={{
                         padding: '10px 20px',
@@ -424,25 +427,23 @@ const ShorthandConfig = () => {
                     {showBatchDelete && (
                         <button
                             type="button"
+                            disabled={selectedIds.length === 0}
                             onClick={() => {
-                                if (selectedIds.size === 0) {
-                                    alert('請先勾選要刪除的片語！');
-                                    return;
-                                }
-                                if (window.confirm(`確定要刪除已勾選的 ${selectedIds.size} 筆片語嗎？此操作無法復原。`)) {
-                                    if (activeTab === 'model') selectedIds.forEach(id => deleteModel(id));
-                                    else if (activeTab === 'part') selectedIds.forEach(id => deletePart(id));
-                                    else selectedIds.forEach(id => deleteBrand(id));
-                                    setSelectedIds(new Set());
+                                if (window.confirm(`確定要刪除選取的 ${selectedIds.length} 筆片語嗎？\n此操作無法復原。`)) {
+                                    if (activeTab === 'model') deleteModels(selectedIds);
+                                    else if (activeTab === 'part') deleteParts(selectedIds);
+                                    else deleteBrands(selectedIds);
+                                    setSelectedIds([]);
                                 }
                             }}
                             style={{
                                 background: 'var(--danger-subtle)', color: 'var(--danger)', padding: '8px 14px', borderRadius: '6px',
-                                fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', border: '1px solid var(--danger)',
-                                flexShrink: 0
+                                fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: selectedIds.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--danger)',
+                                flexShrink: 0,
+                                opacity: selectedIds.length === 0 ? 0.5 : 1
                             }}
                         >
-                            <Trash2 size={16} /> 批次刪除{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+                            <Trash2 size={16} /> 批次刪除
                         </button>
                     )}
                     <button
@@ -472,23 +473,20 @@ const ShorthandConfig = () => {
                 <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                     <thead style={{ background: 'var(--bg-tertiary)' }}>
                         <tr>
-                            {showBatchDelete && (
-                                <th style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', width: '40px', textAlign: 'center' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={filteredList.length > 0 && filteredList.every(item => selectedIds.has(item.id))}
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setSelectedIds(new Set(filteredList.map(item => item.id)));
-                                            } else {
-                                                setSelectedIds(new Set());
-                                            }
-                                        }}
-                                        title="全選/取消全選"
-                                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
-                                    />
-                                </th>
-                            )}
+                            <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', width: '40px', textAlign: 'center' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={filteredList.length > 0 && selectedIds.length === filteredList.length}
+                                    onChange={() => {
+                                        if (selectedIds.length === filteredList.length && filteredList.length > 0) {
+                                            setSelectedIds([]);
+                                        } else {
+                                            setSelectedIds(filteredList.map(item => item.id));
+                                        }
+                                    }}
+                                    style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                                />
+                            </th>
                             <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '20%' }}>代碼</th>
                             <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '40%' }}>
                                 顯示名
@@ -504,6 +502,7 @@ const ShorthandConfig = () => {
                     <tbody>
                         {newRow && (
                             <tr style={{ background: 'rgba(52, 211, 153, 0.05)', borderBottom: '1px solid var(--border-color)' }}>
+                                <td style={{ padding: '12px 1.5rem', textAlign: 'center' }}></td>
                                 <td style={{ padding: '12px 1.5rem' }}>
                                     <input
                                         className="input"
@@ -608,6 +607,14 @@ const ShorthandConfig = () => {
                         {filteredList.map((item) => (
                             editingRowId === item.id ? (
                                 <tr key={`edit-${item.id}`} style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)' }}>
+                                    <td style={{ padding: '12px 1.5rem', textAlign: 'center' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.includes(item.id)}
+                                            onChange={() => setSelectedIds(prev => prev.includes(item.id) ? prev.filter(x => x !== item.id) : [...prev, item.id])}
+                                            style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                                        />
+                                    </td>
                                     <td style={{ padding: '12px 1.5rem' }}>
                                         <input
                                             className="input"
@@ -646,22 +653,15 @@ const ShorthandConfig = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)', background: selectedIds.has(item.id) ? 'var(--accent-subtle)' : undefined }} className="hover:bg-bg-tertiary transition">
-                                    {showBatchDelete && (
-                                        <td style={{ padding: '12px 1rem', textAlign: 'center' }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedIds.has(item.id)}
-                                                onChange={(e) => {
-                                                    const next = new Set(selectedIds);
-                                                    if (e.target.checked) next.add(item.id);
-                                                    else next.delete(item.id);
-                                                    setSelectedIds(next);
-                                                }}
-                                                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
-                                            />
-                                        </td>
-                                    )}
+                                <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }} className="hover:bg-bg-tertiary transition">
+                                    <td style={{ padding: '12px 1.5rem', textAlign: 'center' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.includes(item.id)}
+                                            onChange={() => setSelectedIds(prev => prev.includes(item.id) ? prev.filter(x => x !== item.id) : [...prev, item.id])}
+                                            style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                                        />
+                                    </td>
                                     <td style={{ padding: '12px 1.5rem', fontWeight: 600, color: 'var(--accent-hover)' }}>{item.shorthand}</td>
                                     <td style={{ padding: '12px 1.5rem', fontWeight: 600 }}>{item.fullname}</td>
                                     {activeTab !== 'brand' && (
@@ -702,7 +702,7 @@ const ShorthandConfig = () => {
 
                         {filteredList.length === 0 && !newRow && (
                             <tr>
-                                <td colSpan={showBatchDelete ? (activeTab === 'brand' ? 4 : 5) : (activeTab === 'brand' ? 3 : 4)} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                <td colSpan={activeTab === 'brand' ? 4 : 5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                                     {keyword ? '找不到符合搜尋條件的片語。' : '目前無片語資料。'}
                                 </td>
                             </tr>
