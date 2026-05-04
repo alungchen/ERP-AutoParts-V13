@@ -196,14 +196,15 @@ function writeCSV(filePath, headers, rows) {
 
       const partNo   = cells[pnIdx];
       const selfCode = cells[pnIdx+1]  || '';
-      const carModel = cells[pnIdx+2]  || ''; // 車名 (CORONA 台規)
-      const name     = cells[pnIdx+3]  || ''; // 品名 (壓縮機)
-      const year     = '';                    // (Year is often empty or misplaced, leave blank for fallback)
-      const spec     = cells[pnIdx+6]  || ''; // 規格 (1.6 10PA15C)
-      const brand    = cells[pnIdx+7]  || ''; // 品牌 (新品)
-      const priceB   = cells[pnIdx+8]  || '0';
-      const priceC   = cells[pnIdx+9]  || '0';
-      const notes    = cells[pnIdx+10] || '';
+      const compatNo = cells[pnIdx+2]  || ''; // 適用號碼
+      const carModel = cells[pnIdx+3]  || ''; // 車種 (e.g. ALTIS)
+      const year     = cells[pnIdx+4]  || ''; // 年份
+      const name     = cells[pnIdx+5]  || ''; // 品名 (e.g. 工具)
+      const spec     = cells[pnIdx+6]  || ''; // 規格
+      const brand    = cells[pnIdx+7]  || ''; // 品牌
+      const priceB   = cells[pnIdx+20] || '0';
+      const priceC   = cells[pnIdx+21] || '0';
+      const notes    = cells[pnIdx+25] || '';
 
       process.stdout.write(`  ${partNo.padEnd(18)} [row=${rowAttr}]`);
       allMainRows.push([partNo, name, brand, '0', spec, carModel, year, '0', '0', '0', notes]);
