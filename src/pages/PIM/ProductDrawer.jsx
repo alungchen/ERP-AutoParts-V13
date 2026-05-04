@@ -588,6 +588,7 @@ const ProductDrawer = () => {
                             {(p.part_numbers || []).length > 0 && (
                                 <div className="flex gap-2 items-center px-3 py-2 text-xs font-bold text-[#60a5fa] bg-[#3b82f622] rounded-md mb-[-4px]">
                                     <div style={{ width: '30px', flexShrink: 0, textAlign: 'center' }}>主</div>
+                                    <div style={{ width: '30px', flexShrink: 0, textAlign: 'center' }}>#</div>
                                     <div style={{ flex: 3, minWidth: '100px', display: 'flex', alignItems: 'center' }}>適用號碼</div>
                                     <div style={{ flex: 2, minWidth: '80px' }}>車種</div>
                                     <div style={{ flex: 2, minWidth: '80px' }}>車種規格</div>
@@ -637,6 +638,9 @@ const ProductDrawer = () => {
                                             }}
                                             style={{ cursor: isEditing ? 'pointer' : 'default', width: '16px', height: '16px', accentColor: '#3b82f6' }}
                                         />
+                                    </div>
+                                    <div style={{ width: '30px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500' }}>
+                                        {i + 1}
                                     </div>
                                     <div style={{ flex: 3, minWidth: '100px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <button

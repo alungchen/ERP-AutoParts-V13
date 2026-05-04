@@ -89,6 +89,7 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                             <thead style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
                                 <tr>
+                                    <th style={{ width: '40px', textAlign: 'center', padding: '0.75rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>#</th>
                                     <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thAppNumber')}</th>
                                     <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thVehicle')}</th>
                                     <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thYear')}</th>
@@ -114,6 +115,7 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                                             background: isMatch ? 'var(--accent-subtle)' : (idx % 2 === 0 ? 'transparent' : 'var(--bg-tertiary)'),
                                             boxShadow: isMatch ? 'inset 0 0 0 2px var(--accent-primary)' : 'none'
                                         }}>
+                                        <td style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: '500', fontSize: '0.85rem' }}>{idx + 1}</td>
                                         <td style={{ padding: '0.75rem' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <button

@@ -1470,9 +1470,8 @@ const ProductList = () => {
                                         <div className="text-xs text-muted mt-1">{p?.p_id}</div>
                                         {(p?.part_numbers?.length || 0) > 0 && (
                                             <div className="mt-1 text-[10px] bg-bg-tertiary px-1.5 py-0.5 inline-block rounded border border-border-color text-secondary cursor-pointer hover:bg-border-color" 
-                                                 style={matchedPn ? { color: 'var(--accent-hover)', background: 'var(--accent-subtle)' } : {}} 
                                                  onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }} onDoubleClick={(e) => e.stopPropagation()}>
-                                                {matchedPn ? '含符合搜尋的對應' : `+${p.part_numbers.length} 適用`}
+                                                +{p.part_numbers.length} 適用
                                             </div>
                                         )}
                                     </td>
