@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Truck, Users, Plus, Search, Star, Edit2, Download, Upload, UserRound } from 'lucide-react';
+import { Truck, Users, Plus, Search, Star, Edit2, Download, Upload, UserRound, MapPin } from 'lucide-react';
 import { useSupplierStore } from '../../store/useSupplierStore';
 import { useCustomerStore } from '../../store/useCustomerStore';
 import { useEmployeeStore } from '../../store/useEmployeeStore';
@@ -384,47 +384,51 @@ const ContactManager = () => {
                     <table className={styles.table}>
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>{t('suppliers.thName')}</th>
-                                {isMultiCountryMode && <th>{t('suppliers.thCountry')}</th>}
-                                <th>{t('suppliers.thContact')}</th>
-                                <th>{t('suppliers.thPayment')}</th>
-                                {isMultiCountryMode && <th>{t('suppliers.thCurrency')}</th>}
-                                <th>{t('suppliers.thRating')}</th>
+                                <th style={{ width: '60px' }}><div className="flex items-center gap-1"><input type="checkbox" /> 項</div></th>
+                                <th>代號</th>
+                                <th>區域碼</th>
+                                <th>名稱 / 地址</th>
+                                <th>電話一 / 二</th>
+                                <th>負責人</th>
+                                <th>行動電話</th>
+                                <th>傳真號碼</th>
+                                <th>等級</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredSuppliers.map(sup => (
+                            {filteredSuppliers.map((sup, index) => (
                                 <tr key={sup.sup_id} onClick={() => setDrawerTarget(sup)}>
-                                    <td><span className="font-mono text-muted text-xs">{sup.sup_id}</span></td>
+                                    <td onClick={e => e.stopPropagation()}><div className="flex items-center gap-1"><input type="checkbox" /> {index + 1}</div></td>
+                                    <td><span className="font-mono text-muted text-sm">{sup.supplier_code || sup.sup_id}</span></td>
+                                    <td>{sup.region_code}</td>
                                     <td>
                                         <div className="font-semibold">{sup.name}</div>
-                                        <div className="text-xs text-muted">{(sup.categories || []).join(', ')}</div>
-                                    </td>
-                                    {isMultiCountryMode && (
-                                        <td>
-                                            <div className="flex items-center">
-                                                <CountryFlag country={sup.country} />
-                                                <span>{sup.country}</span>
+                                        {sup.address && (
+                                            <div className="flex items-center gap-1 mt-1 text-xs text-muted">
+                                                <a
+                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sup.address)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-accent hover:text-accent-hover flex-shrink-0"
+                                                    title="在 Google 地圖開啟"
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    <MapPin size={12} />
+                                                </a>
+                                                <div className="truncate" style={{ maxWidth: '250px' }} title={sup.address}>{sup.address}</div>
                                             </div>
-                                        </td>
-                                    )}
-                                    <td>
-                                        <div>{sup.contact_name}</div>
-                                        <div className="text-xs text-muted">{sup.email}</div>
+                                        )}
                                     </td>
-                                    <td className="text-sm">{sup.payment_terms}</td>
-                                    {isMultiCountryMode && (
-                                        <td>
-                                            <span className={`${styles.badge} ${styles['tier-b']}`}>{sup.currency}</span>
-                                        </td>
-                                    )}
                                     <td>
-                                        <div className="flex items-center gap-1">
-                                            <Star size={14} className={styles.star} />
-                                            <span className="font-bold">{sup.rating}</span>
-                                        </div>
+                                        <div>{sup.phone1}</div>
+                                        {sup.phone2 && <div className="mt-1 text-xs text-muted">{sup.phone2}</div>}
+                                    </td>
+                                    <td>{sup.responsible_person}</td>
+                                    <td>{sup.mobile}</td>
+                                    <td>{sup.fax}</td>
+                                    <td>
+                                        {sup.tier && <span className={`${styles.badge} ${tierClass(sup.tier)}`}>{sup.tier}</span>}
                                     </td>
                                     <td>
                                         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
@@ -439,45 +443,54 @@ const ContactManager = () => {
                     <table className={styles.table}>
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>{t('customers.thName')}</th>
-                                {isMultiCountryMode && <th>{t('customers.thCountry')}</th>}
-                                <th>{t('customers.thContact')}</th>
-                                <th>{t('customers.thTier')}</th>
-                                <th>{t('customers.thCredit')}</th>
-                                <th>{t('customers.thPayment')}</th>
+                                <th style={{ width: '60px' }}><div className="flex items-center gap-1"><input type="checkbox" /> 項</div></th>
+                                <th>代號</th>
+                                <th>區域碼</th>
+                                <th>名稱 / 地址</th>
+                                <th>電話一 / 二</th>
+                                <th>負責人</th>
+                                <th>行動電話</th>
+                                <th>當月結帳日</th>
+                                <th>歸屬業務</th>
+                                <th>等級</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredCustomers.map(cust => (
+                            {filteredCustomers.map((cust, index) => (
                                 <tr key={cust.cust_id} onClick={() => setDrawerTarget(cust)}>
-                                    <td><span className="font-mono text-muted text-xs">{cust.cust_id}</span></td>
+                                    <td onClick={e => e.stopPropagation()}><div className="flex items-center gap-1"><input type="checkbox" /> {index + 1}</div></td>
+                                    <td><span className="font-mono text-muted text-sm">{cust.customer_code || cust.cust_id}</span></td>
+                                    <td>{cust.region_code}</td>
                                     <td>
                                         <div className="font-semibold">{cust.name}</div>
-                                        <div className="text-xs text-muted">{cust.address}</div>
-                                    </td>
-                                    {isMultiCountryMode && (
-                                        <td>
-                                            <div className="flex items-center">
-                                                <CountryFlag country={cust.country} />
-                                                <span>{cust.country}</span>
+                                        {cust.address && (
+                                            <div className="flex items-center gap-1 mt-1 text-xs text-muted">
+                                                <a
+                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cust.address)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-accent hover:text-accent-hover flex-shrink-0"
+                                                    title="在 Google 地圖開啟"
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    <MapPin size={12} />
+                                                </a>
+                                                <div className="truncate" style={{ maxWidth: '250px' }} title={cust.address}>{cust.address}</div>
                                             </div>
-                                        </td>
-                                    )}
-                                    <td>
-                                        <div>{cust.contact_name}</div>
-                                        <div className="text-xs text-muted">{cust.email}</div>
+                                        )}
                                     </td>
                                     <td>
-                                        <span className={`${styles.badge} ${tierClass(cust.tier)}`}>
-                                            {t('customers.tier')} {cust.tier}
-                                        </span>
+                                        <div>{cust.phone1}</div>
+                                        {cust.phone2 && <div className="mt-1 text-xs text-muted">{cust.phone2}</div>}
                                     </td>
-                                    <td className="font-mono">
-                                        {defaultCurrency} {cust.credit_limit.toLocaleString()}
+                                    <td>{cust.responsible_person}</td>
+                                    <td>{cust.mobile}</td>
+                                    <td>{cust.closing_day}</td>
+                                    <td>{cust.salesperson}</td>
+                                    <td>
+                                        {cust.tier && <span className={`${styles.badge} ${tierClass(cust.tier)}`}>{cust.tier}</span>}
                                     </td>
-                                    <td className="text-sm">{cust.payment_terms}</td>
                                     <td>
                                         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                                             <button className={styles.actionBtn} onClick={() => setDrawerTarget(cust)}><Edit2 size={14} /></button>

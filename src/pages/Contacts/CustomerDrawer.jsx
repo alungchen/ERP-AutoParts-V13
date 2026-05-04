@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Trash2 } from 'lucide-react';
+import { X, Save, Trash2, MapPin } from 'lucide-react';
 import { useCustomerStore } from '../../store/useCustomerStore';
 import { useAppStore } from '../../store/useAppStore';
 import { useTranslation } from '../../i18n';
@@ -18,10 +18,11 @@ const CustomerDrawer = ({ customer, onClose }) => {
     const isNew = !customer?.cust_id;
 
     const emptyForm = {
-        cust_id: '', name: '', country: 'Taiwan', currency: 'TWD',
-        contact_name: '', email: '', phone: '',
-        payment_terms: 'Net 30', tier: 'B', credit_limit: 100000,
-        address: '', website: '', notes: ''
+        cust_id: '', customer_code: '', name: '', address: '', delivery_address: '',
+        phone1: '', phone2: '', mobile: '', fax: '', contact_name: '', responsible_person: '',
+        invoice_title: '', tax_id: '', invoice_address: '', closing_day: '', collection_day: '', notes: '',
+        zip_code: '', business_items: '', website: '', email: '', full_invoice: false, region_code: '',
+        salesperson: '', tier: 'B', accounting_code: '', offset_supplier: ''
     };
 
     const [form, setForm] = useState(emptyForm);
@@ -75,104 +76,175 @@ const CustomerDrawer = ({ customer, onClose }) => {
                 </div>
 
                 <div className={drawerStyles.content}>
-                    {/* Basic Info */}
+                    {/* 基本資料 */}
                     <div className={drawerStyles.section}>
-                        <div className={drawerStyles.sectionTitle}>{t('customers.sectionBasic')}</div>
-                        <div className={drawerStyles.inputGroup}>
-                            <label className={drawerStyles.label}>{t('customers.thName')}</label>
-                            <input className={drawerStyles.input} value={form.name} onChange={e => set('name', e.target.value)} />
-                        </div>
-                        {isMultiCountryMode && (
-                            <div className="flex gap-3">
-                                <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
-                                    <label className={drawerStyles.label}>{t('customers.thCountry')}</label>
-                                    <div className="flex items-center gap-2">
-                                        <CountryFlag country={form.country} size={20} style={{ marginRight: 0 }} />
-                                        <select className={drawerStyles.input} style={{ flex: 1 }} value={form.country} onChange={e => set('country', e.target.value)}>
-                                            {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
-                                    <label className={drawerStyles.label}>{t('customers.thCurrency')}</label>
-                                    <select className={drawerStyles.input} value={form.currency} onChange={e => set('currency', e.target.value)}>
-                                        {CURRENCIES.map(c => <option key={c}>{c}</option>)}
-                                    </select>
-                                </div>
+                        <div className={drawerStyles.sectionTitle}>基本資料</div>
+                        <div className="flex gap-3">
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>代號</label>
+                                <input className={drawerStyles.input} value={form.customer_code || ''} onChange={e => set('customer_code', e.target.value)} />
                             </div>
-                        )}
-                        <div className={drawerStyles.inputGroup}>
-                            <label className={drawerStyles.label}>{t('customers.address')}</label>
-                            <input className={drawerStyles.input} value={form.address || ''} onChange={e => set('address', e.target.value)} placeholder="Full mailing address..." />
+                            <div className={drawerStyles.inputGroup} style={{ flex: 2 }}>
+                                <label className={drawerStyles.label}>客戶名稱</label>
+                                <input className={drawerStyles.input} value={form.name || ''} onChange={e => set('name', e.target.value)} />
+                            </div>
                         </div>
                         <div className={drawerStyles.inputGroup}>
-                            <label className={drawerStyles.label}>{t('customers.website')}</label>
-                            <input className={drawerStyles.input} value={form.website || ''} onChange={e => set('website', e.target.value)} placeholder="https://..." />
+                            <div className="flex items-center gap-2 mb-1">
+                                <label className={drawerStyles.label} style={{ margin: 0 }}>公司地址</label>
+                                {form.address && (
+                                    <a
+                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(form.address)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-accent hover:text-accent-hover flex items-center"
+                                        title="在 Google 地圖開啟"
+                                    >
+                                        <MapPin size={14} />
+                                    </a>
+                                )}
+                            </div>
+                            <input className={drawerStyles.input} value={form.address || ''} onChange={e => set('address', e.target.value)} />
                         </div>
-                    </div>
-
-                    {/* Contact */}
-                    <div className={drawerStyles.section}>
-                        <div className={drawerStyles.sectionTitle}>{t('customers.sectionContact')}</div>
                         <div className={drawerStyles.inputGroup}>
-                            <label className={drawerStyles.label}>{t('customers.thContact')}</label>
-                            <input className={drawerStyles.input} value={form.contact_name} onChange={e => set('contact_name', e.target.value)} />
+                            <label className={drawerStyles.label}>送貨地址</label>
+                            <input className={drawerStyles.input} value={form.delivery_address || ''} onChange={e => set('delivery_address', e.target.value)} />
                         </div>
                         <div className="flex gap-3">
                             <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
-                                <label className={drawerStyles.label}>Email</label>
-                                <input className={drawerStyles.input} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+                                <label className={drawerStyles.label}>電話一</label>
+                                <input className={drawerStyles.input} value={form.phone1 || ''} onChange={e => set('phone1', e.target.value)} />
                             </div>
                             <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
-                                <label className={drawerStyles.label}>Phone</label>
-                                <input className={drawerStyles.input} value={form.phone || ''} onChange={e => set('phone', e.target.value)} />
+                                <label className={drawerStyles.label}>電話二</label>
+                                <input className={drawerStyles.input} value={form.phone2 || ''} onChange={e => set('phone2', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>行動電話</label>
+                                <input className={drawerStyles.input} value={form.mobile || ''} onChange={e => set('mobile', e.target.value)} />
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>傳真號碼</label>
+                                <input className={drawerStyles.input} value={form.fax || ''} onChange={e => set('fax', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>聯絡人</label>
+                                <input className={drawerStyles.input} value={form.contact_name || ''} onChange={e => set('contact_name', e.target.value)} />
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>負責人</label>
+                                <input className={drawerStyles.input} value={form.responsible_person || ''} onChange={e => set('responsible_person', e.target.value)} />
                             </div>
                         </div>
                     </div>
 
-                    {/* Tier & Credit */}
+                    {/* 稅務與帳務資料 */}
                     <div className={drawerStyles.section}>
-                        <div className={drawerStyles.sectionTitle}>{t('customers.sectionPricing')}</div>
+                        <div className={drawerStyles.sectionTitle}>稅務與帳務資料</div>
+                        <div className="flex gap-3">
+                            <div className={drawerStyles.inputGroup} style={{ flex: 2 }}>
+                                <label className={drawerStyles.label}>發票抬頭</label>
+                                <input className={drawerStyles.input} value={form.invoice_title || ''} onChange={e => set('invoice_title', e.target.value)} />
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>統一編號</label>
+                                <input className={drawerStyles.input} value={form.tax_id || ''} onChange={e => set('tax_id', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className={drawerStyles.inputGroup}>
+                            <label className={drawerStyles.label}>發票地址</label>
+                            <input className={drawerStyles.input} value={form.invoice_address || ''} onChange={e => set('invoice_address', e.target.value)} />
+                        </div>
                         <div className="flex gap-3">
                             <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
-                                <label className={drawerStyles.label}>{t('customers.thTier')}</label>
-                                <div className="flex gap-2">
+                                <label className={drawerStyles.label}>當月結帳日</label>
+                                <input className={drawerStyles.input} value={form.closing_day || ''} onChange={e => set('closing_day', e.target.value)} />
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>收帳日</label>
+                                <input className={drawerStyles.input} value={form.collection_day || ''} onChange={e => set('collection_day', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className={drawerStyles.inputGroup}>
+                            <label className={drawerStyles.label}>備註</label>
+                            <textarea
+                                className={drawerStyles.input}
+                                style={{ minHeight: '80px', resize: 'vertical' }}
+                                value={form.notes || ''}
+                                onChange={e => set('notes', e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* 其他資訊 */}
+                    <div className={drawerStyles.section}>
+                        <div className={drawerStyles.sectionTitle}>其他資訊</div>
+                        <div className="flex gap-3">
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>郵遞區號</label>
+                                <input className={drawerStyles.input} value={form.zip_code || ''} onChange={e => set('zip_code', e.target.value)} />
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 2 }}>
+                                <label className={drawerStyles.label}>經營項目</label>
+                                <input className={drawerStyles.input} value={form.business_items || ''} onChange={e => set('business_items', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>網址</label>
+                                <input className={drawerStyles.input} value={form.website || ''} onChange={e => set('website', e.target.value)} />
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>電郵</label>
+                                <input className={drawerStyles.input} type="email" value={form.email || ''} onChange={e => set('email', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="flex gap-3 items-center mt-2 mb-2">
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+                                <input type="checkbox" checked={form.full_invoice || false} onChange={e => set('full_invoice', e.target.checked)} id="full_invoice_cb" />
+                                <label htmlFor="full_invoice_cb" className={drawerStyles.label} style={{ margin: 0, cursor: 'pointer' }}>全額發票</label>
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>區域碼</label>
+                                <input className={drawerStyles.input} value={form.region_code || ''} onChange={e => set('region_code', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>歸屬業務</label>
+                                <input className={drawerStyles.input} value={form.salesperson || ''} onChange={e => set('salesperson', e.target.value)} />
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>報價等級</label>
+                                <div className="flex gap-1">
                                     {TIERS.map(tier => (
                                         <button key={tier} onClick={() => set('tier', tier)} style={{
-                                            flex: 1, padding: '0.5rem', border: '2px solid', borderRadius: '8px', fontWeight: 700, cursor: 'pointer',
+                                            flex: 1, padding: '0.3rem', border: '2px solid', borderRadius: '4px', fontWeight: 700, cursor: 'pointer',
                                             borderColor: form.tier === tier ? tierColors[tier] : 'var(--border-color)',
                                             color: form.tier === tier ? tierColors[tier] : 'var(--text-secondary)',
                                             background: form.tier === tier ? tierColors[tier] + '22' : 'var(--bg-tertiary)',
                                             transition: 'all 0.15s'
                                         }}>
-                                            {t('customers.tier')} {tier}
+                                            {tier}
                                         </button>
                                     ))}
                                 </div>
                             </div>
+                        </div>
+                        <div className="flex gap-3">
                             <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
-                                <label className={drawerStyles.label}>{t('customers.thPayment')}</label>
-                                <select className={drawerStyles.input} value={form.payment_terms} onChange={e => set('payment_terms', e.target.value)}>
-                                    {PAYMENT_TERMS.map(p => <option key={p}>{p}</option>)}
-                                </select>
+                                <label className={drawerStyles.label}>會計子目編號</label>
+                                <input className={drawerStyles.input} value={form.accounting_code || ''} onChange={e => set('accounting_code', e.target.value)} />
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>抵帳廠商</label>
+                                <input className={drawerStyles.input} value={form.offset_supplier || ''} onChange={e => set('offset_supplier', e.target.value)} />
                             </div>
                         </div>
-                        <div className={drawerStyles.inputGroup}>
-                            <label className={drawerStyles.label}>{t('customers.thCredit')} ({defaultCurrency})</label>
-                            <input className={drawerStyles.input} type="number" value={form.credit_limit} onChange={e => set('credit_limit', parseInt(e.target.value) || 0)} />
-                        </div>
-                    </div>
-
-                    {/* Notes */}
-                    <div className={drawerStyles.section}>
-                        <div className={drawerStyles.sectionTitle}>{t('customers.notes')}</div>
-                        <textarea
-                            className={drawerStyles.input}
-                            style={{ minHeight: '100px', resize: 'vertical' }}
-                            value={form.notes || ''}
-                            onChange={e => set('notes', e.target.value)}
-                            placeholder={t('customers.notesPlaceholder')}
-                        />
                     </div>
                 </div>
             </div>
@@ -181,3 +253,4 @@ const CustomerDrawer = ({ customer, onClose }) => {
 };
 
 export default CustomerDrawer;
+// trigger HMR

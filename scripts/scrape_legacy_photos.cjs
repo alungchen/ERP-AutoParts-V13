@@ -84,6 +84,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await page.setCookie(...saved);
   }
 
+  const sqlPath = path.join(OUTPUT_DIR, 'update_legacy_photos.sql');
+  if (fs.existsSync(sqlPath)) fs.unlinkSync(sqlPath);
+
   const sqlStatements = [];
 
   for (let i = 0; i < products.length; i++) {

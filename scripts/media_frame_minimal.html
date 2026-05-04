@@ -1,0 +1,531 @@
+<html xmlns="http://www.w3.org/1999/xhtml" class=""><head id="Head1"><title>
+
+</title><link type="text/css" rel="stylesheet" href="/car2009/css/scrollable-horizontal.css"><link type="text/css" rel="stylesheet" href="/car2009/css/scrollable-buttons.css"><link type="text/css" rel="Stylesheet" href="/car2009/css/jqueryui/1.8.5/jquery-ui.css">
+     
+    <style>	
+	/* styling for the image wrapper  */
+	#image_wrap {
+		/* dimensions */
+		width:677px;
+		margin:15px 0 15px 40px;
+		padding:15px 0;
+ 
+		/* centered */
+		text-align:center;
+ 
+		/* some "skinning" */
+		background-color:#efefef;
+		border:2px solid #fff;
+		outline:1px solid #ddd;
+		-moz-ouline-radius:4px;
+	}	</style>
+
+<style type="text/css">.fancybox-margin{margin-right:0px;}</style></head>
+<body topmargin="0" leftmargin="0">
+        <div style="position:absolute; top:0px; right:0px; z-index:100; text-align:right; width:120px;">
+            <!--
+            <input type="dropbox-chooser" id="Dropbox-chooser" name="selected-file" style="visibility: hidden;" data-link-type="direct" data-multiselect="true"/>
+            -->
+            
+            <br><button style="width: 130px; font-size: 70%;" class="button_class ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" onclick="parent.$j('.apple_overlay .close').click();" role="button" aria-disabled="false"><span class="ui-button-text">關閉</span></button>
+            <br><button style="width: 130px; font-size: 70%;" class="button_class ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" onclick="OpenWindow('/car2009/api/PickupPhoto/?callback=opener.pickup_photo', 'Pickup_Photo', '1024', '768', ($j(window).width()-700)/2, ($j(window).height()-700)/2);" role="button" aria-disabled="false"><span class="ui-button-text">宏疄多媒體中心</span></button>
+            <br><button name="btn_新增外部圖檔" id="btn_新增外部圖檔" onclick="$j('#overlay_新增外部圖檔').show();" class="button_class ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" mediaid="" style="width: 130px; font-size: 70%;" role="button" aria-disabled="false"><span class="ui-button-text">新增</span></button>
+            <br><button name="btn_放大" id="btn_放大" onclick="do_media_zoom( $j('#btn_刪除連結').attr('url') );" class="button_class ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" mediaid="" style="width: 130px; font-size: 70%;" role="button" aria-disabled="false"><span class="ui-button-text">原圖</span></button>
+            <br><button name="btn_加入相簿" id="btn_加入相簿" onclick="var msg = do_media_album_add( $j('#btn_刪除連結').attr('url'), str_message ); if (msg != '') { alert(msg); }" class="button_class ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" mediaid="" style="width: 130px; font-size: 70%;" role="button" aria-disabled="false"><span class="ui-button-text">加入相簿</span></button>
+            <br><button name="btn_相簿管理員" id="btn_相簿管理員" oonclick="fancybox_iframe();" onclick=" OpenWindow('../MEDIA_Album_Query/', 'MEDIA_Album_Query' + (new Date()).toFormat('yyyymmddhhnnss'), '1024', '768'); " class="button_class ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" mediaid="" style="width: 130px; font-size: 70%;" role="button" aria-disabled="false"><span class="ui-button-text">相簿管理員</span></button>
+            <br><button name="btn_刪除連結" id="btn_刪除連結" onclick="do_刪除連結(this);" class="button_class ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" mediaid="E249B7AC-DBB3-4551-A88F-7A151FC2D61F" style="width: 130px; font-size: 70%;" role="button" aria-disabled="false" url="http://media2.uparts.info/CAR00401//parts/ALTIS/壓縮機/COM-T016.jpg"><span class="ui-button-text">刪除</span></button>
+            <br><br><iframe style="width:130px; height:50px" frameborder="1" scrolling="no" name="ele_iframe_drag_drop_upload" id="ele_iframe_drag_drop_upload" targeturl="/car2009/drag_drop_upload_multiple/?TableName={TableName}&amp;KeyValue={KeyValue}&amp;TYPE_LABLE={TYPE_LABLE}&amp;CHNAME_LABLE={CHNAME_LABLE}" src="/car2009/drag_drop_upload_multiple/?TableName=零件主檔&amp;KeyValue=7BA007A3-4869-4713-8164-88058D8327B5&amp;TYPE_LABLE=&amp;CHNAME_LABLE="></iframe>
+            <br><br><iframe style="width:130px; height:100px" frameborder="1" scrolling="no" name="ele_iframe_paste_upload" id="ele_iframe_paste_upload" targeturl="/car2009/PasteUpload/?TableName={TableName}&amp;KeyValue={KeyValue}&amp;TYPE_LABLE={TYPE_LABLE}&amp;CHNAME_LABLE={CHNAME_LABLE}" src="/car2009/PasteUpload/?TableName=零件主檔&amp;KeyValue=7BA007A3-4869-4713-8164-88058D8327B5&amp;TYPE_LABLE=&amp;CHNAME_LABLE="></iframe>
+       </div>
+
+        <div class="" id="overlay_新增外部圖檔" showhide="hide" style="display:none; position:absolute; top:60px; right:1px; z-index:100;background-color:gray;">
+            <div style="text-align:right;"><button class="button_class ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" onclick="$j('#overlay_新增外部圖檔').hide(); " role="button" aria-disabled="false" style="font-size: 70%;"><span class="ui-button-text">關閉</span></button></div>
+	            <table width="100%" border="0" cellspacing="0" cellpadding="0" class="ui-widget ui-widget-conent ui-corner-all" bgcolor="gray">
+                  <tbody><tr>
+                    <td width="19%" style="font-size:80%">請填入外部圖檔網址:</td>
+                    <td width="73%"><input name="ele_外部圖檔網址" type="text" id="ele_外部圖檔網址" value="" size="50" class="ele_Search"></td>
+                    <td width="8%"><input type="button" name="btn_外部圖檔網址加入" id="btn_外部圖檔網址加入" value="加入" onclick="do_外部圖檔網址加入();" class="button_class ui-button ui-widget ui-state-default ui-corner-all" role="button" aria-disabled="false" style="font-size: 70%;"></td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:80%">請填入外部影片:</td>
+                    <td><textarea name="ele_外部影片" cols="50" rows="5" class="ele_Search" id="ele_外部影片"></textarea></td>
+                    <td><input type="button" name="btn_外部影片加入" id="btn_外部影片加入" value="加入" onclick="do_外部影片加入();" class="button_class ui-button ui-widget ui-state-default ui-corner-all" role="button" aria-disabled="false" style="font-size: 70%;"></td>
+                  </tr>
+                  
+                </tbody></table>
+        </div>
+
+    <div id="image_wrap" style="opacity: 1; width: 85%; height: 500px;"> 
+     
+	    <!-- Initially the image is a simple 1x1 pixel transparent GIF --> 
+	    <!-- img src="http://static.flowplayer.org/tools/img/blank.gif" width="500" height="375" / --> 
+
+	    <iframe id="iframe_show_tags" width="100%" height="500" frameborder="0" scrolling="yes" align="center" src="../Iframe_MEDIA_TAG/?id=E249B7AC-DBB3-4551-A88F-7A151FC2D61F"></iframe>
+     
+    </div> 
+    <div id="display_grid_scrollable">
+<!-- "previous page" action --> 
+<a class="prev browse left"></a> 
+ 
+<!-- root element for scrollable --> 
+<div class="scrollable" style="width:1020px;">   
+   
+   <!-- root element for the items --> 
+   <div class="items"> 
+        <div>
+          
+
+
+          
+
+                <img id="ele_pic_1" src="http://media2.uparts.info/CAR00401//parts/ALTIS/壓縮機/COM-T016.jpg" width="50" rel="#PIC_1" mediaid="E249B7AC-DBB3-4551-A88F-7A151FC2D61F" class="active">
+          
+
+	            <img id="ele_pic_2" src="http://media2.uparts.info/CAR00401//parts/ALTIS/壓縮機/COM-T016(1).jpg" width="50" rel="#PIC_2" mediaid="4F476F03-3D6F-438E-A3BD-CB77B2ADF700">
+          
+  
+        </div>
+   </div> 
+   
+</div> 
+ 
+<!-- "next page" action --> 
+<a class="next browse right"></a> 
+ 
+<br clear="all"> </div>
+
+
+
+
+
+
+<link rel="stylesheet" href="/car2009/css/alertify.core.css">
+<link rel="stylesheet" href="/car2009/css/alertify.default.css" id="toggleCSS">
+<script type="text/javascript" src="/car2009/js/alertify.min.js"></script>
+<script type="text/javascript" src="/car2009/js/1.2.5-jquery.tools.min.js"></script>
+<script type="text/javascript" src="/car2009/js/1.8.5-jquery-ui.min.js"></script>
+<!-- script type="text/javascript" src="/car2009/js/jquery.tools.min.js" ></script>
+<script type="text/javascript" src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script -->
+<script type="text/javascript" src="/car2009/AJAX-framework.js?version=202603252331"></script>
+
+    <!-- Add mousewheel plugin (this is optional) -->
+	<script type="text/javascript" src="../fancyBox/lib/jquery.mousewheel-3.0.6.pack.js"></script>
+
+	<!-- Add fancyBox main JS and CSS files -->
+	<script type="text/javascript" src="../fancyBox/source/jquery.fancybox.js?v=2.1.5"></script>
+	<link rel="stylesheet" type="text/css" href="../fancyBox/source/jquery.fancybox.css?v=2.1.5" media="screen">
+
+	<!-- Add Button helper (this is optional) -->
+	<link rel="stylesheet" type="text/css" href="../fancyBox/source/helpers/jquery.fancybox-buttons.css?v=1.0.5">
+	<script type="text/javascript" src="../fancyBox/source/helpers/jquery.fancybox-buttons.js?v=1.0.5"></script>
+
+	<!-- Add Thumbnail helper (this is optional) -->
+	<link rel="stylesheet" type="text/css" href="../fancyBox/source/helpers/jquery.fancybox-thumbs.css?v=1.0.7">
+	<script type="text/javascript" src="../fancyBox/source/helpers/jquery.fancybox-thumbs.js?v=1.0.7"></script>
+
+	<!-- Add Media helper (this is optional) -->
+	<script type="text/javascript" src="../fancyBox/source/helpers/jquery.fancybox-media.js?v=1.0.6"></script>
+
+
+<script type="text/javascript">
+    $j = jQuery.noConflict();
+</script>
+
+<script type="text/javascript">
+
+    $j(function () {
+        alert = alertify.alert;
+        confirm = alertify.confirm;
+        alertify_reset();
+    });
+
+    $j(function () {
+        $j(".button_class").button().css("font-size", "70%");
+
+        $j(".fancybox").fancybox();
+    });
+</script>
+
+<script type="text/javascript">
+    $j(function() {
+        initialize();
+        event_setting();
+        execute();
+    });
+</script>
+
+<script type="text/javascript">    
+    function initialize() {
+        str_KeyValue = "7BA007A3-4869-4713-8164-88058D8327B5";
+        str_TableName = "零件主檔";
+        str_message = "";
+        str_TYPE_LABLE = "";
+        str_CHNAME_LABLE = "";
+        str_grid_media_scrollable = "<!-- \"previous page\" action --> "
++ "\n<a class=\"prev browse left\"></a> "
++ "\n "
++ "\n<!-- root element for scrollable --> "
++ "\n<div class=\"scrollable\" style=\"width:1020px;\">   "
++ "\n   "
++ "\n   <!-- root element for the items --> "
++ "\n   <div class=\"items\"> "
++ "\n        <div>"
++ "\n          <!-- TemplateSplit -->"
++ "\n"
++ "\n          <!-- TemplateSplit -->"
++ "\n                <img id=\"ele_pic_%row%\" src=\"%URL%\" width=\"50\" rel=\"#PIC_%row%\" MediaId=\"%id%\"/>"
++ "\n          <!-- TemplateSplit -->"
++ "\n	            <img id=\"ele_pic_%row%\" src=\"%URL%\" width=\"50\" rel=\"#PIC_%row%\" MediaId=\"%id%\"/>"
++ "\n          <!-- TemplateSplit -->"
++ "\n	            <img id=\"ele_pic_%row%\" src=\"%URL%\" width=\"50\" rel=\"#PIC_%row%\" MediaId=\"%id%\"/>"
++ "\n          <!-- TemplateSplit -->"
++ "\n	            <img id=\"ele_pic_%row%\" src=\"%URL%\" width=\"50\" rel=\"#PIC_%row%\" MediaId=\"%id%\"/>"
++ "\n          <!-- TemplateSplit -->"
++ "\n	            <img id=\"ele_pic_%row%\" src=\"%URL%\" width=\"50\" rel=\"#PIC_%row%\" MediaId=\"%id%\"/>"
++ "\n        </div>"
++ "\n        <div>"
++ "\n          <!-- TemplateSplit -->  "
++ "\n        </div>"
++ "\n   </div> "
++ "\n   "
++ "\n</div> "
++ "\n "
++ "\n<!-- \"next page\" action --> "
++ "\n<a class=\"next browse right\"></a> "
++ "\n "
++ "\n<br clear=\"all\" /> ";
+        
+//        dt_data = new DataTable();
+        
+        //dt_data.ImportCSV(str_dt_data);
+        
+        dg_scrollable = new DataGridExp();
+        ImgNo = 0;
+        
+        with (dg_scrollable)
+        {
+            str_template = str_grid_media_scrollable;
+            //str_page_template = str_pagecontrol_template;
+            page_size = 1000;
+        }
+
+        init_drag_drop_upload();
+        
+        init_PasteUpload();
+    }
+
+    function init_drag_drop_upload() {
+        var $iframe = $j('#ele_iframe_drag_drop_upload');
+        var TargetURL = $iframe.attr('TargetURL');
+
+        TargetURL = TargetURL.rp("{TableName}", str_TableName);
+        TargetURL = TargetURL.rp("{KeyValue}", str_KeyValue);
+        TargetURL = TargetURL.rp("{TYPE_LABLE}", str_TYPE_LABLE);
+        TargetURL = TargetURL.rp("{CHNAME_LABLE}", str_CHNAME_LABLE);
+
+        $iframe.attr('src', TargetURL);
+    }
+    
+    function init_PasteUpload() {
+        var $iframe = $j('#ele_iframe_paste_upload');
+        var TargetURL = $iframe.attr('TargetURL');
+
+        TargetURL = TargetURL.rp("{TableName}", str_TableName);
+        TargetURL = TargetURL.rp("{KeyValue}", str_KeyValue);
+        TargetURL = TargetURL.rp("{TYPE_LABLE}", str_TYPE_LABLE);
+        TargetURL = TargetURL.rp("{CHNAME_LABLE}", str_CHNAME_LABLE);
+
+        $iframe.attr('src', TargetURL);
+    }
+
+    function event_setting()
+    {
+        alertify_event();
+    }
+    
+    function execute()
+    {
+        do_search_media();
+    }
+
+    function do_search_media()
+    {   
+        
+        ShowMedia();
+        $j(".scrollable").scrollable();
+        var $imgs = $j(".items img");
+
+        $imgs.click(function() {
+            var $this = $j(this);
+            var rel = $this.attr("rel");
+            ImgNo = parseInt(rel.rp("#PIC_", ""))-1;
+
+	        // see if same thumb is being clicked
+	        if ($j(this).hasClass("active")) { return; }
+         
+	        // calclulate large image's URL based on the thumbnail URL (flickr specific)
+	        var url = $j(this).attr("src");
+	        var MediaId = $j(this).attr("MediaId");
+            $j("#btn_刪除連結").attr("MediaId" , MediaId);
+            $j("#btn_刪除連結").attr("url" , url);
+	        // get handle to element that wraps the image and make it semi-transparent
+	        var wrap = $j("#image_wrap").fadeTo("medium", 0.5);
+         
+	        // the large image from www.flickr.com
+	        var $iframe = $j("#iframe_show_tags");
+	        
+	        $iframe.attr("scrolling", "no");
+         
+         
+	        // call this function after it's loaded
+	        /***
+	        img.onload = function() {
+         
+		        // make wrapper fully visible
+		        wrap.fadeTo("fast", 1);
+         
+		        // change the image
+		        wrap.find("img").attr("src", url);
+         
+	        };
+	        ***/
+         
+	        // begin loading the image from www.flickr.com
+	        //img.src = url;
+	        $iframe.attr("src", "../Iframe_MEDIA_TAG/?id=" + MediaId);
+	        wrap.fadeTo("fast", 1);
+	        $iframe.attr("scrolling", "yes");
+         
+	        // activate item
+	        $j(".items img").removeClass("active");
+	        $j(this).addClass("active");
+         
+        // when page loads simulate a "click" on the first image
+        })
+        
+        $j($imgs[0]).click();
+    }
+    
+    function ShowMedia()
+    {
+        var str_url = "Default.aspx?AJAX=1&do_action=ajax_search_media&KeyValue=%KeyValue%";
+        var dt_data = new DataTable();
+
+        str_url = str_url.ReplaceAll("%KeyValue%", escape(str_KeyValue));
+        dt_data = get_data(str_url, "");
+
+        with (dt_data) {
+            if (getValue("flg_error") == "1") {
+                alert(getValue("message"));
+                return (false);
+            }
+        }
+
+        with (dg_scrollable){
+            dt = dt_data;
+            get_field_list();
+            //  alert (dg.GetDataGrid());
+            $j("#display_grid_scrollable").html(GetDataGrid());
+        }
+    }
+    
+    function do_外部圖檔網址加入()
+    {   
+        if ($j("#ele_外部圖檔網址").val() == "")
+            return (false);
+        
+        var str_url = "Default.aspx?AJAX=1&do_action=%do_action%&TableName=%TableName%&KeyName=id&KeyValue=%KeyValue%&URL=%URL%&TAG=%TAG%";
+        var str_id = str_KeyValue;
+        var dt = null;
+        var str_URL = $j("#ele_外部圖檔網址").val();
+        var str_TAG = "<img src=\"" + str_URL + "\" width=\"800\" >";
+        
+        str_url = str_url.ReplaceAll("%do_action%", escape("ajax_do_外部圖檔網址加入"));
+        str_url = str_url.ReplaceAll("%TableName%", escape(str_TableName));
+        str_url = str_url.ReplaceAll("%KeyValue%", escape(str_id));
+        str_url = str_url.ReplaceAll("%URL%", escape(str_URL));
+        str_url = str_url.ReplaceAll("%TAG%", escape(str_TAG));
+        
+        
+        dt = get_data(str_url, "");
+        
+        if (dt.getValue("flg_error") == "1") {
+            alert(dt.getValue("message"));
+            return (false);
+        }
+        
+        //alert("加入成功!");
+
+        parent.sys_Iframe_MEDIA_refresh(str_id);
+
+        $j("#ele_外部圖檔網址").val("");
+        do_search_media();
+        //ShowMedia(str_id);
+        var $imgs = $j("#display_grid_scrollable img");
+        var i_imgs = $imgs.length;
+        var i_page_index = i_imgs/5;
+
+//        console.log("i_imgs=" + i_imgs);
+//        console.log("i_page_index=" + i_page_index);
+
+//        console.log("i_imgs % 5=" + i_imgs % 5);
+
+        if (i_imgs % 5 == 0)
+            i_page_index -= 1;
+
+        if (i_page_index < 0)
+            i_page_index = 0;
+
+//        console.log("i_page_index=" + i_page_index);
+
+//        for (var i = 0; i < i_page_index; i ++)
+//        {
+//            $j(".next").click();
+//        }
+
+//        $j( $imgs[i_imgs-1] ).click();
+    }
+
+    function do_外部影片加入()
+    {
+    
+        if ($j("#ele_外部影片").val() == "")
+            return (false);
+       
+        
+        var str_url = "Default.aspx?AJAX=1&do_action=%do_action%&TableName=%TableName%&KeyName=id&KeyValue=%KeyValue%&URL=%URL%&TAG=%TAG%";
+        var str_id = str_KeyValue;
+        var dt = null;
+        var str_TAG = $j("#ele_外部影片").val();
+        var str_icon = "../img/film_reel_icon.jpg";
+        
+        str_url = str_url.ReplaceAll("%do_action%", escape("ajax_do_外部影片加入"));
+        str_url = str_url.ReplaceAll("%TableName%", escape(str_TableName));
+        str_url = str_url.ReplaceAll("%KeyValue%", escape(str_id));
+        str_url = str_url.ReplaceAll("%URL%", escape(str_icon));
+        str_url = str_url.ReplaceAll("%TAG%", escape(str_TAG));
+        
+        
+        dt = get_data(str_url, "");
+        
+        if (dt.getValue("flg_error") == "1") {
+            alert(dt.getValue("message"));
+            return (false);
+        }
+        
+        //alert("加入成功!");
+
+        parent.sys_Iframe_MEDIA_refresh(str_id);
+
+        do_search_media();
+        
+        $j("#ele_外部影片").val("");
+
+        var $imgs = $j("#display_grid_scrollable img");
+        var i_imgs = $imgs.length;
+        var i_page_index = i_imgs/5;
+
+//        console.log("i_imgs=" + i_imgs);
+//        console.log("i_page_index=" + i_page_index);
+
+//        console.log("i_imgs % 5=" + i_imgs % 5);
+
+        if (i_imgs % 5 == 0)
+            i_page_index -= 1;
+
+        if (i_page_index < 0)
+            i_page_index = 0;
+
+//        console.log("i_page_index=" + i_page_index);
+
+        for (var i = 0; i < i_page_index; i ++)
+        {
+            $j(".next").click();
+        }
+
+        $j( $imgs[i_imgs-1] ).click();
+
+    }
+
+    function do_刪除連結(this_obj){
+        
+        var str_url = "Default.aspx?AJAX=1&do_action=%do_action%&id=%id%";
+        var str_id = str_KeyValue;
+        var dt = null;
+        var $this = $j(this_obj);
+        var str_MEDIA_id = $this.attr("MediaId");
+ 
+        str_url = str_url.ReplaceAll("%do_action%", escape("ajax_do_刪除連結"));
+        str_url = str_url.ReplaceAll("%id%", escape(str_MEDIA_id));
+
+        dt = get_data(str_url, "");
+        
+        if (dt.getValue("flg_error") == "1") {
+            alert(dt.getValue("message"));
+            return (false);
+        }
+        else
+            //alert(dt.getValue("message"));
+            parent.sys_Iframe_MEDIA_refresh(str_id);
+
+        var OldPage = GetScrollablePage();
+
+//        console.log("OldPage=" + OldPage);
+//        console.log("ImgNo=" + ImgNo);
+
+        do_search_media();
+        var $imgs = $j("#display_grid_scrollable img");
+
+        if ($imgs.length % 5 == 0)
+        {
+//            console.log("$imgs.length % 5=" + $imgs.length % 5);
+//            console.log("$imgs.length / 5=" + $imgs.length / 5);
+//            console.log("OldPage=" + OldPage);
+            if ($imgs.length / 5 == OldPage)
+                OldPage -= 1;
+        }
+        
+        ToScrollablePage(OldPage);
+
+//        console.log("OldPage=" + OldPage);
+//        console.log("ImgNo=" + ImgNo);
+
+        
+
+        if (ImgNo > $imgs.length-1) 
+            ImgNo = $imgs.length-1;
+            
+        if (ImgNo >= 0)
+            $j( $imgs[ImgNo] ).click();    
+
+//        console.log("ImgNo=" + ImgNo);
+//        console.log("$imgs.length=" + $imgs.length);
+    }
+
+
+
+    function pickup_photo(url) {
+        $j('#ele_外部圖檔網址').val(url);
+        do_外部圖檔網址加入();
+    }
+
+    function GetScrollablePage() {
+        var $div = $j("#display_grid_scrollable .items>div");
+        var $items = $j("#display_grid_scrollable .items");
+        var i_width = $j($div[0]).width();
+        var i_left = parseInt($items.css("left"));
+        var i_page = -1 * i_left / i_width;
+
+        return (i_page);
+    }
+
+    function ToScrollablePage(i_page)
+    {
+        for (var i = 0; i < i_page; i ++)
+        {
+            $j(".next").click();
+        }
+    }
+    
+
+</script></body></html>
