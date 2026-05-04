@@ -504,23 +504,43 @@ const ContactManager = () => {
                     <table className={styles.table}>
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>{t('employees.thName')}</th>
-                                <th>{t('employees.thDepartment')}</th>
-                                <th>{t('employees.thRole')}</th>
-                                {enablePermissionRole && <th>{t('employees.thPermission')}</th>}
-                                <th>{t('employees.thContact')}</th>
-                                <th>{t('employees.thStatus')}</th>
+                                <th style={{ width: '60px' }}><div className="flex items-center gap-1"><input type="checkbox" /> 項</div></th>
+                                <th>代號</th>
+                                <th>名稱 / 地址</th>
+                                <th>電話 / 行動</th>
+                                <th>部門</th>
+                                <th>職務</th>
+                                {enablePermissionRole && <th>權限角色</th>}
+                                <th>狀態</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredEmployees.map(emp => (
+                            {filteredEmployees.map((emp, index) => (
                                 <tr key={emp.emp_id} onClick={() => setDrawerTarget(emp)}>
-                                    <td><span className="font-mono text-muted text-xs">{emp.emp_id}</span></td>
+                                    <td onClick={e => e.stopPropagation()}><div className="flex items-center gap-1"><input type="checkbox" /> {index + 1}</div></td>
+                                    <td><span className="font-mono text-muted text-sm">{emp.employee_code || emp.emp_id}</span></td>
                                     <td>
                                         <div className="font-semibold">{emp.name}</div>
-                                        <div className="text-xs text-muted">{emp.hire_date || '-'}</div>
+                                        {emp.address && (
+                                            <div className="flex items-center gap-1 mt-1 text-xs text-muted">
+                                                <a
+                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(emp.address)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-accent hover:text-accent-hover flex-shrink-0"
+                                                    title="在 Google 地圖開啟"
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    <MapPin size={12} />
+                                                </a>
+                                                <div className="truncate" style={{ maxWidth: '250px' }} title={emp.address}>{emp.address}</div>
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td>
+                                        <div>{emp.phone || '-'}</div>
+                                        {emp.mobile && <div className="mt-1 text-xs text-muted">{emp.mobile}</div>}
                                     </td>
                                     <td>{emp.department || '-'}</td>
                                     <td>{emp.role || '-'}</td>
@@ -531,10 +551,6 @@ const ContactManager = () => {
                                             </span>
                                         </td>
                                     )}
-                                    <td>
-                                        <div>{emp.phone || '-'}</div>
-                                        <div className="text-xs text-muted">{emp.email || '-'}</div>
-                                    </td>
                                     <td>
                                         <span className={`${styles.badge} ${emp.status === '在職' ? styles['tier-a'] : emp.status === '留職停薪' ? styles['tier-c'] : styles['tier-b']}`}>
                                             {emp.status || '在職'}
