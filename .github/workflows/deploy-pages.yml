@@ -1,13 +1,15 @@
 # 推送 main 時將 Vite 產物部署到 Cloudflare Pages（與 wrangler.toml / 本機 wrangler pages dev 一致）
 #
-# GitHub → Settings → Secrets and variables → Actions → New repository secret
-#   CLOUDFLARE_API_TOKEN（必填）
-#     Cloudflare → My Profile → API Tokens → Create Token
-#     權限建議：Account → Cloudflare Pages → Edit；並含此專案用到的 D1 / R2 相關權限（與儀表板綁定一致即可）
-#   CLOUDFLARE_ACCOUNT_ID（強烈建議）
-#     Cloudflare 儀表板右側欄 Account ID
+# GitHub → Settings → Secrets and variables → Actions
+#   Secrets（必填／強烈建議）
+#     CLOUDFLARE_API_TOKEN — Cloudflare → My Profile → API Tokens
+#       權限：Account → Cloudflare Pages → Edit；並含 D1 / R2 等資源（與儀表板綁定一致）
+#     CLOUDFLARE_ACCOUNT_ID — 儀表板右側 Account ID（多數情況下可避免 403／帳號解析錯誤）
+#   Variables（選填）
+#     CLOUDFLARE_PAGES_PROJECT_NAME — 覆寫專案名稱；未設定時預設與 wrangler.toml 的 name 相同：erp-autoparts-api
 #
-# Pages 專案名稱須與 Cloudflare 上專案一致（目前與 wrangler.toml 的 name 相同）
+# 首次部署前：請在 Cloudflare Dashboard → Workers & Pages → 建立 **Pages** 專案，
+# 名稱須與上面專案名稱一致；否則 wrangler 會回報 Project not found（8000007）。
 name: Deploy Pages to Cloudflare
 
 on:
@@ -37,19 +39,46 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Check CLOUDFLARE_API_TOKEN
+      - name: Check Cloudflare secrets
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
             echo "::error::未設定 GitHub Secret「CLOUDFLARE_API_TOKEN」。請至 Repository → Settings → Secrets and variables → Actions 新增。"
             exit 1
           fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            echo "::warning::未設定 CLOUDFLARE_ACCOUNT_ID。若接下來出現 403 或多帳號錯誤，請到 Cloudflare 儀表板側邊欄複製 Account ID 並新增為同名 Secret。"
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: List Cloudflare Pages projects
+        run: npx wrangler pages project list
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy to Cloudflare Pages
         run: |
           if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then unset CLOUDFLARE_ACCOUNT_ID; fi
-          npx wrangler pages deploy dist --project-name=erp-autoparts-api
+          PROJECT_NAME="${CLOUDFLARE_PAGES_PROJECT_NAME:-erp-autoparts-api}"
+          npx wrangler pages deploy dist \
+            --project-name="$PROJECT_NAME" \
+            --branch="$GITHUB_REF_NAME" \
+            --commit-hash="$GITHUB_SHA"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PAGES_PROJECT_NAME: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }}
+
+      - name: Pages deploy troubleshooting
+        if: failure()
+        run: |
+          cat <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          ### Deploy Pages 失敗時請檢查
+
+          1. **是否已在 Cloudflare 建立 Pages 專案**：日誌若出現 `Project not found` / `8000007`，請到 **Workers & Pages** 建立專案，名稱需與部署指令一致（預設 `erp-autoparts-api`）。也可查看上一步 **List Cloudflare Pages projects** 的實際名稱。
+          2. **API Token**：需含 **Cloudflare Pages → Edit**；並確認帳號下有該專案。
+          3. **CLOUDFLARE_ACCOUNT_ID**：建議設定為儀表板右側的 Account ID。
+          4. **專案名稱不同**：在 GitHub Repository → Settings → Variables 新增 `CLOUDFLARE_PAGES_PROJECT_NAME` 覆寫預設值。
+          EOF
