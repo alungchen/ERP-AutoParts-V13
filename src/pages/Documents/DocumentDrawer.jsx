@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Search } from 'lucide-react';
+﻿import React, { useState, useEffect, useRef } from 'react';
+import { X, Plus, Trash2 } from 'lucide-react';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useTranslation } from '../../i18n';
 import styles from './Documents.module.css';
@@ -7,6 +7,77 @@ import drawerStyles from '../PIM/ProductDrawer.module.css';
 import { useProductStore } from '../../store/useProductStore';
 import { useSupplierStore } from '../../store/useSupplierStore';
 import { useCustomerStore } from '../../store/useCustomerStore';
+
+// ?? ??誨?撓?????迂憿舐內??隞???
+const CodeLookupInput = ({ value, nameValue, placeholder, suggestions, onSelect, idKey, label }) => {
+    const [query, setQuery] = useState(value || '');
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => { setQuery(value || ''); }, [value]);
+
+    const filtered = query.length >= 1
+        ? suggestions.filter(s =>
+            s[idKey]?.toLowerCase().includes(query.toLowerCase()) ||
+            s.name?.toLowerCase().includes(query.toLowerCase())
+          ).slice(0, 12)
+        : [];
+
+    useEffect(() => {
+        const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                    className={drawerStyles.input}
+                    style={{ width: '140px', fontFamily: 'monospace', flexShrink: 0 }}
+                    placeholder={`隞??...`}
+                    value={query}
+                    onChange={e => { setQuery(e.target.value); setOpen(true); }}
+                    onFocus={() => setOpen(true)}
+                />
+                <input
+                    className={drawerStyles.input}
+                    style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
+                    readOnly
+                    value={nameValue || ''}
+                    placeholder={nameValue ? '' : '??頛詨隞??敺?葆?亙?蝔?}
+                />
+            </div>
+            {open && filtered.length > 0 && (
+                <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
+                    background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+                    borderRadius: '0.5rem', maxHeight: '220px', overflowY: 'auto',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)', marginTop: '2px'
+                }}>
+                    {filtered.map(s => (
+                        <div
+                            key={s[idKey]}
+                            onClick={() => { onSelect(s); setQuery(s[idKey]); setOpen(false); }}
+                            style={{
+                                padding: '0.5rem 0.75rem', cursor: 'pointer',
+                                display: 'flex', gap: '0.75rem', alignItems: 'center',
+                                borderBottom: '1px solid var(--border-color)',
+                                fontSize: '0.85rem'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                            onMouseLeave={e => e.currentTarget.style.background = ''}
+                        >
+                            <span style={{ fontFamily: 'monospace', color: 'var(--accent)', minWidth: '90px' }}>{s[idKey]}</span>
+                            <span style={{ color: 'var(--text-primary)', flex: 1 }}>{s.name}</span>
+                            {s.phone1 && <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{s.phone1}</span>}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const DocumentDrawer = ({ docItem, type, onClose }) => {
     const { t, language } = useTranslation();
@@ -62,7 +133,6 @@ const DocumentDrawer = ({ docItem, type, onClose }) => {
     const updateItem = (index, field, value) => {
         const newItems = [...doc.items];
         newItems[index] = { ...newItems[index], [field]: value };
-        // Auto-fill product name if p_id changed
         if (field === 'p_id') {
             const product = products.find(p => p.p_id === value);
             if (product) {
@@ -118,34 +188,26 @@ const DocumentDrawer = ({ docItem, type, onClose }) => {
                             {isSupplier && (
                                 <div className={drawerStyles.inputGroup} style={{ gridColumn: 'span 2' }}>
                                     <label className={drawerStyles.label}>{t('docs.thSupplier')}</label>
-                                    <select
-                                        className={drawerStyles.input}
+                                    <CodeLookupInput
                                         value={doc.supplier_id || ''}
-                                        onChange={e => {
-                                            const sup = suppliers.find(s => s.sup_id === e.target.value);
-                                            setDoc({ ...doc, supplier_id: sup?.sup_id, supplier_name: sup?.name, currency: sup?.currency || 'TWD' });
-                                        }}
-                                    >
-                                        <option value="">-- Select Supplier --</option>
-                                        {suppliers.map(s => <option key={s.sup_id} value={s.sup_id}>{s.name}</option>)}
-                                    </select>
+                                        nameValue={doc.supplier_name || ''}
+                                        suggestions={suppliers}
+                                        idKey="sup_id"
+                                        onSelect={sup => setDoc({ ...doc, supplier_id: sup.sup_id, supplier_name: sup.name, currency: sup.currency || 'TWD' })}
+                                    />
                                 </div>
                             )}
 
                             {isCustomer && (
                                 <div className={drawerStyles.inputGroup} style={{ gridColumn: 'span 2' }}>
                                     <label className={drawerStyles.label}>{t('docs.thCustomer')}</label>
-                                    <select
-                                        className={drawerStyles.input}
+                                    <CodeLookupInput
                                         value={doc.customer_id || ''}
-                                        onChange={e => {
-                                            const cust = customers.find(c => c.cust_id === e.target.value);
-                                            setDoc({ ...doc, customer_id: cust?.cust_id, customer_name: cust?.name, currency: cust?.currency || 'TWD' });
-                                        }}
-                                    >
-                                        <option value="">-- Select Customer --</option>
-                                        {customers.map(c => <option key={c.cust_id} value={c.cust_id}>{c.name}</option>)}
-                                    </select>
+                                        nameValue={doc.customer_name || ''}
+                                        suggestions={customers}
+                                        idKey="cust_id"
+                                        onSelect={cust => setDoc({ ...doc, customer_id: cust.cust_id, customer_name: cust.name, currency: cust.currency || 'TWD' })}
+                                    />
                                 </div>
                             )}
 

@@ -76,13 +76,7 @@ const filterProductsByQuery = (sourceProducts, query) => {
     if (query.part) {
         const q = query.part.toLowerCase();
         filtered = filtered.filter(p =>
-            (p.name || '').toLowerCase().includes(q) ||
-            (p.category || '').toLowerCase().includes(q) ||
-            (p.notes || '').toLowerCase().includes(q) ||
-            (p.part_numbers || []).some(pn =>
-                (pn.part_number || '').toLowerCase().includes(q) ||
-                (pn.note || '').toLowerCase().includes(q)
-            )
+            (p.name || '').toLowerCase().includes(q)
         );
     }
 
@@ -113,7 +107,8 @@ const filterProductsByQuery = (sourceProducts, query) => {
         const q = query.spec.toLowerCase();
         filtered = filtered.filter(p =>
             (p.specifications || '').toLowerCase().includes(q) ||
-            (p.name || '').toLowerCase().includes(q)
+            (p.notes || '').toLowerCase().includes(q) ||
+            (p.part_numbers || []).some(pn => (pn.note || '').toLowerCase().includes(q))
         );
     }
 
@@ -1414,7 +1409,7 @@ const ProductList = () => {
                                         if (query.partNumber && (pn.part_number || '').toLowerCase().includes(query.partNumber.toLowerCase())) isMatch = true;
                                         if (query.brand && (pn.brand || '').toLowerCase().includes(query.brand.toLowerCase())) isMatch = true;
                                         if (query.year && (pn.year || '').includes(query.year)) isMatch = true;
-                                        if (query.part && (pn.note || '').toLowerCase().includes(query.part.toLowerCase())) isMatch = true;
+                                        if (query.spec && (pn.note || '').toLowerCase().includes(query.spec.toLowerCase())) isMatch = true;
                                         return isMatch;
                                     });
                                     if (match) return match;

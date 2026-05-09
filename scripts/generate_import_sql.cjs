@@ -109,14 +109,14 @@ sqlLines.push('-- First we delete existing matching records to allow fresh inser
 sqlLines.push('');
 
 console.log('\n🔄 正在從遠端資料庫抓取現有零件號碼以比對重複...');
-const existingIds = new Set();
+const existingData = new Map();
 try {
-  const result = execSync('npx wrangler d1 execute erp-db --remote --command="SELECT p_id FROM products;" --json', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+  const result = execSync('npx wrangler d1 execute erp-db --remote --command="SELECT p_id, images FROM products;" --json', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
   const parsed = JSON.parse(result);
   if (parsed && parsed[0] && parsed[0].results) {
-    parsed[0].results.forEach(r => existingIds.add(r.p_id));
+    parsed[0].results.forEach(r => existingData.set(r.p_id, r.images));
   }
-  console.log(`✅ 成功抓取到 ${existingIds.size} 筆現有零件號碼。`);
+  console.log(`✅ 成功抓取到 ${existingData.size} 筆現有零件號碼。`);
 } catch (err) {
   console.log('⚠️ 無法抓取遠端資料庫，將跳過重複比對機制。');
 }
@@ -152,13 +152,16 @@ for (let i = 1; i < rowsMain.length; i++) {
   }
 
   const FORCE_OVERWRITE = process.argv.includes('--force');
-  if (!FORCE_OVERWRITE && existingIds.has(p_id)) {
+  if (!FORCE_OVERWRITE && existingData.has(p_id)) {
     duplicatesCsvRows.push(line);
     skipped.push(`Row ${i}: Duplicate p_id "${p_id}" (Isolated for review)`);
     continue;
   }
   
-  existingIds.add(p_id); // Prevent duplicates WITHIN the current CSV
+  // 如果是 --force 覆蓋，我們從資料庫繼承原本的照片 (若有)
+  const existingImages = existingData.get(p_id) || '[]';
+  
+  existingData.set(p_id, existingImages); // Prevent duplicates WITHIN the current CSV
   allPids.push(p_id);
 
   // 清理年份
@@ -198,7 +201,7 @@ for (let i = 1; i < rowsMain.length; i++) {
 
   const stockNum = sqlInt(stock_raw);
   const category = prod_name;
-  const imagesJson = '[]';
+  const imagesJson = existingImages;
 
   const sql = `INSERT INTO products (p_id, name, car_models, category, images, part_numbers, brand, stock, specifications, safety_stock, base_cost, updated_at) VALUES (${[
     sqlStr(p_id),

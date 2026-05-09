@@ -104,13 +104,7 @@ const ProductQuery = () => {
         if (partQ) {
             const q = partQ.toLowerCase();
             filtered = filtered.filter(p =>
-                (p.name || '').toLowerCase().includes(q) ||
-                (p.category || '').toLowerCase().includes(q) ||
-                (p.notes || '').toLowerCase().includes(q) ||
-                (p.part_numbers || []).some(pn =>
-                    (pn.part_number || '').toLowerCase().includes(q) ||
-                    (pn.note || '').toLowerCase().includes(q)
-                )
+                (p.name || '').toLowerCase().includes(q)
             );
         }
 
@@ -141,7 +135,8 @@ const ProductQuery = () => {
             const q = query.spec.toLowerCase();
             filtered = filtered.filter(p =>
                 (p.specifications || '').toLowerCase().includes(q) ||
-                (p.name || '').toLowerCase().includes(q)
+                (p.notes || '').toLowerCase().includes(q) ||
+                (p.part_numbers || []).some(pn => (pn.note || '').toLowerCase().includes(q))
             );
         }
 

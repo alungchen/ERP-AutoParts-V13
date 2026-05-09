@@ -120,6 +120,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
           console.log(`💾 另外，所有的實體照片都已經備份在您的電腦資料夾中: output/legacy_photos_backup/`);
       } catch (e) {
           console.error('\n❌ 更新資料庫失敗，請手動執行:', sqlPath);
+          console.error('   💡 提示：如果是 Authentication error [code: 10000]，請嘗試執行：npx wrangler logout 接著 npx wrangler login');
+          process.exit(1);
       }
   } else {
       console.log('沒有需要更新的資料。');

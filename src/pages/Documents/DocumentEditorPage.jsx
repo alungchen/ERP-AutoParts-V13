@@ -17,6 +17,7 @@ import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
 import DocProductHistoryDrawer from '../../components/DocProductHistoryDrawer';
 import { isElementInDocPartEditingZone } from '../../utils/docHistoryFocusZones';
 import { sortedCustomersForSelect, sortedSuppliersForSelect } from '../../utils/sortContactsForSelect';
+import CodeLookupInput from '../../components/CodeLookupInput';
 import {
     productCarModelsSearchText,
     productPurchaseUnitPrice,
@@ -987,20 +988,13 @@ const DocumentEditorPage = () => {
                     <div>
                         <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{isSupplier ? '\u4f9b\u61c9\u5546' : '\u5ba2\u6236'}</label>
                         {isSupplier ? (
-                            <select
+                            <CodeLookupInput
                                 value={doc.supplier_id || ''}
+                                nameValue={doc.supplier_name || ''}
+                                suggestions={supplierOptions}
+                                idKey="sup_id"
                                 disabled={isReadOnly}
-                                onChange={e => {
-                                    const sup = supplierOptions.find(s => s.sup_id === e.target.value);
-                                    setDoc({
-                                        ...doc,
-                                        supplier_id: sup?.sup_id,
-                                        supplier_name: sup?.name,
-                                        currency: isCurrencyLocked ? defaultCurrency : (sup?.currency || 'USD')
-                                    });
-                                }}
-                                style={{
-                                    width: '100%',
+                                inputStyle={{
                                     padding: '0.5rem',
                                     backgroundColor: isReadOnly ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
                                     border: '1px solid var(--border-color)',
@@ -1009,25 +1003,21 @@ const DocumentEditorPage = () => {
                                     fontSize: '1rem',
                                     fontWeight: 700
                                 }}
-                            >
-                                <option value="">-- {'\u8acb\u9078\u64c7\u4f9b\u61c9\u5546'} --</option>
-                                {supplierOptions.map(s => <option key={s.sup_id} value={s.sup_id}>{s.sup_id} | {s.name}</option>)}
-                            </select>
+                                onSelect={sup => setDoc({
+                                    ...doc,
+                                    supplier_id: sup.sup_id,
+                                    supplier_name: sup.name,
+                                    currency: isCurrencyLocked ? defaultCurrency : (sup.currency || 'USD')
+                                })}
+                            />
                         ) : (
-                            <select
+                            <CodeLookupInput
                                 value={doc.customer_id || ''}
+                                nameValue={doc.customer_name || ''}
+                                suggestions={customerOptions}
+                                idKey="cust_id"
                                 disabled={isReadOnly}
-                                onChange={e => {
-                                    const cust = customerOptions.find(c => c.cust_id === e.target.value);
-                                    setDoc({
-                                        ...doc,
-                                        customer_id: cust?.cust_id,
-                                        customer_name: cust?.name,
-                                        currency: isCurrencyLocked ? defaultCurrency : (cust?.currency || 'TWD')
-                                    });
-                                }}
-                                style={{
-                                    width: '100%',
+                                inputStyle={{
                                     padding: '0.5rem',
                                     backgroundColor: isReadOnly ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
                                     border: '1px solid var(--border-color)',
@@ -1036,10 +1026,13 @@ const DocumentEditorPage = () => {
                                     fontSize: '1rem',
                                     fontWeight: 700
                                 }}
-                            >
-                                <option value="">-- {'\u8acb\u9078\u64c7\u5ba2\u6236'} --</option>
-                                {customerOptions.map(c => <option key={c.cust_id} value={c.cust_id}>{c.cust_id} | {c.name}</option>)}
-                            </select>
+                                onSelect={cust => setDoc({
+                                    ...doc,
+                                    customer_id: cust.cust_id,
+                                    customer_name: cust.name,
+                                    currency: isCurrencyLocked ? defaultCurrency : (cust.currency || 'TWD')
+                                })}
+                            />
                         )}
                     </div>
                     <div>

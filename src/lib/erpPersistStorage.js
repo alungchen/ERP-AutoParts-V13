@@ -1,12 +1,10 @@
 import { createJSONStorage } from 'zustand/middleware';
 import { apiUrl } from './apiUrl';
 
-/** 與 zustand persist `name` 一致（不含產品：產品改走 /api/products，非 persist） */
+/** 與 zustand persist `name` 一致（供應商/客戶已改走 /api/suppliers+customers，不在此列） */
 export const STORE_KEYS = [
     'erp-app-store',
     'erp-document-store',
-    'erp-customer-store',
-    'erp-supplier-store',
     'erp-employee-store',
     'erp-sourcing-store',
     'erp-shorthand-store',

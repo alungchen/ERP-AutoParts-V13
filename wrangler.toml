@@ -3,7 +3,7 @@
 # D1 / R2：與 Cloudflare 儀表板綁定一致
 
 name = "erp-autoparts-api"
-main = "worker/index.js"
+pages_build_output_dir = "dist"
 compatibility_date = "2024-04-15"
 
 [[d1_databases]]

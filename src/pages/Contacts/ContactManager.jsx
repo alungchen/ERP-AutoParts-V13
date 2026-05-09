@@ -22,7 +22,9 @@ const ContactManager = () => {
         suppliers,
         searchQuery: supSearch,
         setSearchQuery: setSupSearch,
-        bulkUpdateSuppliers
+        bulkUpdateSuppliers,
+        clearAllSuppliers,
+        fetchSuppliers,
     } = useSupplierStore();
 
     // Customer Store
@@ -30,7 +32,8 @@ const ContactManager = () => {
         customers,
         searchQuery: custSearch,
         setSearchQuery: setCustSearch,
-        bulkUpdateCustomers
+        bulkUpdateCustomers,
+        fetchCustomers,
     } = useCustomerStore();
 
     // Employee Store
@@ -51,6 +54,12 @@ const ContactManager = () => {
     );
     const [drawerTarget, setDrawerTarget] = useState(undefined);
     const fileRef = useRef(null);
+
+    // 首次載入時從 D1 取得資料
+    useEffect(() => {
+        fetchSuppliers();
+        fetchCustomers();
+    }, []);
 
     const tierClass = (tier) => {
         if (tier === 'A') return styles['tier-a'];
@@ -166,53 +175,215 @@ const ContactManager = () => {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             try {
                 const text = event.target.result;
-                const rows = text.split('\n');
-                if (rows.length < 2) return;
+                
+                // Robust CSV Parser that handles multiline (newlines inside quotes)
+                const parseCsv = (csvText) => {
+                    const lines = csvText.split(/\r?\n/);
+                    const rows = [];
+                    let partialLine = '';
+                    
+                    const parseLine = (line) => {
+                        const parts = [];
+                        let cell = '';
+                        let inQuotes = false;
+                        for (let i = 0; i < line.length; i++) {
+                            const c = line[i];
+                            if (c === '"') {
+                                if (inQuotes && line[i+1] === '"') {
+                                    cell += '"'; i++;
+                                } else {
+                                    inQuotes = !inQuotes;
+                                }
+                            } else if (c === ',' && !inQuotes) {
+                                parts.push(cell.trim());
+                                cell = '';
+                            } else {
+                                cell += c;
+                            }
+                        }
+                        parts.push(cell.trim());
+                        return parts;
+                    };
 
-                const parseCsvRow = (row) =>
-                    row
-                        .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
-                        .map(p => p.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = partialLine ? partialLine + '\n' + lines[i] : lines[i];
+                        const quoteCount = (line.match(/"/g) || []).length;
+                        if (quoteCount % 2 !== 0) {
+                            partialLine = line; // Unbalanced, continue to next line
+                        } else {
+                            rows.push(parseLine(line));
+                            partialLine = '';
+                        }
+                    }
+                    return rows;
+                };
 
-                const normalizeHeader = (value) => (value || '').toLowerCase().replace(/[\s\-_()]/g, '');
+                const parsedCsvData = parseCsv(text);
+                if (parsedCsvData.length < 2) return;
+                
+                const rows = parsedCsvData;
+                const normalizeHeader = (value) => (value || '').replace(/^\uFEFF/, '').toLowerCase().trim();
+
                 const expectedSupHeaders = ['id', 'name', 'contact', 'email', 'payment'];
                 const expectedCustHeaders = ['id', 'name', 'contact', 'tier', 'credit'];
                 const expectedEmpHeadersWithPermission = ['id', 'name', 'department', 'role', 'permission', 'email', 'phone', 'status'];
                 const expectedEmpHeadersNoPermission = ['id', 'name', 'department', 'role', 'email', 'phone', 'status'];
 
-                const headerParts = parseCsvRow(rows[0] || '');
+                const headerParts = rows[0] || [];
                 const normalizedHeaders = headerParts.map(normalizeHeader);
-                const expectedHeaders = activeTab === 'suppliers'
-                    ? expectedSupHeaders
-                    : activeTab === 'customers'
-                        ? expectedCustHeaders
-                        : (enablePermissionRole ? expectedEmpHeadersWithPermission : expectedEmpHeadersNoPermission);
-                const headersMatched = expectedHeaders.every((h, i) => normalizedHeaders[i] === h);
+                
+                // Detect legacy scraper format
+                const isLegacyFormat = normalizedHeaders.includes('guid_id') || normalizedHeaders.includes('cname');
 
-                if (!headersMatched) {
-                    alert(
-                        activeTab === 'suppliers'
-                            ? '匯入失敗：目前是供應商頁，請匯入供應商格式（ID, Name, Contact, Email, Payment）的 CSV。'
-                            : activeTab === 'customers'
-                                ? '匯入失敗：目前是客戶頁，請匯入客戶格式（ID, Name, Contact, Tier, Credit）的 CSV。'
-                                : `匯入失敗：目前是員工頁，請匯入員工格式（ID, Name, Department, Role, ${enablePermissionRole ? 'Permission, ' : ''}Email, Phone, Status）的 CSV。`
-                    );
-                    return;
+                let expectedHeaders = [];
+                if (!isLegacyFormat) {
+                    expectedHeaders = activeTab === 'suppliers'
+                        ? expectedSupHeaders
+                        : activeTab === 'customers'
+                            ? expectedCustHeaders
+                            : (enablePermissionRole ? expectedEmpHeadersWithPermission : expectedEmpHeadersNoPermission);
+                            
+                    const headersMatched = expectedHeaders.every((h, i) => normalizedHeaders[i] === h);
+
+                    if (!headersMatched) {
+                        alert(
+                            activeTab === 'suppliers'
+                                ? '匯入失敗：目前是供應商頁，請匯入供應商格式（ID, Name, Contact, Email, Payment）的 CSV。'
+                                : activeTab === 'customers'
+                                    ? '匯入失敗：目前是客戶頁，請匯入客戶格式（ID, Name, Contact, Tier, Credit）的 CSV。'
+                                    : `匯入失敗：目前是員工頁，請匯入員工格式（ID, Name, Department, Role, ${enablePermissionRole ? 'Permission, ' : ''}Email, Phone, Status）的 CSV。`
+                        );
+                        return;
+                    }
                 }
 
                 const dataRows = rows.slice(1);
                 const updates = [];
                 let skippedByType = 0;
 
-                dataRows.forEach(row => {
-                    const trimmedRow = row.trim();
-                    if (!trimmedRow) return;
+                // Build a column index map for legacy format
+                const legacyMap = {};
+                if (isLegacyFormat) {
+                    normalizedHeaders.forEach((h, i) => { legacyMap[h] = i; });
+                }
 
-                    const parts = parseCsvRow(trimmedRow);
-                    if (parts.length >= 5) {
+                dataRows.forEach(row => {
+                    if (!row || row.length === 0 || row.every(cell => cell.trim() === '')) return;
+
+                    const parts = row;
+                    
+                    if (isLegacyFormat) {
+                        // Legacy ASP Scraper Data Mapping
+                        const getVal = (keys) => {
+                            const keysArr = Array.isArray(keys) ? keys : [keys];
+                            for (let k of keysArr) {
+                                const idx = legacyMap[normalizeHeader(k)];
+                                if (idx !== undefined && parts[idx]) return parts[idx];
+                            }
+                            return '';
+                        };
+                        
+                        const rawId = getVal(['cid', 'guid_id', 'id']);
+                        const name = getVal(['cname', 'name']);
+                        const contact_name = getVal(['cmainman', 'ccommman', 'contact']);
+                        const responsible_person = getVal(['cmainman', 'ccommman']);
+                        const email = getVal(['cemail', 'ce_mail', 'email']);
+                        const payment_terms = getVal(['naccday', 'payment']);
+                        const phone1 = getVal(['ctel1', 'tel1']);
+                        const phone2 = getVal(['ctel2', 'tel2']);
+                        const mobile = getVal(['cacttel', 'mobile']);
+                        const fax = getVal(['cfax', 'fax']);
+                        const tax_id = getVal(['cgeneralno', 'taxid', 'tax_id']);
+                        const invoice_title = getVal(['cname2', 'invoice_title']);    // 發票抬頭 = CNAME2
+                        const invoice_address = getVal(['cadd2', 'invoice_address']); // 發票地址 = CADD2
+                        const zip_code = getVal(['cpono', 'zip_code']);               // 郵遞區號 = CPONO
+                        const website = getVal(['cwww', 'website']);                  // 網址 = CWWW
+                        const closing_day = getVal(['naccday', 'closing_day']);       // 結帳日
+                        const region_code = getVal(['carea', 'region_code']);         // 區域碼 = CAREA
+                        const accounting_code = getVal(['service_id', 'accounting_code']); // 會計代號
+                        const notes = [getVal('cnote'), tax_id ? `統編:${tax_id}` : ''].filter(Boolean).join(' | ');
+                        const address = getVal(['cadd1', 'address']);
+                        const categories = getVal(['ctype', 'category']) ? [getVal(['ctype', 'category'])] : [];
+                        const supplier_code = getVal(['cid', 'service_id', 'carea']);
+                        // 客戶專屬欄位
+                        const customer_code = getVal(['cid', 'customer_code']);
+                        const delivery_address = getVal(['送貨地址', 'delivery_address']);
+                        const collection_day = getVal(['收帳日', 'collection_day']);
+                        const salesperson = getVal(['csalesid', 'salesperson']);
+                        const full_invoice = getVal(['invm_check', 'full_invoice']) === '1';
+
+                        if (activeTab === 'suppliers') {
+                            const sup_id = rawId || `SUP-LEGACY-${Date.now().toString().slice(-4)}${Math.floor(Math.random()*1000)}`;
+                            const existing = suppliers.find(s => s.sup_id === sup_id);
+                            updates.push({
+                                ...(existing || {}),
+                                sup_id,
+                                supplier_code: supplier_code || existing?.supplier_code || '',
+                                name: name || (existing?.name || ''),
+                                contact_name: contact_name || (existing?.contact_name || ''),
+                                responsible_person: responsible_person || (existing?.responsible_person || ''),
+                                email: email || (existing?.email || ''),
+                                payment_terms: payment_terms || (existing?.payment_terms || ''),
+                                phone1: phone1 || (existing?.phone1 || ''),
+                                phone2: phone2 || (existing?.phone2 || ''),
+                                mobile: mobile || (existing?.mobile || ''),
+                                fax: fax || (existing?.fax || ''),
+                                tax_id: tax_id || (existing?.tax_id || ''),
+                                invoice_title: invoice_title || (existing?.invoice_title || ''),
+                                invoice_address: invoice_address || (existing?.invoice_address || ''),
+                                zip_code: zip_code || (existing?.zip_code || ''),
+                                website: website || (existing?.website || ''),
+                                closing_day: closing_day || (existing?.closing_day || ''),
+                                region_code: region_code || (existing?.region_code || ''),
+                                accounting_code: accounting_code || (existing?.accounting_code || ''),
+                                address: address || (existing?.address || ''),
+                                country: existing?.country || 'Taiwan',
+                                currency: existing?.currency || defaultCurrency,
+                                categories: categories.length ? categories : (Array.isArray(existing?.categories) ? existing.categories : []),
+                                rating: existing?.rating ?? 0,
+                                notes: notes || (existing?.notes || ''),
+                            });
+                        } else if (activeTab === 'customers') {
+                            const cust_id = rawId || `CUST-LEGACY-${Date.now().toString().slice(-4)}${Math.floor(Math.random()*1000)}`;
+                            const existing = customers.find(c => c.cust_id === cust_id);
+                            updates.push({
+                                ...(existing || {}),
+                                cust_id,
+                                customer_code: customer_code || existing?.customer_code || '',
+                                name: name || (existing?.name || ''),
+                                contact_name: contact_name || (existing?.contact_name || ''),
+                                responsible_person: responsible_person || (existing?.responsible_person || ''),
+                                email: email || (existing?.email || ''),
+                                payment_terms: payment_terms || (existing?.payment_terms || ''),
+                                phone1: phone1 || (existing?.phone1 || ''),
+                                phone2: phone2 || (existing?.phone2 || ''),
+                                mobile: mobile || (existing?.mobile || ''),
+                                fax: fax || (existing?.fax || ''),
+                                tax_id: tax_id || (existing?.tax_id || ''),
+                                invoice_title: invoice_title || (existing?.invoice_title || ''),
+                                invoice_address: invoice_address || (existing?.invoice_address || ''),
+                                zip_code: zip_code || (existing?.zip_code || ''),
+                                website: website || (existing?.website || ''),
+                                closing_day: closing_day || (existing?.closing_day || ''),
+                                collection_day: collection_day || (existing?.collection_day || ''),
+                                region_code: region_code || (existing?.region_code || ''),
+                                accounting_code: accounting_code || (existing?.accounting_code || ''),
+                                address: address || (existing?.address || ''),
+                                delivery_address: delivery_address || (existing?.delivery_address || ''),
+                                salesperson: salesperson || (existing?.salesperson || ''),
+                                full_invoice: full_invoice || existing?.full_invoice || false,
+                                tier: getVal('clevel') || (existing?.tier || 'B'),
+                                credit_limit: existing?.credit_limit || 0,
+                                country: existing?.country || 'Taiwan',
+                                currency: existing?.currency || defaultCurrency,
+                                notes: notes || (existing?.notes || ''),
+                            });
+                        }
+                    } else if (parts.length >= 5) {
+                        // Standard ERP Format Mapping
                         const parsed = parts;
 
                         if (activeTab === 'suppliers') {
@@ -288,9 +459,11 @@ const ContactManager = () => {
 
                 if (updates.length > 0) {
                     if (activeTab === 'suppliers') {
-                        bulkUpdateSuppliers(updates);
+                        alert(`正在匯入 ${updates.length} 筆供應商到資料庫，請稍候...`);
+                        await bulkUpdateSuppliers(updates);
                     } else if (activeTab === 'customers') {
-                        bulkUpdateCustomers(updates);
+                        alert(`正在匯入 ${updates.length} 筆客戶到資料庫，請稍候...`);
+                        await bulkUpdateCustomers(updates);
                     } else {
                         bulkUpdateEmployees(updates);
                     }

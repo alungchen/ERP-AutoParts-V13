@@ -32,6 +32,7 @@ function App() {
   // useGlobalEnterNavigation(); // 暫時停用以排查白屏問題
   const { enableLoginSystem, currentUserEmpId, displayMode } = useAppStore();
   const fetchProducts = useProductStore(state => state.fetchProducts);
+  const fetchShorthands = useShorthandStore(state => state.fetchShorthands);
 
   useEffect(() => {
     void bootstrapFromD1();
@@ -40,7 +41,8 @@ function App() {
   // Fetch initial data from Cloudflare database
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    fetchShorthands();
+  }, [fetchProducts, fetchShorthands]);
 
   // Logic to sync Zustand stores across tabs
   useEffect(() => {

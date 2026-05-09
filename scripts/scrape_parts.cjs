@@ -14,7 +14,7 @@ const BASE_URL     = 'http://cck2.uparts.info/car2009/parts_query/';
 const OUTPUT_DIR   = path.join(__dirname, '..', 'output');
 const KEYWORDS_FILE = path.join(__dirname, '..', 'keywords.txt');
 
-let searchTerms = process.argv.slice(2);
+let searchTerms = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
 if (searchTerms.length === 0 && fs.existsSync(KEYWORDS_FILE)) {
   searchTerms = fs.readFileSync(KEYWORDS_FILE, 'utf8')
                   .split(/\r?\n/)

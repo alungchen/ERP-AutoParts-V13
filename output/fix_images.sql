@@ -1,5 +1,0 @@
-UPDATE products SET images = '["http://media2.uparts.info/CAR00401/IMG/5363.JPG"]' WHERE p_id = 'COM-B002R';
-UPDATE products SET images = '["http://media2.uparts.info/CAR00401/IMG/3943.JPG","http://media2.uparts.info/CAR00401/IMG/3942.JPG"]' WHERE p_id = 'COM-B003R';
-UPDATE products SET images = '["http://media2.uparts.info/CAR00401/IMG/4557.JPG","http://media2.uparts.info/CAR00401/IMG/4556.JPG"]' WHERE p_id = 'COM-B004R';
-UPDATE products SET images = '["http://media2.uparts.info/CAR00401/IMG/16635.JPG","http://media2.uparts.info/CAR00401/IMG/16636.JPG"]' WHERE p_id = 'COM-B004T';
-UPDATE products SET images = '["http://media2.uparts.info/CAR00401//parts/ALTIS/%E5%A3%93%E7%B8%AE%E6%A9%9F/COM-T016.jpg","http://media2.uparts.info/CAR00401//parts/ALTIS/%E5%A3%93%E7%B8%AE%E6%A9%9F/COM-T016(1).jpg"]' WHERE p_id = 'COM-T016T';

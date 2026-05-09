@@ -7,7 +7,8 @@ console.log('==================================================\n');
 try {
   console.log('▶️ [階段 1/3] 開始執行：抓取文字規格與適用車種 (scrape_parts.cjs)');
   console.log('--------------------------------------------------');
-  execSync('node scripts/scrape_parts.cjs', { stdio: 'inherit' });
+  const args = process.argv.slice(2).join(' ');
+  execSync(`node scripts/scrape_parts.cjs ${args}`, { stdio: 'inherit' });
   console.log('✅ 階段 1 完成！\n');
 
   console.log('▶️ [階段 2/3] 開始執行：回舊系統尋找這些新料號的照片 (scrape_legacy_photos.cjs)');

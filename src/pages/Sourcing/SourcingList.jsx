@@ -20,8 +20,18 @@ import {
     FileOutput,
     Download,
     Upload,
+    History,
+    X,
+    ZoomIn,
+    ZoomOut,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { getSafeImageUrl } from '../../utils/imageUtils';
+import { collectCustomerSalesHistory, collectSupplierPurchaseHistory } from '../../utils/buildProductTransactionHistory';
+import ProductPriceHistoryBody from '../../components/ProductPriceHistoryBody';
+import PartMappingModal from '../PIM/PartMappingModal';
+import plStyles from '../PIM/ProductList.module.css';
 import {
     loadTariffTable,
     findByHsCode,
@@ -146,6 +156,10 @@ const SourcingList = () => {
     const { employees } = useEmployeeStore();
     const { currentUserEmpId } = useAppStore();
     const addDocument = useDocumentStore((s) => s.addDocument);
+    const purchaseOrders = useDocumentStore((s) => s.purchaseOrders ?? []);
+    const salesOrders = useDocumentStore((s) => s.salesOrders ?? []);
+    const quotations = useDocumentStore((s) => s.quotations ?? []);
+    const inquiries = useDocumentStore((s) => s.inquiries ?? []);
     const addImportEstimate = useImportEstimateStore((s) => s.addImportEstimate);
     const getImportEstimate = useImportEstimateStore((s) => s.getImportEstimate);
     const updateImportEstimate = useImportEstimateStore((s) => s.updateImportEstimate);
@@ -192,6 +206,12 @@ const SourcingList = () => {
     const [vatRatePct, setVatRatePct] = useState('5');
     const [miscBudgetPct, setMiscBudgetPct] = useState('5');
     const [retailMarginPct, setRetailMarginPct] = useState('20');
+
+    const [mappingProduct, setMappingProduct] = useState(null);
+    const [historyInlineOpen, setHistoryInlineOpen] = useState(false);
+    const [imagePreviewProduct, setImagePreviewProduct] = useState(null);
+    const [imagePreviewEnlargedIndex, setImagePreviewEnlargedIndex] = useState(null);
+    const [imagePreviewZoom, setImagePreviewZoom] = useState(1);
 
     const [breakdown, setBreakdown] = useState(null);
 
@@ -326,6 +346,19 @@ const SourcingList = () => {
         t,
     ]);
 
+    // F8 Key Listener for Price History
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.repeat) return;
+            if (e.code !== 'F8') return;
+            e.preventDefault();
+            setHistoryInlineOpen((v) => !v);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
+
+
     useEffect(() => {
         setActiveLineId((cur) => {
             if (cur && lineItems.some((l) => l.id === cur)) return cur;
@@ -343,6 +376,85 @@ const SourcingList = () => {
         () => lineItems.find((l) => l.id === activeLineId),
         [lineItems, activeLineId],
     );
+
+    // F9 Key Listener for Photo Preview (must be after activeLine declaration)
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.repeat) return;
+            if (e.code !== 'F9') return;
+            e.preventDefault();
+            if (activeLine && activeLine.p_id) {
+                const p = products.find(x => x.p_id === activeLine.p_id);
+                if (p?.images?.length) {
+                    setImagePreviewProduct(cur => cur?.p_id === p.p_id ? null : p);
+                }
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [activeLine, products]);
+
+    // Enlarged Image Controls Listener
+    useEffect(() => {
+        if (!imagePreviewProduct) return;
+        const images = imagePreviewProduct.images || [];
+        const onKey = (ev) => {
+            if (imagePreviewEnlargedIndex !== null && images.length > 0) {
+                if (ev.key === 'Escape' || ev.code === 'F9') {
+                    ev.preventDefault();
+                    setImagePreviewEnlargedIndex(null);
+                    setImagePreviewZoom(1);
+                    return;
+                }
+                if (images.length > 1 && ev.key === 'ArrowRight') {
+                    ev.preventDefault();
+                    setImagePreviewEnlargedIndex((prev) => ((prev ?? 0) + 1) % images.length);
+                    setImagePreviewZoom(1);
+                    return;
+                }
+                if (images.length > 1 && ev.key === 'ArrowLeft') {
+                    ev.preventDefault();
+                    setImagePreviewEnlargedIndex((prev) => ((prev ?? 0) - 1 + images.length) % images.length);
+                    setImagePreviewZoom(1);
+                    return;
+                }
+                return;
+            }
+            if (ev.key === 'Escape' || ev.code === 'F9') {
+                ev.preventDefault();
+                setImagePreviewProduct(null);
+            }
+        };
+        window.addEventListener('keydown', onKey, true);
+        return () => window.removeEventListener('keydown', onKey, true);
+    }, [imagePreviewProduct, imagePreviewEnlargedIndex]);
+
+    useEffect(() => {
+        setImagePreviewEnlargedIndex(null);
+        setImagePreviewZoom(1);
+    }, [imagePreviewProduct?.p_id]);
+
+    const historyContextProduct = useMemo(() => {
+        if (!activeLine?.p_id) return null;
+        return products.find(p => p.p_id === activeLine.p_id) || null;
+    }, [activeLine?.p_id, products]);
+
+    const customerHistoryRows = useMemo(() => {
+        if (!historyContextProduct) return [];
+        return collectCustomerSalesHistory(historyContextProduct, salesOrders, quotations);
+    }, [historyContextProduct, salesOrders, quotations]);
+
+    const supplierHistoryRows = useMemo(() => {
+        if (!historyContextProduct) return [];
+        return collectSupplierPurchaseHistory(historyContextProduct, purchaseOrders, inquiries);
+    }, [historyContextProduct, purchaseOrders, inquiries]);
+
+    const bumpImagePreviewZoom = (delta) => {
+        setImagePreviewZoom((z) => {
+            const n = Math.round((z + delta) * 100) / 100;
+            return Math.min(3, Math.max(0.5, n));
+        });
+    };
 
     const volWeightTotals = useMemo(() => {
         let vol = 0;
@@ -897,6 +1009,15 @@ const SourcingList = () => {
                         <h2 className={styles.docTitle}>{t('importCost.estimateDocTitle')}</h2>
                         <p className={styles.allocateNote}>{t('importCost.allocateNote')}</p>
 
+                        <div style={{ marginTop: '0.25rem', marginBottom: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                            <History size={14} style={{ flexShrink: 0, opacity: 0.85 }} aria-hidden />
+                            <span>
+                                按 <strong style={{ color: 'var(--text-secondary)' }}>F8</strong> 可開啟目前選中列的「價格歷史沿革」。
+                                {' '}
+                                有照片之列，按 <strong style={{ color: 'var(--text-secondary)' }}>F9</strong> 可預覽照片。
+                            </span>
+                        </div>
+
                         <label className={styles.formField} style={{ maxWidth: '22rem' }}>
                             <span>{t('importCost.splitMode')}</span>
                             <select
@@ -1069,10 +1190,16 @@ const SourcingList = () => {
                                                     <td className={lc.p_id ? styles.tdCellConflict : undefined}>
                                                         {p ? (
                                                             <>
-                                                                <div className="font-mono text-accent-hover font-bold">
+                                                                <div className="font-mono text-accent-hover font-bold hover:underline" onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }}>
                                                                     {p.part_number || mainPN.part_number || '-'}
                                                                 </div>
                                                                 <div className="text-xs text-muted mt-1">{p.p_id}</div>
+                                                                {(p.part_numbers || []).length > 0 && (
+                                                                    <div className="mt-1 text-[10px] bg-bg-tertiary px-1.5 py-0.5 inline-block rounded border border-border-color text-secondary cursor-pointer hover:bg-border-color" 
+                                                                         onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }}>
+                                                                        +{p.part_numbers.length} 適用
+                                                                    </div>
+                                                                )}
                                                             </>
                                                         ) : (
                                                             <div className="text-xs text-muted">— {t('importCost.pickEmptyHint')}</div>
@@ -1115,13 +1242,27 @@ const SourcingList = () => {
                                                     </td>
                                                     <td>
                                                         {p && (p?.images?.length || 0) > 0 ? (
-                                                            <div className="flex items-center gap-1">
-                                                                {(p.images[0] || '').match(/^(data:|blob:|https?:)/) ? (
-                                                                    <img src={getSafeImageUrl(p.images[0])} alt="" className={styles.pimThumb} />
-                                                                ) : null}
-                                                                <span className="text-xs text-accent-primary flex items-center gap-0.5">
-                                                                    <Layers size={10} /> {p.images.length}
-                                                                </span>
+                                                            <div className="flex flex-col gap-1 items-start">
+                                                                <div className="flex items-center gap-1">
+                                                                    {(p.images[0] || '').match(/^(data:|blob:|https?:)/) ? (
+                                                                        <img src={getSafeImageUrl(p.images[0])} alt="" className={styles.pimThumb} />
+                                                                    ) : null}
+                                                                    <span className="text-xs text-accent-primary flex items-center gap-0.5">
+                                                                        <Layers size={10} /> {p.images.length}
+                                                                    </span>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    title="預覽實體照片 (按 F9)"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveLineId(line.id);
+                                                                        setImagePreviewProduct(cur => cur?.p_id === p.p_id ? null : p);
+                                                                    }}
+                                                                    style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                                                                >
+                                                                    F9
+                                                                </button>
                                                             </div>
                                                         ) : (
                                                             <span className="text-[10px] text-muted">無照片</span>
@@ -1435,6 +1576,427 @@ const SourcingList = () => {
                 onConfirm={addProductLines}
                 priceMode="purchase"
             />
+
+            {/* F8 Price History Drawer */}
+            <div
+                className={`${plStyles.historyDrawerShell} ${historyInlineOpen ? plStyles.historyDrawerShellOpen : ''}`}
+                aria-hidden={!historyInlineOpen}
+                style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000, background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', boxShadow: '0 -4px 12px rgba(0,0,0,0.15)' }}
+            >
+                <div className={plStyles.historyDrawerShellInner}>
+                    <div className={plStyles.historyDrawer}>
+                        <div className={plStyles.historyDrawerHeader}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                <History size={18} style={{ marginTop: '2px', opacity: 0.85 }} aria-hidden />
+                                <div>
+                                    <div className={plStyles.historyDrawerTitle}>
+                                        {historyContextProduct
+                                            ? `客戶前價 · 廠商前價沿革｜${historyContextProduct.name || '未命名'}（${historyContextProduct.part_number || historyContextProduct.p_id || '—'}）`
+                                            : '客戶前價 · 廠商前價沿革'}
+                                    </div>
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                                        左欄：銷貨單與報價單；右欄：進貨單與詢價單。
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setHistoryInlineOpen(false)}
+                                style={{
+                                    border: '1px solid var(--border-color)',
+                                    background: 'var(--bg-tertiary)',
+                                    color: 'var(--text-secondary)',
+                                    padding: '0.35rem 0.6rem',
+                                    borderRadius: '8px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem'
+                                }}
+                            >
+                                <X size={14} /> 收合 (F8)
+                            </button>
+                        </div>
+                        <ProductPriceHistoryBody
+                            contextProduct={historyContextProduct}
+                            customerHistoryRows={customerHistoryRows}
+                            supplierHistoryRows={supplierHistoryRows}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* F9 Image Preview Modal */}
+            {imagePreviewProduct && (imagePreviewProduct.images || []).length > 0 && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="實體照片預覽"
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 10050,
+                        background: 'rgba(15, 23, 42, 0.72)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                        boxSizing: 'border-box'
+                    }}
+                    onClick={() => {
+                        setImagePreviewEnlargedIndex(null);
+                        setImagePreviewZoom(1);
+                        setImagePreviewProduct(null);
+                    }}
+                >
+                    <div
+                        style={{
+                            width: '100%',
+                            maxWidth: 'min(960px, 96vw)',
+                            maxHeight: 'min(90vh, 880px)',
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '12px',
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.45)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'hidden'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div
+                            style={{
+                                flexShrink: 0,
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                justifyContent: 'space-between',
+                                gap: '0.75rem',
+                                padding: '0.85rem 1rem',
+                                borderBottom: '1px solid var(--border-color)',
+                                background: 'var(--bg-tertiary)'
+                            }}
+                        >
+                            <div>
+                                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                                    實體照片 · {imagePreviewProduct.name || '未命名'}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                    {imagePreviewProduct.part_number || imagePreviewProduct.p_id || '—'} · 共 {(imagePreviewProduct.images || []).length} 張 · 縮圖可點擊放大 · Esc／F9 或點遮罩關閉
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setImagePreviewEnlargedIndex(null);
+                                    setImagePreviewZoom(1);
+                                    setImagePreviewProduct(null);
+                                }}
+                                style={{
+                                    border: '1px solid var(--border-color)',
+                                    background: 'var(--bg-secondary)',
+                                    color: 'var(--text-secondary)',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '8px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    flexShrink: 0
+                                }}
+                            >
+                                <X size={14} /> 關閉
+                            </button>
+                        </div>
+                        <div
+                            className="custom-scrollbar"
+                            style={{
+                                flex: 1,
+                                minHeight: 0,
+                                overflowY: 'auto',
+                                padding: '1rem',
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                                gap: '0.85rem',
+                                alignContent: 'start'
+                            }}
+                        >
+                            {(imagePreviewProduct.images || []).map((src, i) => (
+                                <div
+                                    key={`${imagePreviewProduct.p_id}-img-${i}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(ev) => {
+                                        if (ev.key === 'Enter' || ev.key === ' ') {
+                                            ev.preventDefault();
+                                            setImagePreviewEnlargedIndex(i);
+                                            setImagePreviewZoom(1);
+                                        }
+                                    }}
+                                    onClick={(ev) => {
+                                        ev.stopPropagation();
+                                        setImagePreviewEnlargedIndex(i);
+                                        setImagePreviewZoom(1);
+                                    }}
+                                    style={{
+                                        borderRadius: '8px',
+                                        overflow: 'hidden',
+                                        border: '1px solid var(--border-color)',
+                                        background: 'var(--bg-tertiary)',
+                                        cursor: 'pointer',
+                                        outline: 'none'
+                                    }}
+                                >
+                                    <img
+                                        src={getSafeImageUrl(src)}
+                                        alt={`${imagePreviewProduct.name || '產品'} 照片 ${i + 1}`}
+                                        style={{ width: '100%', height: 'auto', maxHeight: '320px', objectFit: 'contain', display: 'block', pointerEvents: 'none' }}
+                                        loading="lazy"
+                                    />
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            gap: '0.35rem',
+                                            padding: '0.35rem 0.5rem',
+                                            fontSize: '10px',
+                                            color: 'var(--text-muted)',
+                                            borderTop: '1px solid var(--border-color)',
+                                            background: 'var(--bg-secondary)'
+                                        }}
+                                    >
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontWeight: 700, color: 'var(--accent-hover)' }}>
+                                            <ZoomIn size={12} aria-hidden /> 點擊放大
+                                        </span>
+                                        <a
+                                            href={src}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(ev) => ev.stopPropagation()}
+                                            style={{ color: 'var(--accent-primary)', fontWeight: 600 }}
+                                        >
+                                            原圖
+                                        </a>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* F9 Enlarged View */}
+            {imagePreviewProduct &&
+                imagePreviewEnlargedIndex !== null &&
+                (imagePreviewProduct.images || [])[imagePreviewEnlargedIndex] != null && (
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="放大檢視照片"
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            zIndex: 10060,
+                            background: 'rgba(0, 0, 0, 0.9)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0.75rem',
+                            boxSizing: 'border-box'
+                        }}
+                        onClick={() => {
+                            setImagePreviewEnlargedIndex(null);
+                            setImagePreviewZoom(1);
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.5rem',
+                                marginBottom: '0.5rem',
+                                flexShrink: 0
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => bumpImagePreviewZoom(-0.25)}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255,255,255,0.35)',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    color: '#f8fafc',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <ZoomOut size={14} /> 縮小
+                            </button>
+                            <span style={{ color: '#e2e8f0', fontSize: '0.8rem', fontWeight: 800, minWidth: '3.5rem', textAlign: 'center' }}>
+                                {Math.round(imagePreviewZoom * 100)}%
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => bumpImagePreviewZoom(0.25)}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255,255,255,0.35)',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    color: '#f8fafc',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <ZoomIn size={14} /> 放大
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setImagePreviewZoom(1)}
+                                style={{
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255,255,255,0.35)',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    color: '#f8fafc',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                重設比例
+                            </button>
+                            {(imagePreviewProduct.images || []).length > 1 && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const imgs = imagePreviewProduct.images || [];
+                                            setImagePreviewEnlargedIndex((prev) => ((prev ?? 0) - 1 + imgs.length) % imgs.length);
+                                            setImagePreviewZoom(1);
+                                        }}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.2rem',
+                                            padding: '0.35rem 0.65rem',
+                                            borderRadius: '8px',
+                                            border: '1px solid rgba(255,255,255,0.35)',
+                                            background: 'rgba(255,255,255,0.1)',
+                                            color: '#f8fafc',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <ChevronLeft size={16} /> 上一張
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const imgs = imagePreviewProduct.images || [];
+                                            setImagePreviewEnlargedIndex((prev) => ((prev ?? 0) + 1) % imgs.length);
+                                            setImagePreviewZoom(1);
+                                        }}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.2rem',
+                                            padding: '0.35rem 0.65rem',
+                                            borderRadius: '8px',
+                                            border: '1px solid rgba(255,255,255,0.35)',
+                                            background: 'rgba(255,255,255,0.1)',
+                                            color: '#f8fafc',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        下一張 <ChevronRight size={16} />
+                                    </button>
+                                </>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setImagePreviewEnlargedIndex(null);
+                                    setImagePreviewZoom(1);
+                                }}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255,255,255,0.35)',
+                                    background: 'rgba(220,38,38,0.35)',
+                                    color: '#fff',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <X size={14} /> 關閉放大
+                            </button>
+                        </div>
+                        <div
+                            className="custom-scrollbar"
+                            style={{
+                                flex: 1,
+                                minHeight: 0,
+                                width: '100%',
+                                maxWidth: '96vw',
+                                maxHeight: 'calc(100vh - 5.5rem)',
+                                overflow: 'auto',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '0.5rem'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <img
+                                src={getSafeImageUrl((imagePreviewProduct.images || [])[imagePreviewEnlargedIndex])}
+                                alt={`${imagePreviewProduct.name || '產品'} 放大 ${imagePreviewEnlargedIndex + 1}`}
+                                style={{
+                                    maxWidth: 'min(92vw, 1400px)',
+                                    maxHeight: '75vh',
+                                    width: 'auto',
+                                    height: 'auto',
+                                    objectFit: 'contain',
+                                    transform: `scale(${imagePreviewZoom})`,
+                                    transformOrigin: 'center center',
+                                    transition: 'transform 0.12s ease-out'
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
+
+            {mappingProduct && (
+                <PartMappingModal
+                    product={mappingProduct}
+                    activeSearchTerms={null}
+                    onClose={() => setMappingProduct(null)}
+                />
+            )}
         </div>
     );
 };

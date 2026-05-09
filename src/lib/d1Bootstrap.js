@@ -13,8 +13,7 @@ import { useSettlementStore } from '../store/useSettlementStore';
 
 function rehydrateAllStores() {
     useDocumentStore.persist.rehydrate();
-    useSupplierStore.persist.rehydrate();
-    useCustomerStore.persist.rehydrate();
+    // useSupplierStore / useCustomerStore 已改為 API 模式，不使用 persist
     useEmployeeStore.persist.rehydrate();
     useAppStore.persist.rehydrate();
     useSourcingStore.persist.rehydrate();
@@ -83,6 +82,9 @@ export async function bootstrapFromD1() {
         }
         rehydrateAllStores();
         void useProductStore.getState().fetchProducts();
+        // 供應商/客戶從 D1 API 載入
+        void useSupplierStore.getState().fetchSuppliers();
+        void useCustomerStore.getState().fetchCustomers();
     } catch (e) {
         console.warn('[ERP] D1 載入失敗，使用本機快取', e);
     }
