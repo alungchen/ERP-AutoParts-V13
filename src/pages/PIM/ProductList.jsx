@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Plus, Filter, Download, Upload, Layers, Eye, EyeOff, RotateCcw, Printer, History, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ChevronDown, FileSpreadsheet, Trash2 } from 'lucide-react';
+import { Plus, Filter, Download, Upload, Layers, Eye, EyeOff, RotateCcw, Printer, History, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ChevronDown, FileSpreadsheet, Trash2, Search } from 'lucide-react';
 import { useProductStore } from '../../store/useProductStore';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
@@ -148,6 +148,18 @@ const ProductList = () => {
             return DEFAULT_QUERY;
         }
     });
+    const [appliedQuery, setAppliedQuery] = useState(() => {
+        try {
+            const raw = localStorage.getItem(PIM_SEARCH_STATE_KEY);
+            if (!raw) return DEFAULT_QUERY;
+            const saved = JSON.parse(raw);
+            if (!saved?.hasSearched) return DEFAULT_QUERY;
+            const snap = saved.appliedQuery ?? saved.query ?? {};
+            return { ...DEFAULT_QUERY, ...snap };
+        } catch {
+            return DEFAULT_QUERY;
+        }
+    });
     const [hasSearched, setHasSearched] = useState(() => {
         try {
             const raw = localStorage.getItem(PIM_SEARCH_STATE_KEY);
@@ -216,21 +228,20 @@ const ProductList = () => {
     const productListKeyboardRef = useRef(null);
     const hasAutoFocusedListRef = useRef(false);
 
-    // Apply filters immediately when query changes (same behavior as document picker).
+    const searchBtnRef = useRef(null);
+
+    // 依「上次按搜尋」的條件套用篩選；未搜尋時顯示全庫
     useEffect(() => {
-        const hasAnyQuery = Object.values(query).some((v) => String(v ?? '').trim() !== '');
-        if (!hasAnyQuery) {
+        if (!hasSearched) {
             setResults(products);
-            setHasSearched(false);
             return;
         }
-        setResults(filterProductsByQuery(products, query));
-        setHasSearched(true);
-    }, [products, query]);
+        setResults(filterProductsByQuery(products, appliedQuery));
+    }, [products, hasSearched, appliedQuery]);
 
     useEffect(() => {
-        localStorage.setItem(PIM_SEARCH_STATE_KEY, JSON.stringify({ query, hasSearched }));
-    }, [query, hasSearched]);
+        localStorage.setItem(PIM_SEARCH_STATE_KEY, JSON.stringify({ query, appliedQuery, hasSearched }));
+    }, [query, appliedQuery, hasSearched]);
 
     useEffect(() => {
         localStorage.setItem('erp-pim-export-fields', JSON.stringify({ ...exportFields, part_number: true }));
@@ -351,14 +362,26 @@ const ProductList = () => {
         }
     };
 
+    const handleApplySearch = useCallback(() => {
+        const hasAny = Object.values(query).some((v) => String(v ?? '').trim() !== '');
+        if (!hasAny) {
+            setAppliedQuery(DEFAULT_QUERY);
+            setHasSearched(false);
+            return;
+        }
+        setAppliedQuery({ ...query });
+        setHasSearched(true);
+    }, [query]);
+
     const handleClear = () => {
         setQuery(DEFAULT_QUERY);
+        setAppliedQuery(DEFAULT_QUERY);
         setResults(products);
         setHasSearched(false);
         localStorage.removeItem(PIM_SEARCH_STATE_KEY);
     };
 
-    useSearchFormKeyboardNav(formRef, null, resetBtnRef);
+    useSearchFormKeyboardNav(formRef, searchBtnRef, resetBtnRef);
 
     const historyFocusPId = useMemo(() => {
         if (selectedProduct && !selectedProduct.isNew && selectedProduct.p_id) {
@@ -1134,7 +1157,7 @@ const ProductList = () => {
 
             {/* Merged Advanced Search Bar */}
             <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                <form ref={formRef} data-search-form onSubmit={(e) => e.preventDefault()} onKeyDown={handleSearchFormKeyDown} style={{ display: 'flex', flexWrap: 'wrap', overflow: 'visible', gap: '0.75rem', alignItems: 'flex-end' }}>
+                <form ref={formRef} data-search-form onSubmit={(e) => { e.preventDefault(); handleApplySearch(); }} onKeyDown={handleSearchFormKeyDown} style={{ display: 'flex', flexWrap: 'wrap', overflow: 'visible', gap: '0.75rem', alignItems: 'flex-end' }}>
                     <button ref={resetBtnRef} type="button" data-search-reset="true" className={styles.searchResetBtn} onClick={handleClear} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0 12px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', height: '36px', transition: '0.2s' }} title="重設全部條件">
                         <RotateCcw size={16} />
                     </button>
@@ -1217,6 +1240,32 @@ const ProductList = () => {
                             compact={true}
                         />
                     </div>
+
+                    <button
+                        ref={searchBtnRef}
+                        type="submit"
+                        title="套用條件篩選（若欄位皆空則顯示全庫）"
+                        style={{
+                            background: 'var(--accent-primary)',
+                            color: 'white',
+                            padding: '0 18px',
+                            borderRadius: '8px',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.45rem',
+                            cursor: 'pointer',
+                            border: 'none',
+                            height: '36px',
+                            transition: 'all 0.2s',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                        }}
+                        className="hover:opacity-90 focus-ring-blue"
+                    >
+                        <Search size={16} strokeWidth={2.25} /> 搜尋
+                    </button>
                 </form>
                 <div style={{ marginTop: '0.55rem', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
                     <History size={14} style={{ flexShrink: 0, opacity: 0.85 }} aria-hidden />
@@ -1350,7 +1399,7 @@ const ProductList = () => {
                         }}
                         aria-live="polite"
                     >
-                        搜尋結果：{results.length} 筆
+                        {hasSearched ? `搜尋結果：${results.length} 筆` : `全庫：${results.length} 筆（按「搜尋」套用條件）`}
                     </span>
                 </div>
                 <div className={styles.tableScrollInner}>
