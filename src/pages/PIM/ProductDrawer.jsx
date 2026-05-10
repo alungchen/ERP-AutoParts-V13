@@ -4,7 +4,7 @@ import { useProductStore } from '../../store/useProductStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
 import { useTranslation } from '../../i18n';
 import AutocompleteInput from '../../components/AutocompleteInput';
-import { getSafeImageUrl } from '../../utils/imageUtils';
+import { getSafeImageUrl, isExternalHttpImageUrl } from '../../utils/imageUtils';
 import ConfirmModal from '../../components/ConfirmModal';
 import styles from './ProductDrawer.module.css';
 
@@ -857,7 +857,24 @@ const ProductDrawer = () => {
 
                         <div className="flex gap-2 flex-wrap mt-2">
                             {(p.images || []).map((img, idx) => (
-                                <div key={idx} style={{ width: '80px', height: '80px', flexShrink: 0, position: 'relative', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); setEnlargedImageIndex(idx); }}>
+                                <div
+                                    key={idx}
+                                    style={{
+                                        width: '80px',
+                                        height: '80px',
+                                        flexShrink: 0,
+                                        position: 'relative',
+                                        borderRadius: '4px',
+                                        overflow: 'hidden',
+                                        border: '1px solid var(--border-color)',
+                                        cursor: 'pointer',
+                                        ...(isExternalHttpImageUrl(img)
+                                            ? { backgroundColor: 'rgba(255, 182, 193, 0.45)', boxShadow: 'inset 0 0 0 2px rgba(219, 112, 147, 0.55)' }
+                                            : {}),
+                                    }}
+                                    title={isExternalHttpImageUrl(img) ? '外連網址圖片' : undefined}
+                                    onClick={(e) => { e.stopPropagation(); setEnlargedImageIndex(idx); }}
+                                >
                                     {img.startsWith('blob:') || img.startsWith('http') || img.startsWith('data:') || img.startsWith('/api') ? (
                                         <img src={getSafeImageUrl(img)} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (

@@ -6,7 +6,7 @@ import { useShorthandStore } from '../../store/useShorthandStore';
 import { useTranslation } from '../../i18n';
 import { useAppStore } from '../../store/useAppStore';
 import AutocompleteInput from '../../components/AutocompleteInput';
-import { getSafeImageUrl } from '../../utils/imageUtils';
+import { getSafeImageUrl, productHasExternalUrlImages } from '../../utils/imageUtils';
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductDrawer from './ProductDrawer';
 import PartMappingModal from './PartMappingModal';
@@ -1547,7 +1547,7 @@ const ProductList = () => {
                                         <div className="max-w-[120px] truncate text-xs text-muted" title={p.notes}>{p.notes || '-'}</div>
                                     </td>
 
-                                    <td className={styles.tdList}>
+                                    <td className={`${styles.tdList} ${productHasExternalUrlImages(p.images) ? styles.tdListPhotoExternal : ''}`}>
                                         {(p?.images?.length || 0) > 0 ? (
                                             <div className="flex flex-col gap-1 items-start">
                                                 <span className="text-xs text-accent-primary bg-accent-subtle px-2 py-1 rounded border border-accent-primary flex items-center gap-1 max-w-fit">

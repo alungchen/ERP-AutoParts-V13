@@ -27,7 +27,7 @@ import {
     ChevronLeft,
     ChevronRight,
 } from 'lucide-react';
-import { getSafeImageUrl } from '../../utils/imageUtils';
+import { getSafeImageUrl, productHasExternalUrlImages } from '../../utils/imageUtils';
 import { collectCustomerSalesHistory, collectSupplierPurchaseHistory } from '../../utils/buildProductTransactionHistory';
 import ProductPriceHistoryBody from '../../components/ProductPriceHistoryBody';
 import PartMappingModal from '../PIM/PartMappingModal';
@@ -1240,7 +1240,7 @@ const SourcingList = () => {
                                                     <td>
                                                         <div className="max-w-[90px] truncate text-xs text-muted" title={p?.notes}>{p?.notes || '—'}</div>
                                                     </td>
-                                                    <td>
+                                                    <td className={p && productHasExternalUrlImages(p.images) ? plStyles.tdListPhotoExternal : undefined}>
                                                         {p && (p?.images?.length || 0) > 0 ? (
                                                             <div className="flex flex-col gap-1 items-start">
                                                                 <div className="flex items-center gap-1">
