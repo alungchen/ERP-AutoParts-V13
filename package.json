@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "dev:all": "concurrently -n vite,worker -c cyan,magenta \"npm run dev\" \"npm run worker\"",
+    "dev:all": "concurrently -n vite,worker -c cyan,magenta \"vite --mode local-worker\" \"npm run worker\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

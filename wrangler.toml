@@ -1,4 +1,5 @@
-# 本機：`npm run dev:all`（Vite + Worker，預設 8787）
+# 本機：`npm run dev:all`（Vite mode local-worker + Worker，/api → 8787）；
+#      `npm run dev`（/api → .env.development 之 Cloudflare Pages）
 # Pages：在儀表板設定 build（npm run build）與輸出 dist；勿在此寫 pages_build_output_dir，否則 wrangler deploy 可能與純 Worker 部署行為衝突
 # D1 / R2：與 Cloudflare 儀表板綁定一致
 
