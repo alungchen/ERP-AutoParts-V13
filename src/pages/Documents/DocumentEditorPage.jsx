@@ -180,6 +180,7 @@ const DocumentEditorPage = () => {
 
         if (existingDoc) {
             let updatedDoc = { ...existingDoc };
+            updatedDoc.items = updatedDoc.items || [];
             if (!updatedDoc.supplier_name && updatedDoc.supplier_id) {
                 updatedDoc.supplier_name = supplierOptions.find(s => s.sup_id === updatedDoc.supplier_id)?.name || '';
             }
@@ -224,7 +225,7 @@ const DocumentEditorPage = () => {
     //
     useEffect(() => {
         if (isReadOnly) return;
-        if (doc.items.length > 0 && docListKeyboardRef.current) {
+        if ((doc?.items || []).length > 0 && docListKeyboardRef.current) {
             setActiveItemIndex(0);
             const focusList = () => {
                 const firstRow = itemTbodyRef.current?.querySelector('[data-doc-item-row-idx="0"]');
@@ -248,7 +249,7 @@ const DocumentEditorPage = () => {
         const t2 = setTimeout(focusSave, 300);
         const t3 = setTimeout(focusSave, 500);
         return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-    }, [isReadOnly, doc.items.length]);
+    }, [isReadOnly, (doc?.items || []).length]);
 
     useEffect(() => {
         if (!enableLoginSystem && !isEdit && !doc.opener_emp_id && employees.length > 0) {
@@ -535,13 +536,13 @@ const DocumentEditorPage = () => {
     const handleDeleteSelected = () => {
         if (selectedIndexes.length === 0) return;
         const selectedSet = new Set(selectedIndexes);
-        const newItems = doc.items.filter((_, index) => !selectedSet.has(index));
+        const newItems = (doc.items || []).filter((_, index) => !selectedSet.has(index));
         setDoc({ ...doc, items: newItems });
         setSelectedIndexes([]);
     };
 
-    const isAllSelected = doc.items.length > 0 && selectedIndexes.length === doc.items.length;
-    const isPartiallySelected = selectedIndexes.length > 0 && selectedIndexes.length < doc.items.length;
+    const isAllSelected = (doc?.items || []).length > 0 && selectedIndexes.length === (doc?.items || []).length;
+    const isPartiallySelected = selectedIndexes.length > 0 && selectedIndexes.length < (doc?.items || []).length;
 
     useEffect(() => {
         if (!selectAllRef.current) return;
@@ -549,20 +550,20 @@ const DocumentEditorPage = () => {
     }, [isPartiallySelected]);
 
     useEffect(() => {
-        if (doc.items.length === 0) {
+        if ((doc?.items || []).length === 0) {
             setActiveItemIndex(0);
             return;
         }
-        if (activeItemIndex > doc.items.length - 1) {
-            setActiveItemIndex(doc.items.length - 1);
+        if (activeItemIndex > (doc?.items || []).length - 1) {
+            setActiveItemIndex((doc?.items || []).length - 1);
         }
     }, [doc.items, activeItemIndex]);
 
     useEffect(() => {
-        if (isReadOnly || isPickerOpen || isViewerOpen || doc.items.length === 0 || !docListKeyboardRef.current) return;
+        if (isReadOnly || isPickerOpen || isViewerOpen || (doc?.items || []).length === 0 || !docListKeyboardRef.current) return;
         setActiveItemIndex(0);
         docListKeyboardRef.current.focus();
-    }, [isReadOnly, isPickerOpen, isViewerOpen, doc.doc_id, doc.items.length]);
+    }, [isReadOnly, isPickerOpen, isViewerOpen, doc.doc_id, (doc?.items || []).length]);
 
     useEffect(() => {
         if (!itemTbodyRef.current) return;
@@ -572,7 +573,7 @@ const DocumentEditorPage = () => {
 
     //
     useEffect(() => {
-        if (isReadOnly || isPickerOpen || isViewerOpen || doc.items.length === 0) return;
+        if (isReadOnly || isPickerOpen || isViewerOpen || (doc?.items || []).length === 0) return;
         const isTypingTarget = (el) => {
             if (!el || !el.tagName) return false;
             const tag = el.tagName.toLowerCase();
@@ -587,11 +588,11 @@ const DocumentEditorPage = () => {
             if (isTypingTarget(document.activeElement)) return; //
             e.preventDefault();
             listEl.focus();
-            setActiveItemIndex(e.key === 'ArrowDown' ? 0 : doc.items.length - 1);
+            setActiveItemIndex(e.key === 'ArrowDown' ? 0 : (doc?.items || []).length - 1);
         };
         document.addEventListener('keydown', handleGlobal);
         return () => document.removeEventListener('keydown', handleGlobal);
-    }, [isReadOnly, isPickerOpen, isViewerOpen, doc.items.length]);
+    }, [isReadOnly, isPickerOpen, isViewerOpen, (doc?.items || []).length]);
 
     const isTypingInList = () => {
         const el = document.activeElement;
@@ -615,7 +616,7 @@ const DocumentEditorPage = () => {
     };
 
     const handleDocListKeyDown = (e) => {
-        if (isReadOnly || doc.items.length === 0) return;
+        if (isReadOnly || (doc?.items || []).length === 0) return;
 
         if (e.key === 'Enter' && document.activeElement === addPartBtnRef.current) {
             e.preventDefault();
@@ -936,7 +937,7 @@ const DocumentEditorPage = () => {
                         ) : (
                             <button
                                 ref={saveBtnRef}
-                                autoFocus={doc.items.length === 0}
+                                autoFocus={(doc?.items || []).length === 0}
                                 onClick={handleSave}
                                 onKeyDown={(e) => handleHeaderActionKeyDown(e, saveBtnRef)}
                                 onFocus={() => setFocusedHeaderAction('save')}
@@ -1207,8 +1208,14 @@ const DocumentEditorPage = () => {
                         <tbody ref={itemTbodyRef}>
                             {doc.items.map((item, idx) => {
                                 // Find associated product metadata if exists (to show applicability link)
-                                const associatedProduct = item._full_product || products.find(p => p.p_id === item.p_id);
+                                const associatedProduct = item._full_product || products.find(p => p.p_id === item.p_id || (item.part_number && (p.part_number === item.part_number || p.part_numbers?.some(pn => pn.part_number === item.part_number))));
                                 const mappingCount = associatedProduct?.part_numbers?.length || 0;
+
+                                const displayCarModel = item.car_model || (associatedProduct ? productLineCarModel(associatedProduct) : '-');
+                                const displayYear = item.year || (associatedProduct ? productLineYear(associatedProduct) : '-');
+                                const displayName = item.name || associatedProduct?.name || '-';
+                                const displaySpec = item.spec || associatedProduct?.specifications || '-';
+                                const displayBrand = item.brand || associatedProduct?.brand || (associatedProduct?.part_numbers?.[0]?.brand) || '-';
 
                                 return (
                                     <tr
@@ -1238,7 +1245,7 @@ const DocumentEditorPage = () => {
                                         </td>
                                         <td style={{ padding: '1rem' }}>
                                             <div style={{ color: '#60a5fa', fontWeight: 800, fontFamily: 'monospace' }}>{item.part_number || item.p_id}</div>
-                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{item.p_id}</div>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{item.p_id !== item.part_number ? item.p_id : (associatedProduct?.p_id || '')}</div>
                                             {mappingCount > 0 && (
                                                 <div
                                                     style={{ mt: '4px', fontSize: '10px', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', color: '#60a5fa', cursor: 'pointer', display: 'inline-block', border: '1px solid var(--border-color)' }}
@@ -1248,15 +1255,15 @@ const DocumentEditorPage = () => {
                                             )}
                                         </td>
                                         <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.car_model || '-'}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.year || '-'}</div>
+                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayCarModel}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{displayYear}</div>
                                         </td>
                                         <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.name}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.spec || '-'}</div>
+                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayName}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{displaySpec}</div>
                                         </td>
                                         <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.brand || '-'}</div>
+                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayBrand}</div>
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                                             <div style={{ fontWeight: 700, fontSize: '0.85rem', color: (associatedProduct?.stock ?? item.stock ?? 0) > 0 ? '#10b981' : '#ef4444' }}>
@@ -1297,7 +1304,7 @@ const DocumentEditorPage = () => {
                                                 onKeyDown={e => {
                                                     if (e.key === 'Enter') {
                                                         e.preventDefault();
-                                                        if (idx < doc.items.length - 1) {
+                                                        if (idx < (doc?.items || []).length - 1) {
                                                             focusQtyInput(idx + 1);
                                                             setActiveItemIndex(idx + 1);
                                                         } else {
@@ -1364,8 +1371,8 @@ const DocumentEditorPage = () => {
             <div style={{ padding: '1rem 2rem', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', gap: '3rem', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        <span>{'\u7e3d\u9805\u6578'}: <b>{doc.items.length}</b></span>
-                        <span>{'\u7e3d\u4ef6\u6578'}: <b>{doc.items.reduce((sum, item) => sum + (item.qty || 0), 0)}</b></span>
+                        <span>{'\u7e3d\u9805\u6578'}: <b>{(doc?.items || []).length}</b></span>
+                        <span>{'\u7e3d\u4ef6\u6578'}: <b>{(doc?.items || []).reduce((sum, item) => sum + (item.qty || 0), 0)}</b></span>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>

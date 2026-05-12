@@ -141,7 +141,7 @@ for (let i = 1; i < rowsMain.length; i++) {
   const year_raw     = cols[6]  || '';  
   const stock_raw    = cols[3]  || '0'; 
 
-  if (!p_id || !/^[A-Z0-9]+-/.test(p_id)) {
+  if (!p_id || !/^[A-Z0-9_-]+/i.test(p_id)) {
     skipped.push(`Row ${i}: invalid p_id "${p_id}"`);
     continue;
   }

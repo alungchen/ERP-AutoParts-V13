@@ -33,6 +33,7 @@ function App() {
   const { enableLoginSystem, currentUserEmpId, displayMode } = useAppStore();
   const fetchProducts = useProductStore(state => state.fetchProducts);
   const fetchShorthands = useShorthandStore(state => state.fetchShorthands);
+  const fetchDocuments = useDocumentStore(state => state.fetchDocuments);
 
   useEffect(() => {
     void bootstrapFromD1();
@@ -42,7 +43,8 @@ function App() {
   useEffect(() => {
     fetchProducts();
     fetchShorthands();
-  }, [fetchProducts, fetchShorthands]);
+    fetchDocuments();
+  }, [fetchProducts, fetchShorthands, fetchDocuments]);
 
   // Logic to sync Zustand stores across tabs
   useEffect(() => {

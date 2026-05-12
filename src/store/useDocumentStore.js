@@ -242,31 +242,87 @@ export const useDocumentStore = create(persist((set, get) => ({
     shortageDismissedIds: [],
     statusColors: STATUS_COLORS,
 
-    addDocument: (type, doc) => {
+    fetchDocuments: async () => {
+        try {
+            const res = await fetch('/api/documents?limit=1000');
+            const data = await res.json();
+            const grouped = {
+                inquiries: data.filter(d => d.type === 'inquiry'),
+                purchaseOrders: data.filter(d => d.type === 'purchase'),
+                quotations: data.filter(d => d.type === 'quotation'),
+                salesOrders: data.filter(d => d.type === 'sales'),
+                salesReturns: data.filter(d => d.type === 'salesReturn'),
+                purchaseReturns: data.filter(d => d.type === 'purchaseReturn'),
+            };
+            set({ ...grouped });
+        } catch (err) {
+            console.error('Failed to fetch documents', err);
+        }
+    },
+
+    addDocument: async (type, doc) => {
         const prefix = DOC_PREFIXES[type] || 'DOC';
         const newId = `${prefix}-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
         const now = new Date().toISOString().split('T')[0];
         const newDoc = { ...doc, doc_id: newId, type, date: now };
         const key = getDocCollectionKey(type);
-        set((state) => ({ [key]: [newDoc, ...state[key]] }));
+        
+        try {
+            await fetch('/api/documents', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newDoc)
+            });
+            set((state) => ({ [key]: [newDoc, ...state[key]] }));
+        } catch (err) {
+            console.error('Add document failed', err);
+        }
         return newDoc;
     },
 
-    updateStatus: (type, docId, newStatus) => set((state) => {
+    updateStatus: async (type, docId, newStatus) => {
+        const state = get();
         const key = getDocCollectionKey(type);
-        return { [key]: state[key].map(d => d.doc_id === docId ? { ...d, status: newStatus } : d) };
-    }),
+        const docToUpdate = state[key].find(d => d.doc_id === docId);
+        if (!docToUpdate) return;
+        
+        const updatedDoc = { ...docToUpdate, status: newStatus };
+        try {
+            await fetch('/api/documents', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedDoc)
+            });
+            set((state) => ({ [key]: state[key].map(d => d.doc_id === docId ? updatedDoc : d) }));
+        } catch (err) {
+            console.error('Update status failed', err);
+        }
+    },
 
-    updateDocument: (type, updatedDoc) => {
+    updateDocument: async (type, updatedDoc) => {
         const key = getDocCollectionKey(type);
-        set((state) => ({ [key]: state[key].map(d => d.doc_id === updatedDoc.doc_id ? updatedDoc : d) }));
+        try {
+            await fetch('/api/documents', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedDoc)
+            });
+            set((state) => ({ [key]: state[key].map(d => d.doc_id === updatedDoc.doc_id ? updatedDoc : d) }));
+        } catch (err) {
+            console.error('Update document failed', err);
+        }
         return updatedDoc;
     },
 
-    deleteDocument: (type, docId) => set((state) => {
+    deleteDocument: async (type, docId) => {
         const key = getDocCollectionKey(type);
-        return { [key]: state[key].filter(d => d.doc_id !== docId) };
-    }),
+        try {
+            await fetch(`/api/documents?doc_id=${docId}`, { method: 'DELETE' });
+            set((state) => ({ [key]: state[key].filter(d => d.doc_id !== docId) }));
+        } catch (err) {
+            console.error('Delete document failed', err);
+        }
+    },
 
     // Auto-generate an inquiry for low-stock products
     autoCreateInquiry: (product) => set((state) => {
@@ -483,4 +539,18 @@ export const useDocumentStore = create(persist((set, get) => ({
         // 轉詢價後仍保留於缺貨簿，直至庫存 > 安全庫存（由 syncShortageBook 依產品庫存更新）
         return createdDocs;
     }
-}), { name: 'erp-document-store', storage: erpPersistStorage }));
+}), { 
+    name: 'erp-document-store', 
+    storage: erpPersistStorage,
+    partialize: (state) => ({ 
+        shortageBook: state.shortageBook, 
+        shortageDismissedIds: state.shortageDismissedIds,
+        statusColors: state.statusColors
+    }),
+    merge: (persistedState, currentState) => ({
+        ...currentState,
+        shortageBook: persistedState.shortageBook ?? currentState.shortageBook,
+        shortageDismissedIds: persistedState.shortageDismissedIds ?? currentState.shortageDismissedIds,
+        statusColors: persistedState.statusColors ?? currentState.statusColors
+    })
+}));

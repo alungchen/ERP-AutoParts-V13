@@ -179,7 +179,7 @@ function writeCSV(filePath, headers, rows) {
       // 找料號欄 (料號可能包含數字，例如 Z2R-001S)
       let pnIdx = -1;
       for (let ci = 0; ci < cells.length; ci++) {
-        if (/^[A-Z0-9]{2,10}-[A-Z0-9-]{1,20}$/i.test(cells[ci]) || /^[A-Z0-9]{3,20}$/i.test(cells[ci])) { 
+        if (/^[A-Z0-9]{2,10}-[A-Z0-9-*_]{1,20}$/i.test(cells[ci]) || /^[A-Z0-9*_]{3,20}$/i.test(cells[ci])) { 
             // 嘗試確保這欄真的是料號，通常料號在 index 1 或 2
             if (ci <= 3) {
                 pnIdx = ci; 

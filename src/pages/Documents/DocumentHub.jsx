@@ -9,7 +9,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useTranslation } from '../../i18n';
 import { sortedCustomersForSelect, sortedSuppliersForSelect } from '../../utils/sortContactsForSelect';
 import { canEditDocType } from '../../utils/permissions';
-import { FileText, Plus, Printer, Eye, Search, RotateCcw, Trash2, ArrowRightLeft } from 'lucide-react';
+import { FileText, Plus, Printer, Eye, Search, RotateCcw, Trash2, ArrowRightLeft, Wand2, Edit2 } from 'lucide-react';
 import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
 import styles from './Documents.module.css';
 import DocumentViewer from './DocumentViewer';
@@ -134,6 +134,9 @@ const DocumentHub = () => {
     });
     const [isEditingInline, setIsEditingInline] = useState(false);
     const [activeDocIndex, setActiveDocIndex] = useState(0);
+    const [isEnriching, setIsEnriching] = useState(false);
+    const [enrichResult, setEnrichResult] = useState(null);
+    const [isSearchOpen, setIsSearchOpen] = useState(true); // 搜尋面板展開/收折
     const docListKeyboardRef = useRef(null);
     const addDocBtnRef = useRef(null);
     const searchFormRef = useRef(null);
@@ -277,6 +280,8 @@ const DocumentHub = () => {
         setPreviewIndex(0);
         setIsSearching(false);
         setIsEditingInline(false);
+        // 開啟快速預覽時自動收折搜尋面板以最大化空間
+        if (!isQuickPreview) setIsSearchOpen(false);
     };
 
     const handleSearchSubmit = (e) => {
@@ -468,6 +473,88 @@ const DocumentHub = () => {
     };
 
     const currentUser = employees.find((e) => e.emp_id === currentUserEmpId);
+
+    // ──────────────────────────────────────────────
+    // 一鍵自動補齊：掃描所有單據品項，依 p_id 填入空白欄位
+    // ──────────────────────────────────────────────
+    const { updateDocument: updateDocumentStore } = useDocumentStore();
+    const handleEnrichAllDocs = async () => {
+        if (isEnriching) return;
+        setIsEnriching(true);
+        setEnrichResult(null);
+
+        const productMap = new Map(products.map((p) => [p.p_id, p]));
+
+        const DOC_TYPE_MAP = [
+            { type: 'inquiry',       list: inquiries },
+            { type: 'purchase',      list: purchaseOrders },
+            { type: 'quotation',     list: quotations },
+            { type: 'sales',         list: salesOrders },
+            { type: 'salesReturn',   list: salesReturns },
+            { type: 'purchaseReturn',list: purchaseReturns },
+        ];
+
+        let totalItems = 0;
+        let updatedItems = 0;
+
+        for (const { type, list } of DOC_TYPE_MAP) {
+            for (const doc of (list || [])) {
+                const items = doc.items || [];
+                let docChanged = false;
+                const newItems = items.map((item) => {
+                    totalItems++;
+                    const pid = item.p_id || item.part_number;
+                    if (!pid) return item;
+
+                    // Try to find product by p_id, or by part_number fallback
+                    let product = productMap.get(pid);
+                    if (!product && item.part_number) {
+                        product = products.find(p =>
+                            p.p_id === item.part_number ||
+                            (p.part_numbers || []).some(pn => pn.part_number === item.part_number)
+                        );
+                    }
+                    if (!product) return item;
+
+                    // Only fill fields that are currently blank
+                    const needsUpdate =
+                        !item.name ||
+                        !item.car_model ||
+                        !item.brand ||
+                        !item.spec;
+
+                    if (!needsUpdate) return item;
+
+                    const pn0 = product.part_numbers?.[0] || {};
+                    const carModels = Array.isArray(product.car_models) ? product.car_models : [];
+                    const carModel = pn0.car_model || product.car_model || (carModels[0] || '');
+
+                    updatedItems++;
+                    docChanged = true;
+                    return {
+                        ...item,
+                        name: item.name || product.name || '',
+                        car_model: item.car_model || carModel,
+                        brand: item.brand || pn0.brand || product.brand || '',
+                        spec: item.spec || product.specifications || '',
+                        year: item.year || pn0.year || product.year || '',
+                    };
+                });
+
+                if (docChanged) {
+                    const updatedDoc = { ...doc, items: newItems };
+                    // Avoid hammering the API — fire and forget with a small delay
+                    await updateDocumentStore(type, updatedDoc);
+                    await new Promise((r) => setTimeout(r, 80));
+                }
+            }
+        }
+
+        setIsEnriching(false);
+        setEnrichResult({ updated: updatedItems, total: totalItems });
+        // Auto-hide result after 6 seconds
+        setTimeout(() => setEnrichResult(null), 6000);
+    };
     const permissionDocType = isShortageTab ? 'inquiry' : activeTab;
     const canEditCurrentTab = canEditDocType({
         enableLoginSystem,
@@ -773,6 +860,60 @@ const DocumentHub = () => {
                     className={styles.actions}
                     style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}
                 >
+                    {/* 一鍵自動補齊按鈕 */}
+                    <button
+                        type="button"
+                        onClick={handleEnrichAllDocs}
+                        disabled={isEnriching}
+                        title="自動掃描所有單據，依產品資料庫補齊空白的品名/車種/品牌/規格欄位"
+                        style={{
+                            height: '36px',
+                            padding: '0 16px',
+                            borderRadius: '8px',
+                            fontWeight: 700,
+                            background: isEnriching ? '#374151' : 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                            color: 'white',
+                            border: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            cursor: isEnriching ? 'not-allowed' : 'pointer',
+                            fontSize: '0.85rem',
+                            opacity: isEnriching ? 0.7 : 1,
+                            transition: 'all 0.2s',
+                            boxShadow: isEnriching ? 'none' : '0 2px 8px rgba(124,58,237,0.4)',
+                        }}
+                    >
+                        {isEnriching ? (
+                            <>
+                                <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                補齊中...
+                            </>
+                        ) : (
+                            <>
+                                <Wand2 size={15} />
+                                一鍵補齊資料
+                            </>
+                        )}
+                    </button>
+                    {/* 補齊結果 Toast */}
+                    {enrichResult && (
+                        <div style={{
+                            background: enrichResult.updated > 0 ? 'linear-gradient(135deg, #065f46, #047857)' : '#1e293b',
+                            color: 'white',
+                            padding: '6px 14px',
+                            borderRadius: '8px',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            border: '1px solid rgba(255,255,255,0.15)',
+                            animation: 'fadeIn 0.3s ease',
+                            whiteSpace: 'nowrap',
+                        }}>
+                            {enrichResult.updated > 0
+                                ? `✅ 已補齊 ${enrichResult.updated} 筆品項資料！`
+                                : `ℹ️ 所有品項已完整，無需補齊`}
+                        </div>
+                    )}
                     {isStandaloneDocHub && !isShortageTab && (
                         <button
                             type="button"
@@ -801,83 +942,93 @@ const DocumentHub = () => {
                 </div>
             </div>
 
-            {/* Search Panel aligned with ProductList style */}
-            <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '1rem' }}>
-                <form ref={searchFormRef} data-search-form onSubmit={handleSearchSubmit} style={{ display: 'flex', flexWrap: 'wrap', overflow: 'visible', gap: '0.75rem', alignItems: 'flex-end' }}>
-                    <button ref={searchResetBtnRef} type="button" data-search-reset="true" className={styles.searchResetBtn} onClick={handleClearSearch} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0 12px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', height: '36px', transition: '0.2s' }} title="重設全部條件">
-                        <RotateCcw size={16} />
-                    </button>
-                    <div className={styles.searchField} data-search-field data-search-field-index="0" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '120px', flex: 1 }}>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>單據號碼</label>
-                        <input
-                            type="text"
-                            placeholder="單號"
-                            value={searchFilters.docId}
-                            onChange={e => setSearchFilters({ ...searchFilters, docId: e.target.value })}
-                            className={styles.searchInput}
-                            style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
-                        />
-                    </div>
-                    <div className={styles.searchField} data-search-field data-search-field-index="1" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '140px', flex: 1 }}>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>日期</label>
-                        <input
-                            type="text"
-                            placeholder="YYYY-MM-DD"
-                            value={searchFilters.date}
-                            onChange={e => setSearchFilters({ ...searchFilters, date: e.target.value })}
-                            className={styles.searchInput}
-                            style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
-                        />
-                    </div>
-                    <div className={styles.searchField} data-search-field data-search-field-index="2" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '170px', flex: 1.2 }}>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>交易對象</label>
-                        <input
-                            type="text"
-                            placeholder="客戶 / 供應商"
-                            value={searchFilters.party}
-                            onChange={e => setSearchFilters({ ...searchFilters, party: e.target.value })}
-                            className={styles.searchInput}
-                            style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
-                        />
-                    </div>
-                    {activeTab !== 'sales' && (
-                    <div className={styles.searchField} data-search-field data-search-field-index="3" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '130px', flex: 1 }}>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>狀態</label>
-                        <select
-                            value={searchFilters.status}
-                            onChange={e => setSearchFilters({ ...searchFilters, status: e.target.value })}
-                            className={styles.searchInput}
-                            style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
-                        >
-                            <option value="">所有狀態</option>
-                            <option value="pending">待處理</option>
-                            <option value="accepted">已核准</option>
-                            <option value="received">已入庫</option>
-                            <option value="sent">已送出</option>
-                        </select>
-                    </div>
+            {/* 搜尋面板：抽屜式 */}
+            <div style={{ marginBottom: '0.5rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', overflow: 'hidden' }}>
+                {/* 收折切換列 */}
+                <button
+                    type="button"
+                    onClick={() => setIsSearchOpen(v => !v)}
+                    style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        padding: '0.5rem 1rem',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        textAlign: 'left',
+                        userSelect: 'none',
+                    }}
+                >
+                    <span style={{ display: 'inline-block', transition: 'transform 0.2s', transform: isSearchOpen ? 'rotate(90deg)' : 'rotate(0deg)', fontSize: '0.75rem' }}>▶</span>
+                    <Search size={14} style={{ flexShrink: 0 }} />
+                    <span>搜尋條件</span>
+                    {/* 有篩選時顯示摘要 */}
+                    {(appliedSearchFilters.docId || appliedSearchFilters.date || appliedSearchFilters.party || appliedSearchFilters.status || appliedSearchFilters.opener) && (
+                        <span style={{ color: 'var(--accent-primary)', fontSize: '0.76rem', fontWeight: 700 }}>
+                            【篩選中：{[
+                                appliedSearchFilters.docId && `單號「${appliedSearchFilters.docId}」`,
+                                appliedSearchFilters.date && `日期「${appliedSearchFilters.date}」`,
+                                appliedSearchFilters.party && `對象「${appliedSearchFilters.party}」`,
+                                appliedSearchFilters.status && `狀態「${appliedSearchFilters.status}」`,
+                                appliedSearchFilters.opener && `人員「${appliedSearchFilters.opener}」`,
+                            ].filter(Boolean).join(' / ')}】
+                        </span>
                     )}
-                    <div className={styles.searchField} data-search-field data-search-field-index="4" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '150px', flex: 1 }}>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>開單人員</label>
-                        <input
-                            type="text"
-                            placeholder="姓名 / 員編"
-                            value={searchFilters.opener}
-                            onChange={e => setSearchFilters({ ...searchFilters, opener: e.target.value })}
-                            className={styles.searchInput}
-                            style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
-                        />
-                    </div>
+                    <span style={{ marginLeft: 'auto', color: 'var(--accent-primary)', fontWeight: 800, fontSize: '0.85rem' }}>{filteredDocs.length} 筆</span>
+                </button>
 
-                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                        <button ref={searchBtnRef} type="submit" data-search-query className={styles.searchQueryBtn} style={{ background: 'var(--accent-primary)', color: 'white', padding: '0 20px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', border: 'none', height: '36px', whiteSpace: 'nowrap' }}>
-                            <Search size={16} /> 查詢
-                        </button>
+                {/* 展開內容：用 max-height 做動畫 */}
+                <div style={{
+                    maxHeight: isSearchOpen ? '200px' : '0',
+                    overflow: 'hidden',
+                    transition: 'max-height 0.25s ease',
+                }}>
+                    <div style={{ borderTop: '1px solid var(--border-color)', padding: '0.85rem 1rem' }}>
+                        <form ref={searchFormRef} data-search-form onSubmit={handleSearchSubmit} style={{ display: 'flex', flexWrap: 'wrap', overflow: 'visible', gap: '0.6rem', alignItems: 'flex-end' }}>
+                            <button ref={searchResetBtnRef} type="button" data-search-reset="true" className={styles.searchResetBtn} onClick={handleClearSearch} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0 12px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', height: '34px', transition: '0.2s' }} title="重設全部條件">
+                                <RotateCcw size={15} />
+                            </button>
+                            <div className={styles.searchField} data-search-field data-search-field-index="0" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '100px', flex: 1 }}>
+                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>單據號碼</label>
+                                <input type="text" placeholder="單號" value={searchFilters.docId} onChange={e => setSearchFilters({ ...searchFilters, docId: e.target.value })} className={styles.searchInput} style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.82rem' }} />
+                            </div>
+                            <div className={styles.searchField} data-search-field data-search-field-index="1" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '120px', flex: 1 }}>
+                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>日期</label>
+                                <input type="text" placeholder="YYYY-MM-DD" value={searchFilters.date} onChange={e => setSearchFilters({ ...searchFilters, date: e.target.value })} className={styles.searchInput} style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.82rem' }} />
+                            </div>
+                            <div className={styles.searchField} data-search-field data-search-field-index="2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '140px', flex: 1.2 }}>
+                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>交易對象</label>
+                                <input type="text" placeholder="客戶 / 供應商" value={searchFilters.party} onChange={e => setSearchFilters({ ...searchFilters, party: e.target.value })} className={styles.searchInput} style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.82rem' }} />
+                            </div>
+                            {activeTab !== 'sales' && (
+                            <div className={styles.searchField} data-search-field data-search-field-index="3" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '110px', flex: 1 }}>
+                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>狀態</label>
+                                <select value={searchFilters.status} onChange={e => setSearchFilters({ ...searchFilters, status: e.target.value })} className={styles.searchInput} style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.82rem' }}>
+                                    <option value="">所有狀態</option>
+                                    <option value="pending">待處理</option>
+                                    <option value="accepted">已核准</option>
+                                    <option value="received">已入庫</option>
+                                    <option value="sent">已送出</option>
+                                </select>
+                            </div>
+                            )}
+                            <div className={styles.searchField} data-search-field data-search-field-index="4" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '120px', flex: 1 }}>
+                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>開單人員</label>
+                                <input type="text" placeholder="姓名 / 員編" value={searchFilters.opener} onChange={e => setSearchFilters({ ...searchFilters, opener: e.target.value })} className={styles.searchInput} style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.82rem' }} />
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                                <button ref={searchBtnRef} type="submit" data-search-query className={styles.searchQueryBtn} style={{ background: 'var(--accent-primary)', color: 'white', padding: '0 18px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', cursor: 'pointer', border: 'none', height: '34px', whiteSpace: 'nowrap', fontSize: '0.85rem' }}>
+                                    <Search size={15} /> 查詢
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                    <div style={{ minWidth: '70px', textAlign: 'right', fontSize: '0.8rem', color: 'var(--accent-primary)', fontWeight: 700, paddingBottom: '6px' }}>
-                        {filteredDocs.length} 筆
-                    </div>
-                </form>
+                </div>
             </div>
 
             {isQuickPreview && !isShortageTab && (
@@ -888,7 +1039,7 @@ const DocumentHub = () => {
 
             {/* 新分頁模式不顯示業務區／子分頁（由網址 tab 固定單別） */}
             {!isStandaloneDocHub && (
-            <div className={styles.tabsContainer} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.65rem' }}>
+            <div className={styles.tabsContainer} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.65rem' }}>
                         <div style={{ display: 'flex', gap: '0.65rem' }}>
                             {TAB_GROUPS.map((group) => {
@@ -919,11 +1070,9 @@ const DocumentHub = () => {
                             })}
                         </div>
                     </div>
-                    <div>
-                        <div className="text-xs font-bold text-muted uppercase tracking-wider pl-2">
-                            {activeBusinessGroup === 'sales' ? '目前分區：銷售業務' : '目前分區：採購進貨'}
-                        </div>
-                        <div className={styles.tabs} style={{ borderBottom: 'none', marginBottom: 0 }} tabIndex={0} onKeyDown={handleTabBarKeyDown} role="tablist">
+                    {/* 第二行：分頁標籤 (左) + 預覽按鈕 (右) */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid var(--border-color)', width: '100%', minHeight: '52px' }}>
+                        <div className={styles.tabs} style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }} tabIndex={0} onKeyDown={handleTabBarKeyDown} role="tablist">
                             {activeGroupTabs.map(tab => (
                                 <div key={tab.key} style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
                                     <button
@@ -979,26 +1128,50 @@ const DocumentHub = () => {
                                     </button>
                                 </div>
                             ))}
+                        </div>
+
+                        {/* 快速預覽按鈕組：獨立於 tabs 外，靠右對齊 */}
+                        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', paddingBottom: '6px', flexShrink: 0, marginLeft: '1rem' }}>
+                            {isQuickPreview && !isShortageTab && filteredDocs[previewIndex] && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => window.print()}
+                                        title="列印目前預覽單據"
+                                        style={{ height: '44px', padding: '0 18px', borderRadius: '8px', fontWeight: 600, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+                                    >
+                                        <Printer size={18} />
+                                    </button>
+                                    {canEditCurrentTab && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsEditingInline(true)}
+                                            style={{ height: '44px', padding: '0 20px', borderRadius: '8px', fontWeight: 600, background: '#f59e0b', color: 'white', border: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+                                        >
+                                            <Edit2 size={18} /> 編輯
+                                        </button>
+                                    )}
+                                </>
+                            )}
                             <button
                                 className={styles.btn}
                                 onClick={handleQuickPreviewToggle}
                                 disabled={isShortageTab}
                                 title={isQuickPreview ? "關閉快速預覽" : "開啟快速預覽"}
                                 style={{
-                                    marginLeft: 'auto',
-                                    alignSelf: 'center',
-                                    height: '36px',
-                                    minWidth: '120px',
-                                    padding: '0 20px',
+                                    height: '44px',
+                                    minWidth: '136px',
+                                    padding: '0 24px',
                                     borderRadius: '8px',
-                                    fontWeight: 600,
+                                    fontWeight: 700,
                                     background: 'var(--accent-primary)',
                                     color: 'white',
                                     border: 'none',
                                     display: 'inline-flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '0.4rem'
+                                    gap: '0.5rem',
+                                    fontSize: '0.95rem'
                                 }}
                             >
                                 {isShortageTab ? "缺貨簿不適用" : (isQuickPreview ? "退出預覽" : "快速預覽")}

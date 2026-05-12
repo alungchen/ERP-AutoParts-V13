@@ -115,124 +115,117 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
             boxShadow: inline ? 'none' : '0 25px 50px -12px rgba(0,0,0,0.5)'
         }}>
             {/* Header section */}
-            <div style={{ padding: '1rem 1.5rem', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                        <div style={{ background: isCustomer ? '#3b82f6' : '#8b5cf6', color: 'white', padding: '0.4rem 0.8rem', borderRadius: '4px', fontWeight: 800 }}>
-                            {t(docTypeLabelKeyMap[type] || 'docs.title')}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                                單號: {doc.doc_id}
-                            </span>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                                檢視模式
-                            </span>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button
-                            onClick={() => window.print()}
-                            style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0.6rem 1rem', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                            title="列印單據"
-                        >
-                            <Printer size={18} />
-                        </button>
-                        {canEdit && (
+            <div style={{ padding: '0.6rem 1rem', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
+                {/* 上方按鈕列： inline 模式下隱藏（按鈕已移到 DocumentHub 的「退出預覽」旁） */}
+                {!inline && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        {/* 左側：列印 + 編輯按鈕 */}
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
                             <button
-                                id="doc-preview-edit-btn"
-                                ref={editBtnRef}
-                                autoFocus
-                                onClick={onEdit}
-                                style={{ backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                                onClick={() => window.print()}
+                                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0.45rem 0.8rem', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.82rem' }}
+                                title="列印單據"
                             >
-                                <Edit2 size={18} /> 編輯
+                                <Printer size={15} />
                             </button>
-                        )}
-                        {!inline && (
-                            <button onClick={onClose} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '0.6rem 0.8rem', borderRadius: '6px', cursor: 'pointer' }}>
-                                <X size={20} />
+                            {canEdit && (
+                                <button
+                                    id="doc-preview-edit-btn"
+                                    ref={editBtnRef}
+                                    autoFocus
+                                    onClick={onEdit}
+                                    style={{ backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '0.45rem 0.9rem', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.82rem' }}
+                                >
+                                    <Edit2 size={15} /> 編輯
+                                </button>
+                            )}
+                            <button onClick={onClose} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '0.45rem 0.65rem', borderRadius: '6px', cursor: 'pointer' }}>
+                                <X size={16} />
                             </button>
-                        )}
+                        </div>
+                        {/* 右側：統計數字 */}
+                        <div style={{ display: 'flex', gap: '0.7rem', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.3rem 0.85rem', flexShrink: 0 }}>
+                            <span>總項數: <b style={{ color: 'var(--text-primary)' }}>{(doc.items || []).length}</b></span>
+                            <span style={{ color: 'var(--border-color)' }}>|</span>
+                            <span>總件數: <b style={{ color: 'var(--text-primary)' }}>{(doc.items || []).reduce((s, i) => s + (i.qty || 0), 0)}</b></span>
+                            <span style={{ color: 'var(--border-color)' }}>|</span>
+                            <span>未稅: <b style={{ color: 'var(--text-primary)' }}>{formatAmount(subtotal)}</b></span>
+                        </div>
                     </div>
-                </div>
+                )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1.1fr 1fr 1.7fr', gap: '0.85rem', alignItems: 'end', padding: '0.7rem', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)' }}>
-                    <div>
-                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>日期</label>
-                        <div style={{ padding: '0.5rem', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 700 }}>
-                            {doc.date}
-                        </div>
+                {/* 單據基本資訊：單號優先，移除狀態/幣別，客戶/開單加寬；inline 模式包含統計 */}
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', padding: '0.3rem 0.4rem', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)' }}>
+                    {/* 單號 — 固定寬，monospace */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 800, flexShrink: 0 }}>單號</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 800, fontFamily: 'monospace' }}>{doc.doc_id}</span>
                     </div>
-                    <div>
-                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{isSupplier ? '供應商 (廠商)' : '客戶 (買家)'}</label>
-                        <div style={{ padding: '0.5rem', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {getPartyName()}
-                        </div>
+                    {/* 日期 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 800 }}>日期</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700 }}>{doc.date || '-'}</span>
                     </div>
-                    <div>
-                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>
-                            {type === 'sales' ? '狀態（暫不開放）' : '狀態'}
-                        </label>
-                        <div style={{ padding: '0.5rem', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 700 }}>
-                            {type === 'sales' ? '—' : (STATUS_MAP[doc.status] || doc.status)}
-                        </div>
+                    {/* 客戶/供應商 — 加寬 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', minWidth: 0, flex: '0 1 auto' }}>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 800, flexShrink: 0 }}>{isSupplier ? '供應商' : '客戶'}</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>{getPartyName() || '-'}</span>
                     </div>
-                    <div>
-                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>幣別</label>
-                        <div style={{ padding: '0.5rem', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 700 }}>
-                            {doc.currency || displayCurrency}
-                        </div>
+                    {/* 開單人員 — 加寬 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', minWidth: 0, flex: '0 1 auto' }}>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 800, flexShrink: 0 }}>開單</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '220px' }}>{getOpenerDisplay() || '-'}</span>
                     </div>
-                    <div>
-                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>開單人員</label>
-                        <div style={{ padding: '0.5rem', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 700 }}>
-                            {getOpenerDisplay()}
+                    {/* inline 模式：統計數字在此顯示 */}
+                    {inline && (
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: 'auto', flexShrink: 0 }}>
+                            <span>總項數: <b style={{ color: 'var(--text-primary)' }}>{(doc.items || []).length}</b></span>
+                            <span style={{ color: 'var(--border-color)' }}>|</span>
+                            <span>總件數: <b style={{ color: 'var(--text-primary)' }}>{(doc.items || []).reduce((s, i) => s + (i.qty || 0), 0)}</b></span>
+                            <span style={{ color: 'var(--border-color)' }}>|</span>
+                            <span>未稅: <b style={{ color: 'var(--text-primary)' }}>{formatAmount(subtotal)}</b></span>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
+
             {/* Content Body */}
-            <div className="custom-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', padding: '1.5rem' }}>
-                <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+            <div className="custom-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', padding: '0.5rem' }}>
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                        <thead style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: '0.72rem', textTransform: 'uppercase', position: 'sticky', top: 0, zIndex: 2 }}>
                             <tr>
-                                <th style={{ padding: '1rem' }}>零件號碼 (ID)</th>
-                                <th style={{ padding: '1rem' }}>車種 / 年份</th>
-                                <th style={{ padding: '1rem' }}>品名 / 規格</th>
-                                <th style={{ padding: '1rem' }}>品牌</th>
-                                <th style={{ padding: '1rem', width: '80px', textAlign: 'center' }}>庫存狀況</th>
-                                <th style={{ padding: '1rem', width: '80px', textAlign: 'center' }}>數量</th>
-                                <th style={{ padding: '1rem', width: '100px', textAlign: 'center' }}>單價</th>
-                                <th style={{ padding: '1rem', width: '100px', textAlign: 'center' }}>小計</th>
+                                <th style={{ padding: '0.5rem 0.75rem', boxShadow: '0 1px 0 var(--border-color)' }}>零件號碼 (ID)</th>
+                                <th style={{ padding: '0.5rem 0.75rem', boxShadow: '0 1px 0 var(--border-color)' }}>車種 / 年份</th>
+                                <th style={{ padding: '0.5rem 0.75rem', boxShadow: '0 1px 0 var(--border-color)' }}>品名 / 規格</th>
+                                <th style={{ padding: '0.5rem 0.75rem', boxShadow: '0 1px 0 var(--border-color)' }}>品牌</th>
+                                <th style={{ padding: '0.5rem 0.75rem', width: '70px', textAlign: 'center', boxShadow: '0 1px 0 var(--border-color)' }}>庫存</th>
+                                <th style={{ padding: '0.5rem 0.75rem', width: '60px', textAlign: 'center', boxShadow: '0 1px 0 var(--border-color)' }}>數量</th>
+                                <th style={{ padding: '0.5rem 0.75rem', width: '90px', textAlign: 'center', boxShadow: '0 1px 0 var(--border-color)' }}>單價</th>
+                                <th style={{ padding: '0.5rem 0.75rem', width: '90px', textAlign: 'center', boxShadow: '0 1px 0 var(--border-color)' }}>小計</th>
                             </tr>
                         </thead>
                         <tbody>
                             {doc.items.map((item, idx) => {
-                                const associatedProduct = products.find(p => p.p_id === item.p_id);
+                                const associatedProduct = products.find(p => p.p_id === item.p_id || (item.part_number && (p.part_number === item.part_number || p.part_numbers?.some(pn => pn.part_number === item.part_number))));
                                 const mappingCount = associatedProduct?.part_numbers?.length || 0;
 
+                                const displayCarModel = item.car_model || (associatedProduct ? productLineCarModel(associatedProduct) : '-');
+                                const displayYear = item.year || (associatedProduct ? productLineYear(associatedProduct) : '-');
+                                const displayName = item.name || associatedProduct?.name || '-';
+                                const displaySpec = item.spec || associatedProduct?.specifications || '-';
+                                const displayBrand = item.brand || associatedProduct?.brand || (associatedProduct?.part_numbers?.[0]?.brand) || '-';
+
                                 return (
-                                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
-                                        <td style={{ padding: '1rem' }}>
+                                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.82rem' }}>
+                                        <td style={{ padding: '0.45rem 0.75rem' }}>
                                             <div style={{ color: '#60a5fa', fontWeight: 800, fontFamily: 'monospace' }}>{item.part_number || item.p_id}</div>
-                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{item.p_id}</div>
+                                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{item.p_id !== item.part_number ? item.p_id : (associatedProduct?.p_id || '')}</div>
                                             {mappingCount > 0 && (
                                                 <div
                                                     onClick={(e) => { e.stopPropagation(); setMappingProduct(associatedProduct); }}
-                                                    style={{
-                                                        marginTop: '4px',
-                                                        fontSize: '10px',
-                                                        backgroundColor: 'var(--bg-tertiary)',
-                                                        padding: '2px 6px',
-                                                        borderRadius: '4px',
-                                                        color: '#60a5fa',
-                                                        border: '1px solid var(--border-color)',
-                                                        display: 'inline-block',
-                                                        cursor: 'pointer'
-                                                    }}
+                                                    style={{ marginTop: '2px', fontSize: '10px', backgroundColor: 'var(--bg-tertiary)', padding: '1px 5px', borderRadius: '4px', color: '#60a5fa', border: '1px solid var(--border-color)', display: 'inline-block', cursor: 'pointer' }}
                                                     onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--border-color)'}
                                                     onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)'}
                                                 >
@@ -240,25 +233,25 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
                                                 </div>
                                             )}
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.car_model || '-'}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.year || '-'}</div>
+                                        <td style={{ padding: '0.45rem 0.75rem' }}>
+                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayCarModel}</div>
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{displayYear}</div>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.name}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.spec || '-'}</div>
+                                        <td style={{ padding: '0.45rem 0.75rem' }}>
+                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayName}</div>
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{displaySpec}</div>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.brand || '-'}</div>
+                                        <td style={{ padding: '0.45rem 0.75rem' }}>
+                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayBrand}</div>
                                         </td>
-                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
-                                            <div style={{ fontWeight: 700, fontSize: '0.85rem', color: (associatedProduct?.stock ?? item.stock ?? 0) > 0 ? '#10b981' : '#ef4444' }}>
+                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center' }}>
+                                            <div style={{ fontWeight: 700, fontSize: '0.82rem', color: (associatedProduct?.stock ?? item.stock ?? 0) > 0 ? '#10b981' : '#ef4444' }}>
                                                 {associatedProduct?.stock ?? item.stock ?? '-'}
                                             </div>
                                         </td>
-                                        <td style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-primary)', fontWeight: 700 }}>{item.qty}</td>
-                                        <td style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-primary)', fontWeight: 700 }}>{item.unit_price?.toLocaleString()}</td>
-                                        <td style={{ padding: '1rem', textAlign: 'center', color: '#f59e0b', fontWeight: 800 }}>{(item.qty * (item.unit_price || 0)).toLocaleString()}</td>
+                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center', color: 'var(--text-primary)', fontWeight: 700 }}>{item.qty}</td>
+                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center', color: 'var(--text-primary)', fontWeight: 700 }}>{item.unit_price?.toLocaleString()}</td>
+                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center', color: '#f59e0b', fontWeight: 800 }}>{(item.qty * (item.unit_price || 0)).toLocaleString()}</td>
                                     </tr>
                                 );
                             })}
@@ -267,28 +260,7 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
                 </div>
             </div>
 
-            {/* Footer Summary */}
-            <div style={{ padding: '1rem 2rem', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', flexShrink: 0 }}>
-                <div style={{ display: 'flex', gap: '3rem', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        <span>總項數: <b>{doc.items.length}</b></span>
-                        <span>總件數: <b>{doc.items.reduce((sum, item) => sum + (item.qty || 0), 0)}</b></span>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
-                            未稅小計 ({doc.currency || displayCurrency}): {formatAmount(subtotal)}
-                        </div>
-                        {vatEnabled && (
-                            <div style={{ color: 'var(--accent-hover)', fontSize: '0.95rem', marginBottom: '0.3rem', fontWeight: 700 }}>
-                                VAT ({Number(vatRate || 0).toFixed(2)}%): {formatAmount(vatAmount)} (含稅)
-                            </div>
-                        )}
-                        <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#f59e0b' }}>
-                            {vatEnabled ? '含稅總計' : '未稅總計'} ({doc.currency || displayCurrency}): {formatAmount(grandTotal)}
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {/* Footer removed — totals moved to header */}
 
             {mappingProduct && (
                 <PartMappingModal
@@ -633,7 +605,7 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
         }
     };
 
-    const isAllSelected = doc?.items?.length > 0 && selectedIndexes.length === doc.items.length;
+    const isAllSelected = (doc?.items || []).length > 0 && selectedIndexes.length === (doc?.items || []).length;
     const isPartiallySelected = selectedIndexes.length > 0 && selectedIndexes.length < (doc?.items?.length || 0);
 
     useEffect(() => {
@@ -647,8 +619,8 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
             setActiveItemIndex(0);
             return;
         }
-        if (activeItemIndex > doc.items.length - 1) {
-            setActiveItemIndex(doc.items.length - 1);
+        if (activeItemIndex > (doc?.items || []).length - 1) {
+            setActiveItemIndex(Math.max(0, (doc?.items || []).length - 1));
         }
     }, [doc, activeItemIndex]);
 
@@ -669,7 +641,7 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            setActiveItemIndex((prev) => Math.min(prev + 1, doc.items.length - 1));
+            setActiveItemIndex((prev) => Math.min(prev + 1, (doc?.items || []).length - 1));
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             setActiveItemIndex((prev) => Math.max(prev - 1, 0));

@@ -1,5 +1,16 @@
 /* 製單主頁：佔滿 Outlet 剩餘高度，卷軸在列表區內 */
 /* flex-basis:0 避免 min-height:auto 依內容把整區撐高而吃掉內層卷軸 */
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 .container {
     flex: 1 1 0;
     min-height: 0;
@@ -186,7 +197,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.94rem 1.25rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-secondary);

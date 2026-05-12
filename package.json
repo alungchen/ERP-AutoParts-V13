@@ -18,7 +18,10 @@
     "db:export:local": "wrangler d1 export erp-db --local --output=./local-backup.sql",
     "db:import:local": "wrangler d1 execute erp-db --local --file=./d1-mirror-erp.sql",
     "db:migrate:local": "wrangler d1 execute erp-db --local --file=./sql/schema.sql",
-    "db:migrate:remote": "wrangler d1 execute erp-db --remote --file=./sql/schema.sql"
+    "db:migrate:remote": "wrangler d1 execute erp-db --remote --file=./sql/schema.sql",
+    "db:sync:local": "node scripts/sync_remote_to_local.mjs",
+    "db:import-docs:local": "node scripts/generate_document_sql.cjs && wrangler d1 execute erp-db --local --file=./output/import_documents.sql",
+    "db:import-docs:remote": "node scripts/generate_document_sql.cjs && wrangler d1 execute erp-db --remote --file=./output/import_documents.sql"
   },
   "dependencies": {
     "firebase": "^12.12.0",

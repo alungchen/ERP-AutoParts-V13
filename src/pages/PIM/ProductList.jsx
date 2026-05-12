@@ -230,6 +230,11 @@ const ProductList = () => {
 
     const searchBtnRef = useRef(null);
 
+    // 進入頁面時強制從雲端抓取最新產品資料
+    useEffect(() => {
+        useProductStore.getState().fetchProducts();
+    }, []);
+
     // 依「上次按搜尋」的條件套用篩選；未搜尋時顯示全庫
     useEffect(() => {
         if (!hasSearched) {
@@ -379,6 +384,8 @@ const ProductList = () => {
         setResults(products);
         setHasSearched(false);
         localStorage.removeItem(PIM_SEARCH_STATE_KEY);
+        // 強制從雲端重新抓取最新資料，確保同步
+        void useProductStore.getState().fetchProducts();
     };
 
     useSearchFormKeyboardNav(formRef, searchBtnRef, resetBtnRef);
