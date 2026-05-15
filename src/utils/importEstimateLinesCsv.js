@@ -208,8 +208,11 @@ export function processImportedEstimateLine(rowObj, presentKeys, tariffIndex, pr
         const pimPatch = buildPimOnlyPatch(product);
         for (const key of Object.keys(pimPatch)) {
             if (!pk.has(key)) continue;
-            if (rawCsvMeaningful(snapshotRaw[key]) && !normCompare(afterCsv[key], pimPatch[key], key)) {
-                mark(key);
+            if (rawCsvMeaningful(snapshotRaw[key])) {
+                if (!normCompare(afterCsv[key], pimPatch[key], key)) {
+                    mark(key);
+                }
+                delete pimPatch[key]; // Do not overwrite user's CSV value
             }
         }
         line = { ...line, ...pimPatch };
@@ -223,8 +226,11 @@ export function processImportedEstimateLine(rowObj, presentKeys, tariffIndex, pr
                 const tPatch = tariffHitPatch(row);
                 for (const key of Object.keys(tPatch)) {
                     if (!pk.has(key)) continue;
-                    if (rawCsvMeaningful(snapshotRaw[key]) && !normCompare(afterCsv[key], tPatch[key], key)) {
-                        mark(key);
+                    if (rawCsvMeaningful(snapshotRaw[key])) {
+                        if (!normCompare(afterCsv[key], tPatch[key], key)) {
+                            mark(key);
+                        }
+                        delete tPatch[key]; // Do not overwrite user's CSV value
                     }
                 }
                 line = { ...line, ...tPatch };
@@ -232,8 +238,11 @@ export function processImportedEstimateLine(rowObj, presentKeys, tariffIndex, pr
                 const tPatch = tariffMissPatch();
                 for (const key of Object.keys(tPatch)) {
                     if (!pk.has(key)) continue;
-                    if (rawCsvMeaningful(snapshotRaw[key]) && !normCompare(afterCsv[key], tPatch[key], key)) {
-                        mark(key);
+                    if (rawCsvMeaningful(snapshotRaw[key])) {
+                        if (!normCompare(afterCsv[key], tPatch[key], key)) {
+                            mark(key);
+                        }
+                        delete tPatch[key]; // Do not overwrite user's CSV value
                     }
                 }
                 line = { ...line, ...tPatch, hsCode: line.hsCode };
