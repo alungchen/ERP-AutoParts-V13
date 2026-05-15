@@ -54,8 +54,7 @@ const masters = parseCSV(masterCsv);
 const details = parseCSV(detailCsv);
 
 let sql = '';
-sql += 'PRAGMA defer_foreign_keys = ON;\n';
-sql += 'BEGIN TRANSACTION;\n\n';
+sql += 'PRAGMA defer_foreign_keys = ON;\n\n';
 
 sql += '-- 新增或更新主檔 --\n';
 for (const m of masters) {
@@ -87,7 +86,7 @@ for (const d of details) {
     sql += `INSERT INTO document_items (doc_id, p_id, part_number, qty, unit_price) VALUES ('${doc_id}', '${part_id}', '${part_id}', ${qty}, ${price});\n`;
 }
 
-sql += '\nCOMMIT;\n';
+// No COMMIT needed for D1 execute
 
 fs.writeFileSync(sqlFile, sql, 'utf8');
 console.log(`✅ 已經產生 SQL 檔案: ${sqlFile} (包含 ${masters.length} 筆主檔與 ${details.length} 筆明細)`);

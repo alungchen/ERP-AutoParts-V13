@@ -719,7 +719,7 @@ const ProductList = () => {
                     year: headers.findIndex((h) => ['year', '年份'].includes(h)),
                     brand: headers.findIndex((h) => ['brand', '品牌'].includes(h)),
                     notes: headers.findIndex((h) => ['notes', '備註'].includes(h)),
-                    stock: headers.findIndex((h) => ['stock', '庫存'].includes(h)),
+                    stock: headers.findIndex((h) => ['stock', '庫存', '數量', 'quantity', 'qty'].includes(h)),
                     safety_stock: headers.findIndex((h) => ['safety stock', 'safety_stock', '安全庫存', 'safetystock'].includes(h)),
                     base_cost: headers.findIndex((h) => ['cost', 'base_cost', '進價', '成本'].includes(h)),
                     price_a: headers.findIndex((h) => ['price a', 'price_a', '售價a', '售價 a'].includes(h)),
