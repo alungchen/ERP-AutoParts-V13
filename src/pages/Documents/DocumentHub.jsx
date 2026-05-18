@@ -527,7 +527,11 @@ const DocumentHub = () => {
 
                     const pn0 = product.part_numbers?.[0] || {};
                     const carModels = Array.isArray(product.car_models) ? product.car_models : [];
-                    const carModel = pn0.car_model || product.car_model || (carModels[0] || '');
+                    let carModel = pn0.car_model || product.car_model || '';
+                    if (!carModel && carModels.length > 0) {
+                        const cm0 = carModels[0];
+                        carModel = typeof cm0 === 'string' ? cm0 : (cm0?.model || '');
+                    }
 
                     updatedItems++;
                     docChanged = true;

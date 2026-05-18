@@ -19,30 +19,32 @@ export async function onRequestGet(context) {
 
         const { results: docs } = await env.DB.prepare(query).bind(...params).all();
 
-        // Fetch items for these docs
+        // Fetch items for these docs in a single query
         if (docs && docs.length > 0) {
-            const docIds = docs.map(d => d.doc_id);
-            let allItems = [];
-            
-            // Split docIds into chunks of 50 to avoid "too many SQL variables" error
-            const chunkSize = 50;
-            for (let i = 0; i < docIds.length; i += chunkSize) {
-                const chunk = docIds.slice(i, i + chunkSize);
-                const placeholders = chunk.map(() => '?').join(',');
-                const { results } = await env.DB.prepare(`SELECT * FROM document_items WHERE doc_id IN (${placeholders})`).bind(...chunk).all();
-                if (results) {
-                    allItems = allItems.concat(results);
-                }
+            let itemQuery = 'SELECT * FROM document_items WHERE doc_id IN (SELECT doc_id FROM documents';
+            const itemParams = [];
+            if (type) {
+                itemQuery += ' WHERE type = ?';
+                itemParams.push(type);
             }
+            itemQuery += ' ORDER BY date DESC, updated_at DESC LIMIT ? OFFSET ?)';
+            itemParams.push(limit, offset);
+
+            const { results: allItems } = await env.DB.prepare(itemQuery).bind(...itemParams).all();
             
             // Map items to docs
             docs.forEach(doc => {
-                doc.items = allItems.filter(item => item.doc_id === doc.doc_id);
+                doc.items = (allItems || []).filter(item => item.doc_id === doc.doc_id);
             });
         }
 
         return new Response(JSON.stringify(docs || []), {
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
         });
     } catch (err) {
         return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });

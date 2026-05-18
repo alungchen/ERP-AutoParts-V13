@@ -211,8 +211,8 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
                                 const associatedProduct = products.find(p => p.p_id === item.p_id || (item.part_number && (p.part_number === item.part_number || p.part_numbers?.some(pn => pn.part_number === item.part_number))));
                                 const mappingCount = associatedProduct?.part_numbers?.length || 0;
 
-                                const displayCarModel = item.car_model || (associatedProduct ? productLineCarModel(associatedProduct) : '-');
-                                const displayYear = item.year || (associatedProduct ? productLineYear(associatedProduct) : '-');
+                                const displayCarModel = (item.car_model && typeof item.car_model === 'object') ? (item.car_model?.model || '') : (item.car_model || (associatedProduct ? productLineCarModel(associatedProduct) : '-'));
+                                const displayYear = (item.year && typeof item.year === 'object') ? (item.year?.year || '') : (item.year || (associatedProduct ? productLineYear(associatedProduct) : '-'));
                                 const displayName = item.name || associatedProduct?.name || '-';
                                 const displaySpec = item.spec || associatedProduct?.specifications || '-';
                                 const displayBrand = item.brand || associatedProduct?.brand || (associatedProduct?.part_numbers?.[0]?.brand) || '-';
@@ -864,7 +864,7 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                                                 return null;
                                             })()}
                                         </td>
-                                        <td style={{ padding: '0.75rem' }}>{item.brand} {item.car_model}</td>
+                                        <td style={{ padding: '0.75rem' }}>{item.brand} {(item.car_model && typeof item.car_model === 'object') ? item.car_model.model : item.car_model}</td>
                                         <td style={{ padding: '0.75rem' }}>{item.name}</td>
                                         <td><input type="number" value={item.qty} onChange={e => updateItem(idx, 'qty', parseInt(e.target.value))} style={{ width: '60px', background: '#0f172a', color: 'white', border: '1px solid #334155' }} /></td>
                                         <td><input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value))} style={{ width: '80px', background: '#0f172a', color: 'white', border: '1px solid #334155' }} /></td>

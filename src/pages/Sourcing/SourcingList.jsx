@@ -1527,7 +1527,7 @@ const SourcingList = () => {
                     {!breakdown && (
                         <p className={styles.mutedPanel}>{t('importCost.calc')}</p>
                     )}
-                    {breakdown && breakdown.lineResults.length > 0 && (
+                    {breakdown && breakdown.lineResults?.length > 0 && (
                         <>
                             <div className={styles.volWtRecap}>
                                 <span>{t('importCost.totalVol')} <b>{volWeightTotals.vol.toFixed(4)}</b></span>
@@ -1536,12 +1536,12 @@ const SourcingList = () => {
                             <div className={styles.summaryCards}>
                                 <div className={styles.summaryCard}>
                                     <span className={styles.summaryLabel}>{t('importCost.batchTotal')}</span>
-                                    <span className={styles.summaryValue}>{Math.round(breakdown.grandTotalLandedTwd).toLocaleString()} TWD</span>
+                                    <span className={styles.summaryValue}>{Math.round(breakdown.grandTotalLandedTwd || 0).toLocaleString()} TWD</span>
                                 </div>
                                 <div className={styles.summaryCard}>
                                     <span className={styles.summaryLabel}>{t('importCost.weightedUnitAvg')}</span>
                                     <span className={styles.summaryValueAccent}>
-                                        {Math.round(breakdown.weightedUnitCost).toLocaleString()} TWD
+                                        {Math.round(breakdown.weightedUnitCost || 0).toLocaleString()} TWD
                                     </span>
                                 </div>
                             </div>
@@ -1554,17 +1554,17 @@ const SourcingList = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {breakdown.aggregateLines.map((line) => (
+                                    {breakdown.aggregateLines?.map((line) => (
                                         <tr key={line.key} className={line.key === 'total' ? styles.breakdownTotal : ''}>
                                             <td>{line.label}</td>
-                                            <td className={styles.numCol}>{Math.round(line.amount).toLocaleString()}</td>
+                                            <td className={styles.numCol}>{Math.round(line.amount || 0).toLocaleString()}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </>
                     )}
-                    {breakdown && breakdown.lineResults.length === 0 && (
+                    {breakdown && breakdown.lineResults?.length === 0 && (
                         <p className={styles.mutedPanel}>{t('importCost.emptyResults')}</p>
                     )}
                 </section>

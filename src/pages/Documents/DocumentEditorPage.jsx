@@ -1211,8 +1211,8 @@ const DocumentEditorPage = () => {
                                 const associatedProduct = item._full_product || products.find(p => p.p_id === item.p_id || (item.part_number && (p.part_number === item.part_number || p.part_numbers?.some(pn => pn.part_number === item.part_number))));
                                 const mappingCount = associatedProduct?.part_numbers?.length || 0;
 
-                                const displayCarModel = item.car_model || (associatedProduct ? productLineCarModel(associatedProduct) : '-');
-                                const displayYear = item.year || (associatedProduct ? productLineYear(associatedProduct) : '-');
+                                const displayCarModel = (item.car_model && typeof item.car_model === 'object') ? (item.car_model?.model || '') : (item.car_model || (associatedProduct ? productLineCarModel(associatedProduct) : '-'));
+                                const displayYear = (item.year && typeof item.year === 'object') ? (item.year?.year || '') : (item.year || (associatedProduct ? productLineYear(associatedProduct) : '-'));
                                 const displayName = item.name || associatedProduct?.name || '-';
                                 const displaySpec = item.spec || associatedProduct?.specifications || '-';
                                 const displayBrand = item.brand || associatedProduct?.brand || (associatedProduct?.part_numbers?.[0]?.brand) || '-';
