@@ -9,8 +9,9 @@ import { useAppStore } from '../../store/useAppStore';
 import { useTranslation } from '../../i18n';
 import { sortedCustomersForSelect, sortedSuppliersForSelect } from '../../utils/sortContactsForSelect';
 import { canEditDocType } from '../../utils/permissions';
-import { FileText, Plus, Printer, Eye, Search, RotateCcw, Trash2, ArrowRightLeft, Wand2, Edit2 } from 'lucide-react';
+import { FileText, Plus, Printer, Eye, Search, RotateCcw, Trash2, ArrowRightLeft, Wand2, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
+import AutocompleteInput from '../../components/AutocompleteInput';
 import styles from './Documents.module.css';
 import DocumentViewer from './DocumentViewer';
 import DocumentDarkPreview from './DocumentDarkPreview';
@@ -144,6 +145,8 @@ const DocumentHub = () => {
     const searchResetBtnRef = useRef(null);
     const [selectedShortageIds, setSelectedShortageIds] = useState([]);
     const [activeShortageIndex, setActiveShortageIndex] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 50;
     const shortageSelectAllRef = useRef(null);
     const shortageBodyRef = useRef(null);
     const shortageListKeyboardRef = useRef(null);
@@ -252,8 +255,11 @@ const DocumentHub = () => {
 
         // Party (Customer/Supplier) search
         if (appliedSearchFilters.party) {
+            const q = appliedSearchFilters.party.toLowerCase();
             const name = getPartyName(doc).toLowerCase();
-            if (!name.includes(appliedSearchFilters.party.toLowerCase())) return false;
+            const custId = String(doc.customer_id ?? '').toLowerCase();
+            const supId = String(doc.supplier_id ?? '').toLowerCase();
+            if (!name.includes(q) && !custId.includes(q) && !supId.includes(q)) return false;
         }
 
         // Opener (creator) search
@@ -270,10 +276,18 @@ const DocumentHub = () => {
         if (isShortageTab || isQuickPreview) return;
         if (filteredDocs.length === 0) {
             setActiveDocIndex(0);
+            setCurrentPage(1);
             return;
         }
         setActiveDocIndex(0);
+        setCurrentPage(1);
     }, [activeTab, isShortageTab, isQuickPreview]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredDocs.length / pageSize));
+    const paginatedDocs = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filteredDocs.slice(start, start + pageSize);
+    }, [filteredDocs, currentPage]);
 
     const handleQuickPreviewToggle = () => {
         setIsQuickPreview(!isQuickPreview);
@@ -347,10 +361,13 @@ const DocumentHub = () => {
         if (!isShortageTab) return;
         if (filteredDocs.length === 0) {
             setActiveShortageIndex(0);
+            setCurrentPage(1);
             return;
         }
         setActiveShortageIndex(0);
+        setCurrentPage(1);
     }, [isShortageTab, filteredDocs]);
+
 
     const shortageHistoryFocusPId = useMemo(() => {
         if (!isShortageTab || filteredDocs.length === 0) return null;
@@ -579,10 +596,14 @@ const DocumentHub = () => {
 
     const toggleSelectAllShortage = (checked) => {
         if (!checked) {
-            setSelectedShortageIds([]);
+            setSelectedShortageIds(prev => prev.filter(id => !paginatedDocs.some(item => item.p_id === id)));
             return;
         }
-        setSelectedShortageIds(filteredDocs.map((item) => item.p_id));
+        setSelectedShortageIds(prev => {
+            const newIds = new Set(prev);
+            paginatedDocs.forEach(item => newIds.add(item.p_id));
+            return [...newIds];
+        });
     };
 
     const handleDeleteSelectedShortage = () => {
@@ -986,11 +1007,13 @@ const DocumentHub = () => {
                     <span style={{ marginLeft: 'auto', color: 'var(--accent-primary)', fontWeight: 800, fontSize: '0.85rem' }}>{filteredDocs.length} 筆</span>
                 </button>
 
-                {/* 展開內容：用 max-height 做動畫 */}
+                {/* 展開內容：用 opacity + visibility 做動畫，避免 overflow:hidden 截斷下拉選單 */}
                 <div style={{
-                    maxHeight: isSearchOpen ? '200px' : '0',
-                    overflow: 'hidden',
-                    transition: 'max-height 0.25s ease',
+                    maxHeight: isSearchOpen ? '300px' : '0',
+                    opacity: isSearchOpen ? 1 : 0,
+                    pointerEvents: isSearchOpen ? 'auto' : 'none',
+                    overflow: isSearchOpen ? 'visible' : 'hidden',
+                    transition: 'max-height 0.25s ease, opacity 0.2s ease',
                 }}>
                     <div style={{ borderTop: '1px solid var(--border-color)', padding: '0.85rem 1rem' }}>
                         <form ref={searchFormRef} data-search-form onSubmit={handleSearchSubmit} style={{ display: 'flex', flexWrap: 'wrap', overflow: 'visible', gap: '0.6rem', alignItems: 'flex-end' }}>
@@ -1005,9 +1028,19 @@ const DocumentHub = () => {
                                 <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>日期</label>
                                 <input type="text" placeholder="YYYY-MM-DD" value={searchFilters.date} onChange={e => setSearchFilters({ ...searchFilters, date: e.target.value })} className={styles.searchInput} style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.82rem' }} />
                             </div>
-                            <div className={styles.searchField} data-search-field data-search-field-index="2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '140px', flex: 1.2 }}>
-                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>交易對象</label>
-                                <input type="text" placeholder="客戶 / 供應商" value={searchFilters.party} onChange={e => setSearchFilters({ ...searchFilters, party: e.target.value })} className={styles.searchInput} style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '0.82rem' }} />
+                            <div className={styles.searchField} data-search-field data-search-field-index="2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '140px', flex: 1.5, overflow: 'visible' }}>
+                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                    {activeBusinessGroup === 'procurement' ? '供應商' : '客戶'}
+                                </label>
+                                <AutocompleteInput
+                                    value={searchFilters.party}
+                                    onChange={val => setSearchFilters({ ...searchFilters, party: val })}
+                                    placeholder={activeBusinessGroup === 'procurement' ? '供應商代號 / 名稱' : '客戶代號 / 名稱'}
+                                    data={activeBusinessGroup === 'procurement' ? supplierOptions : customerOptions}
+                                    filterKey={activeBusinessGroup === 'procurement' ? 'sup_id' : 'cust_id'}
+                                    labelKey="name"
+                                    compact
+                                />
                             </div>
                             {activeTab !== 'sales' && (
                             <div className={styles.searchField} data-search-field data-search-field-index="3" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '110px', flex: 1 }}>
@@ -1280,7 +1313,15 @@ const DocumentHub = () => {
                         </thead>
                         <tbody ref={shortageBodyRef}>
                             {isShortageTab ? (
-                                filteredDocs.map((item, idx) => (
+                                paginatedDocs.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="8" className={styles.emptyState}>
+                                            <Search size={48} strokeWidth={1.5} />
+                                            <p>{appliedSearchFilters.docId || appliedSearchFilters.party ? '找不到符合條件的缺貨項目' : '缺貨簿目前為空'}</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                paginatedDocs.map((item, idx) => (
                                     <tr
                                         key={item.p_id}
                                         data-shortage-row-idx={idx}
@@ -1346,8 +1387,17 @@ const DocumentHub = () => {
                                         </td>
                                     </tr>
                                 ))
+                                )
                             ) : (
-                                filteredDocs.map((doc, idx) => (
+                                paginatedDocs.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="7" className={styles.emptyState}>
+                                            <Search size={48} strokeWidth={1.5} />
+                                            <p>{appliedSearchFilters.docId || appliedSearchFilters.party || appliedSearchFilters.opener || appliedSearchFilters.date ? t('docs.noResults') : t('docs.noData')}</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                paginatedDocs.map((doc, idx) => (
                                     <tr
                                         key={doc.doc_id}
                                         data-doc-hub-row-idx={idx}
@@ -1396,18 +1446,39 @@ const DocumentHub = () => {
                                         </td>
                                     </tr>
                                 ))
-                            )}
-                            {filteredDocs.length === 0 && (
-                                <tr>
-                                    <td colSpan={isShortageTab ? 9 : activeTab === 'sales' ? 7 : 8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                                        {isShortageTab ? '目前沒有低於安全庫存的零件' : (docs.length === 0 ? t('docs.empty') : '找不到符合條件的單據')}
-                                    </td>
-                                </tr>
+                                )
                             )}
                         </tbody>
-                        </table>
-                    </div>
+                    </table>
                 </div>
+                
+                {totalPages > 1 && (
+                    <div className={styles.paginationFooter} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', background: 'var(--surface-color)', borderTop: '1px solid var(--border-color)', fontSize: '0.875rem' }}>
+                        <div style={{ color: 'var(--text-muted)' }}>
+                            顯示 {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredDocs.length)} 筆，共 {filteredDocs.length} 筆
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <button 
+                                type="button" 
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.75rem', background: currentPage === 1 ? 'transparent' : 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '0.375rem', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, transition: 'all 0.2s' }}
+                            >
+                                <ChevronLeft size={16} /> 上一頁
+                            </button>
+                            <span style={{ fontWeight: 600, color: 'var(--text-color)' }}>{currentPage} / {totalPages}</span>
+                            <button 
+                                type="button" 
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.75rem', background: currentPage === totalPages ? 'transparent' : 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '0.375rem', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, transition: 'all 0.2s' }}
+                            >
+                                下一頁 <ChevronRight size={16} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {!isShortageTab && (
                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>

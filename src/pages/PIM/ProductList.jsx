@@ -180,6 +180,8 @@ const ProductList = () => {
     const [importResult, setImportResult] = useState({ processed: 0, updated: 0, added: 0, skipped: 0 });
     const [selectedProductIds, setSelectedProductIds] = useState([]);
     const [activeRowIndex, setActiveRowIndex] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 50;
     const [historyInlineOpen, setHistoryInlineOpen] = useState(false);
     /** 產品列表 F9：浮層預覽實體照片（僅有 images 時） */
     const [imagePreviewProduct, setImagePreviewProduct] = useState(null);
@@ -259,13 +261,21 @@ const ProductList = () => {
     useEffect(() => {
         if (results.length === 0) {
             setActiveRowIndex(0);
+            setCurrentPage(1);
             return;
         }
         setActiveRowIndex(0);
+        setCurrentPage(1);
     }, [results]);
 
-    const isAllSelected = results.length > 0 && selectedProductIds.length === results.length;
-    const isPartiallySelected = selectedProductIds.length > 0 && selectedProductIds.length < results.length;
+    const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
+    const paginatedResults = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return results.slice(start, start + pageSize);
+    }, [results, currentPage]);
+
+    const isAllSelected = paginatedResults.length > 0 && paginatedResults.every(p => selectedProductIds.includes(p.p_id));
+    const isPartiallySelected = paginatedResults.some(p => selectedProductIds.includes(p.p_id)) && !isAllSelected;
 
     useEffect(() => {
         if (!selectAllRef.current) return;
@@ -332,7 +342,7 @@ const ProductList = () => {
     }, [activeRowIndex]);
 
     const handleProductListKeyDown = (e) => {
-        if (results.length === 0) return;
+        if (paginatedResults.length === 0) return;
 
         if (e.key === 'Escape') {
             e.preventDefault();
@@ -342,7 +352,7 @@ const ProductList = () => {
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            const nextIdx = Math.min(activeRowIndex + 1, results.length - 1);
+            const nextIdx = Math.min(activeRowIndex + 1, paginatedResults.length - 1);
             setActiveRowIndex(nextIdx);
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
@@ -350,20 +360,26 @@ const ProductList = () => {
             setActiveRowIndex(prevIdx);
         } else if (e.key === 'Enter') {
             e.preventDefault();
-            const activeItem = results[activeRowIndex];
+            const activeItem = paginatedResults[activeRowIndex];
             if (!activeItem) return;
             setSelectedProduct(activeItem); // 等同雙擊列，開啟檢視抽屜
         } else if (e.key === ' ' || e.code === 'Space') {
             e.preventDefault();
-            const activeItem = results[activeRowIndex];
+            const activeItem = paginatedResults[activeRowIndex];
             if (!activeItem) return;
             const checked = selectedProductIds.includes(activeItem.p_id);
             toggleSelection(activeItem.p_id, !checked);
         } else if (e.code === 'F9') {
             e.preventDefault();
-            const activeItem = results[activeRowIndex];
+            const activeItem = paginatedResults[activeRowIndex];
             if (!activeItem?.images?.length) return;
             setImagePreviewProduct((cur) => (cur?.p_id === activeItem.p_id ? null : activeItem));
+        } else if (e.key === 'ArrowRight' && e.ctrlKey) {
+            e.preventDefault();
+            setCurrentPage(p => Math.min(totalPages, p + 1));
+        } else if (e.key === 'ArrowLeft' && e.ctrlKey) {
+            e.preventDefault();
+            setCurrentPage(p => Math.max(1, p - 1));
         }
     };
 
@@ -394,8 +410,8 @@ const ProductList = () => {
         if (selectedProduct && !selectedProduct.isNew && selectedProduct.p_id) {
             return selectedProduct.p_id;
         }
-        return results[activeRowIndex]?.p_id || null;
-    }, [selectedProduct?.p_id, selectedProduct?.isNew, activeRowIndex, results[activeRowIndex]?.p_id]);
+        return paginatedResults[activeRowIndex]?.p_id || null;
+    }, [selectedProduct?.p_id, selectedProduct?.isNew, activeRowIndex, paginatedResults]);
 
     useEffect(() => {
         setProductHistoryFocusPId(historyFocusPId);
@@ -539,10 +555,14 @@ const ProductList = () => {
 
     const toggleSelectAll = (checked) => {
         if (!checked) {
-            setSelectedProductIds([]);
+            setSelectedProductIds(prev => prev.filter(id => !paginatedResults.some(p => p.p_id === id)));
             return;
         }
-        setSelectedProductIds(results.map((p) => p.p_id));
+        setSelectedProductIds(prev => {
+            const newIds = new Set(prev);
+            paginatedResults.forEach(p => newIds.add(p.p_id));
+            return [...newIds];
+        });
     };
 
     const handleAddSelectedToShortageBook = () => {
@@ -1456,7 +1476,15 @@ const ProductList = () => {
                         </tr>
                     </thead>
                     <tbody ref={productTbodyRef}>
-                        {results.map((p, idx) => {
+                        {paginatedResults.length === 0 ? (
+                            <tr>
+                                <td colSpan="11" className={styles.emptyState}>
+                                    <Search size={48} strokeWidth={1.5} />
+                                    <p>{hasSearched ? t('pim.noResults') : t('pim.noData')}</p>
+                                </td>
+                            </tr>
+                        ) : (
+                        paginatedResults.map((p, idx) => {
                             const getBestPn = () => {
                                 if (hasSearched && p.part_numbers?.length > 0) {
                                     const match = p.part_numbers.find(pn => {
@@ -1627,12 +1655,38 @@ const ProductList = () => {
                                         )}
                                     </td>
                                 </tr>
-                            );
-                        })}
+                                );
+                        })
+                        )}
                     </tbody>
                 </table>
-                </div>
             </div>
+            {totalPages > 1 && (
+                <div className={styles.paginationFooter} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', background: 'var(--surface-color)', borderTop: '1px solid var(--border-color)', fontSize: '0.875rem' }}>
+                    <div style={{ color: 'var(--text-muted)' }}>
+                        顯示 {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, results.length)} 筆，共 {results.length} 筆
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <button 
+                            type="button" 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.75rem', background: currentPage === 1 ? 'transparent' : 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '0.375rem', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, transition: 'all 0.2s' }}
+                        >
+                            <ChevronLeft size={16} /> 上一頁
+                        </button>
+                        <span style={{ fontWeight: 600, color: 'var(--text-color)' }}>{currentPage} / {totalPages}</span>
+                        <button 
+                            type="button" 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.75rem', background: currentPage === totalPages ? 'transparent' : 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '0.375rem', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, transition: 'all 0.2s' }}
+                        >
+                            下一頁 <ChevronRight size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <ProductDrawer />
 
@@ -2066,6 +2120,7 @@ const ProductList = () => {
                 onConfirm={confirmModalState.onConfirm}
                 onCancel={() => setConfirmModalState(s => ({ ...s, open: false }))}
             />
+            </div>
         </div>
     );
 };
