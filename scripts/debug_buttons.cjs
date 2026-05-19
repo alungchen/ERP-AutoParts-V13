@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const BASE_URL     = 'http://cck2.uparts.info/car2009/parts_query/';
+const BASE_URL     = 'http://cck.uparts.info/car2009/Default/';
 const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 const PROFILE_DIR  = path.join(__dirname, '.chrome-profile');
 const sleep = ms => new Promise(r => setTimeout(r, ms));

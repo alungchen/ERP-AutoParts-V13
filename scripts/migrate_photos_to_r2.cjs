@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -6,6 +6,21 @@ const crypto = require('crypto');
 const DB_NAME = 'erp-db';
 const R2_BUCKET = 'erp-images';
 const TEMP_DIR = path.join(__dirname, '..', 'output', 'legacy_photos_backup');
+
+// 自動啟動防休眠程式 (在新視窗開啟)，防止重複開啟
+if (!process.env.KEEP_AWAKE_STARTED) {
+  console.log('🛡️ 正在自動啟動防休眠程式...');
+  const keepAwakePath = path.join(__dirname, 'keep_awake_api.ps1');
+  try {
+    spawn('powershell', ['-ExecutionPolicy', 'Bypass', '-File', keepAwakePath], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref();
+    process.env.KEEP_AWAKE_STARTED = '1';
+  } catch (e) {
+    console.log('⚠️ 防休眠程式啟動失敗，請確保您有執行 PowerShell 腳本的權限。');
+  }
+}
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -115,7 +130,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       const sqlPath = path.join(__dirname, '..', 'output', 'migrate_r2.sql');
       fs.writeFileSync(sqlPath, sqlStatements.join('\n'), 'utf8');
       try {
-          execSync(`npx wrangler d1 execute ${DB_NAME} --remote --file=output/migrate_r2.sql`, { cwd: path.join(__dirname, '..'), stdio: 'inherit' });
+          execSync(`npx wrangler d1 execute ${DB_NAME} --remote --file=output/migrate_r2.sql --yes`, { cwd: path.join(__dirname, '..'), stdio: 'inherit' });
           console.log(`\n✅ 搬移大功告成！成功將 ${totalPhotosMigrated} 張舊照片搬到您的 Cloudflare R2 空間！`);
           console.log(`💾 另外，所有的實體照片都已經備份在您的電腦資料夾中: output/legacy_photos_backup/`);
       } catch (e) {

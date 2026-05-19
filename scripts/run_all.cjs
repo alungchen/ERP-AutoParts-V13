@@ -1,8 +1,23 @@
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
+const path = require('path');
 
 console.log('==================================================');
 console.log('🤖 AI 全自動化任務啟動：(1) 文字抓取 ➔ (2) 照片網址 ➔ (3) 雲端搬家');
 console.log('==================================================\n');
+
+// 自動啟動防休眠程式 (在新視窗開啟)
+console.log('🛡️ 正在自動啟動防休眠程式...');
+const keepAwakePath = path.join(__dirname, 'keep_awake_api.ps1');
+try {
+  spawn('powershell', ['-ExecutionPolicy', 'Bypass', '-File', keepAwakePath], {
+    detached: true,
+    stdio: 'ignore'
+  }).unref();
+  process.env.KEEP_AWAKE_STARTED = '1';
+} catch (e) {
+  console.log('⚠️ 防休眠程式啟動失敗，請確保您有執行 PowerShell 腳本的權限。');
+}
+console.log('');
 
 try {
   console.log('▶️ [階段 1/3] 開始執行：抓取文字規格與適用車種 (scrape_parts.cjs)');

@@ -5,7 +5,7 @@ const fs = require('fs');
   const browser = await puppeteer.launch({ headless: false, userDataDir: './.chrome-profile' });
   const page = await browser.newPage();
   try {
-    await page.goto('http://cck2.uparts.info/car2009/parts_query/', { waitUntil: 'domcontentloaded' });
+    await page.goto('http://cck.uparts.info/car2009/Default/', { waitUntil: 'domcontentloaded' });
   } catch (err) {
     console.log('goto error:', err.message);
   }

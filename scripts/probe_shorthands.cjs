@@ -14,7 +14,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     }
 
     console.log('前往首頁...');
-    await page.goto('http://cck2.uparts.info/car2009/Type_Query2/', { waitUntil: 'domcontentloaded' }); // 車型片語
+    await page.goto('http://cck.uparts.info/car2009/Type_Query2/', { waitUntil: 'domcontentloaded' }); // 車型片語
     await sleep(2000);
 
     // 嘗試輸入空查詢

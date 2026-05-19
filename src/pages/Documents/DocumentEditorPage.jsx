@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useProductStore } from '../../store/useProductStore';
@@ -7,7 +7,6 @@ import { useCustomerStore } from '../../store/useCustomerStore';
 import { useEmployeeStore } from '../../store/useEmployeeStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
 import { useAppStore } from '../../store/useAppStore';
-import { useTranslation } from '../../i18n';
 import { canEditDocType } from '../../utils/permissions';
 import { X, Plus, Trash2, Save, FileText, Package, RotateCcw, Edit2, Printer } from 'lucide-react';
 import AutocompleteInput from '../../components/AutocompleteInput';
@@ -15,6 +14,7 @@ import PartMappingModal from '../PIM/PartMappingModal';
 import DocumentViewer from './DocumentViewer';
 import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
 import DocProductHistoryDrawer from '../../components/DocProductHistoryDrawer';
+import DocumentHub from './DocumentHub';
 import { isElementInDocPartEditingZone } from '../../utils/docHistoryFocusZones';
 import { sortedCustomersForSelect, sortedSuppliersForSelect } from '../../utils/sortContactsForSelect';
 import CodeLookupInput from '../../components/CodeLookupInput';
@@ -28,10 +28,18 @@ import {
 } from '../../utils/productPickerSync';
 import styles from './Documents.module.css';
 
+const DOC_TYPE_TITLE_ZH = {
+    inquiry: '詢價單',
+    purchase: '進貨單',
+    quotation: '報價單',
+    sales: '銷貨單',
+    salesReturn: '銷貨退回',
+    purchaseReturn: '進貨退回',
+};
+
 const DocumentEditorPage = () => {
-    const [searchParams] = useSearchParams();
-    const { t, language } = useTranslation();
-    const { addDocument, updateDocument, deleteDocument, inquiries, purchaseOrders, quotations, salesOrders, salesReturns, purchaseReturns } = useDocumentStore();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const { addDocument, updateDocument, deleteDocument, inquiries, purchaseOrders, quotations, salesOrders, salesReturns, purchaseReturns, isDocumentsLoaded } = useDocumentStore();
     const { products } = useProductStore();
     const { suppliers } = useSupplierStore();
     const { customers } = useCustomerStore();
@@ -46,23 +54,7 @@ const DocumentEditorPage = () => {
     const isIntl = mode === 'intl';
     const customerOptions = useMemo(() => sortedCustomersForSelect(customers), [customers]);
     const supplierOptions = useMemo(() => sortedSuppliersForSelect(suppliers), [suppliers]);
-    const docTypeMeta = {
-        quotation: { label: '\u5831\u50f9\u55ae', color: '#2563eb' },
-        sales: { label: '\u92b7\u8ca8\u55ae', color: '#16a34a' },
-        salesReturn: { label: '\u92b7\u9000\u55ae', color: '#0ea5e9' },
-        inquiry: { label: '\u8a62\u50f9\u55ae', color: '#8b5cf6' },
-        purchase: { label: '\u63a1\u8cfc\u55ae', color: '#f59e0b' },
-        purchaseReturn: { label: '\u9032\u9000\u55ae', color: '#f97316' },
-    };
-    const docTypeLabelKeyMap = {
-        inquiry: 'docs.tabInquiry',
-        purchase: 'docs.tabPurchase',
-        quotation: 'docs.tabQuotation',
-        sales: 'docs.tabSales',
-        salesReturn: 'docs.tabSalesReturn',
-        purchaseReturn: 'docs.tabPurchaseReturn',
-    };
-    const currentDocMeta = docTypeMeta[type] || { label: t(docTypeLabelKeyMap[type] || 'docs.title'), color: '#334155' };
+    const docTypeTitleZh = DOC_TYPE_TITLE_ZH[type] || '單據';
 
     const currentUser = employees.find((e) => e.emp_id === currentUserEmpId);
     const canEditThisDocType = canEditDocType({
@@ -104,6 +96,82 @@ const DocumentEditorPage = () => {
     const [selectedPickerProductIds, setSelectedPickerProductIds] = useState([]);
     const [mappingProduct, setMappingProduct] = useState(null);
     const [isViewerOpen, setIsViewerOpen] = useState(false);
+    const [isDocListDrawerOpen, setIsDocListDrawerOpen] = useState(false);
+    const [docListPanelRect, setDocListPanelRect] = useState(() => {
+        if (typeof window === 'undefined') return { x: 80, y: 56, w: 720, h: 560 };
+        const w = Math.min(720, Math.max(320, window.innerWidth - 24));
+        const h = Math.max(320, window.innerHeight - 96);
+        return {
+            x: Math.max(8, window.innerWidth - w - 12),
+            y: 56,
+            w,
+            h,
+        };
+    });
+    const docListDragRef = useRef(null);
+    const docListResizeRef = useRef(null);
+    const docListPanelRectRef = useRef(docListPanelRect);
+    docListPanelRectRef.current = docListPanelRect;
+
+    const onDocListDragStart = useCallback((e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const orig = { ...docListPanelRectRef.current };
+        docListDragRef.current = true;
+        const onMove = (ev) => {
+            if (!docListDragRef.current) return;
+            const dx = ev.clientX - startX;
+            const dy = ev.clientY - startY;
+            setDocListPanelRect((r) => {
+                let nx = orig.x + dx;
+                let ny = orig.y + dy;
+                const maxX = Math.max(0, window.innerWidth - r.w);
+                const maxY = Math.max(0, window.innerHeight - 40);
+                nx = Math.max(0, Math.min(nx, maxX));
+                ny = Math.max(0, Math.min(ny, maxY));
+                return { ...r, x: nx, y: ny };
+            });
+        };
+        const onUp = () => {
+            docListDragRef.current = false;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    }, []);
+
+    const onDocListResizeStart = useCallback((e) => {
+        e.stopPropagation();
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const orig = { ...docListPanelRectRef.current };
+        docListResizeRef.current = true;
+        const minW = 300;
+        const minH = 260;
+        const onMove = (ev) => {
+            if (!docListResizeRef.current) return;
+            const dw = ev.clientX - startX;
+            const dh = ev.clientY - startY;
+            setDocListPanelRect((r) => {
+                const newW = Math.max(minW, Math.min(orig.w + dw, window.innerWidth - r.x - 4));
+                const newH = Math.max(minH, Math.min(orig.h + dh, window.innerHeight - r.y - 4));
+                return { ...r, w: newW, h: newH };
+            });
+        };
+        const onUp = () => {
+            docListResizeRef.current = false;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    }, []);
+
     const [focusedHeaderAction, setFocusedHeaderAction] = useState('');
     const pickerFirstInputRef = useRef(null);
     const pickerFormRef = useRef(null);
@@ -166,17 +234,17 @@ const DocumentEditorPage = () => {
         setHistoryDrawerOpen(false);
     }, [isPickerOpen]);
 
-    //
+    // Handle loading existing document
     useEffect(() => {
         if (!isEdit) return;
         const state = useDocumentStore.getState();
         let existingDoc = null;
-        if (type === 'inquiry') existingDoc = (state.inquiries || []).find(d => d.doc_id === id);
-        else if (type === 'purchase') existingDoc = (state.purchaseOrders || []).find(d => d.doc_id === id);
-        else if (type === 'quotation') existingDoc = (state.quotations || []).find(d => d.doc_id === id);
-        else if (type === 'sales') existingDoc = (state.salesOrders || []).find(d => d.doc_id === id);
-        else if (type === 'salesReturn') existingDoc = (state.salesReturns || []).find(d => d.doc_id === id);
-        else if (type === 'purchaseReturn') existingDoc = (state.purchaseReturns || []).find(d => d.doc_id === id);
+        if (type === 'inquiry') existingDoc = (state.inquiries || []).find(d => d?.doc_id === id);
+        else if (type === 'purchase') existingDoc = (state.purchaseOrders || []).find(d => d?.doc_id === id);
+        else if (type === 'quotation') existingDoc = (state.quotations || []).find(d => d?.doc_id === id);
+        else if (type === 'sales') existingDoc = (state.salesOrders || []).find(d => d?.doc_id === id);
+        else if (type === 'salesReturn') existingDoc = (state.salesReturns || []).find(d => d?.doc_id === id);
+        else if (type === 'purchaseReturn') existingDoc = (state.purchaseReturns || []).find(d => d?.doc_id === id);
 
         if (existingDoc) {
             let updatedDoc = { ...existingDoc };
@@ -189,7 +257,85 @@ const DocumentEditorPage = () => {
             }
             setDoc(updatedDoc);
         }
-    }, [isEdit, id, type, customerOptions, supplierOptions]);
+    }, [isEdit, id, type, customerOptions, supplierOptions, defaultCurrency, currentUser]);
+
+    const isNewExplicit = searchParams.get('new') === '1';
+
+    // Auto-redirect to the latest document if id is missing and new=1 is not present
+    useEffect(() => {
+        if (!isDocumentsLoaded) return;
+        if (!type || id || isNewExplicit || type === 'shortageBook') return;
+        const state = useDocumentStore.getState();
+        let docs = [];
+        if (type === 'inquiry') docs = state.inquiries || [];
+        else if (type === 'purchase') docs = state.purchaseOrders || [];
+        else if (type === 'quotation') docs = state.quotations || [];
+        else if (type === 'sales') docs = state.salesOrders || [];
+        else if (type === 'salesReturn') docs = state.salesReturns || [];
+        else if (type === 'purchaseReturn') docs = state.purchaseReturns || [];
+        
+        if (docs.length > 0) {
+            // Find the latest document based on date (falling back to doc_id)
+            const latest = [...docs].sort((a, b) => {
+                const dateCompare = String(b?.date || '').localeCompare(String(a?.date || ''));
+                if (dateCompare !== 0) return dateCompare;
+                return String(b?.doc_id || '').localeCompare(String(a?.doc_id || ''));
+            })[0];
+            if (latest && latest.doc_id) {
+                const newParams = new URLSearchParams(searchParams);
+                newParams.set('id', String(latest.doc_id));
+                setSearchParams(newParams, { replace: true });
+            }
+        }
+    }, [id, type, isNewExplicit, setSearchParams, isDocumentsLoaded]);
+
+    // Handle Up/Down keys to switch documents in ReadOnly mode
+    useEffect(() => {
+        if (!isReadOnly || !id || isPickerOpen || isDocListDrawerOpen) return;
+        const handleDocSwitchKey = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                const state = useDocumentStore.getState();
+                let docs = [];
+                if (type === 'inquiry') docs = state.inquiries || [];
+                else if (type === 'purchase') docs = state.purchaseOrders || [];
+                else if (type === 'quotation') docs = state.quotations || [];
+                else if (type === 'sales') docs = state.salesOrders || [];
+                else if (type === 'salesReturn') docs = state.salesReturns || [];
+                else if (type === 'purchaseReturn') docs = state.purchaseReturns || [];
+                
+                if (docs.length === 0) return;
+                const sortedDocs = [...docs].sort((a, b) => {
+                    const dateCompare = String(b?.date || '').localeCompare(String(a?.date || ''));
+                    if (dateCompare !== 0) return dateCompare;
+                    return String(b?.doc_id || '').localeCompare(String(a?.doc_id || ''));
+                });
+                const currentIndex = sortedDocs.findIndex(d => String(d?.doc_id) === String(id));
+                if (currentIndex === -1) return;
+                
+                let nextIndex = currentIndex;
+                if (e.key === 'ArrowDown') {
+                    // ArrowDown: go to older document (next in descending list)
+                    nextIndex = Math.min(currentIndex + 1, sortedDocs.length - 1);
+                } else if (e.key === 'ArrowUp') {
+                    // ArrowUp: go to newer document (previous in descending list)
+                    nextIndex = Math.max(currentIndex - 1, 0);
+                }
+                
+                if (nextIndex !== currentIndex) {
+                    const targetDoc = sortedDocs[nextIndex];
+                    if (targetDoc && targetDoc.doc_id) {
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.set('id', String(targetDoc.doc_id));
+                        setSearchParams(newParams, { replace: true });
+                    }
+                }
+            }
+        };
+        window.addEventListener('keydown', handleDocSwitchKey);
+        return () => window.removeEventListener('keydown', handleDocSwitchKey);
+    }, [isReadOnly, id, type, isPickerOpen, isDocListDrawerOpen, setSearchParams]);
 
     useEffect(() => {
         if (!isEdit && currentUser && (!doc.opener_emp_id || !doc.opener_emp_name)) {
@@ -886,12 +1032,19 @@ const DocumentEditorPage = () => {
             <div style={{ padding: '1rem 1.5rem', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                        <div style={{ background: currentDocMeta.color, color: 'white', padding: '0.4rem 0.8rem', borderRadius: '4px', fontWeight: 800 }}>
-                            {currentDocMeta.label}
-                        </div>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                                {isEdit ? `\u55ae\u865f: ${id}` : '\u65b0\u55ae\u64da\u9810\u89bd'}
+                                {isEdit ? (
+                                    <>
+                                        <span style={{ color: '#2563eb' }}>{docTypeTitleZh}</span>
+                                        {` \u55ae\u865f: ${id}`}
+                                    </>
+                                ) : (
+                                    <>
+                                        <span style={{ color: '#2563eb' }}>{docTypeTitleZh}</span>
+                                        {` \u65b0\u55ae\u64da\u9810\u89bd`}
+                                    </>
+                                )}
                             </span>
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                                 {isEdit ? (isReadOnly ? '\u6aa2\u8996\u6a21\u5f0f' : '\u7de8\u8f2f\u4e2d..') : '\u5efa\u7acb\u65b0\u55ae\u64da\u4e2d'}
@@ -899,6 +1052,17 @@ const DocumentEditorPage = () => {
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        {/* New Document Button */}
+                        <button
+                            onClick={() => {
+                                window.open(`/document-editor?type=${type}&new=1`, '_blank');
+                            }}
+                            style={{ backgroundColor: 'var(--accent-primary)', color: 'white', border: 'none', padding: '0.6rem 1rem', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                            title={'新增單據'}
+                        >
+                            <Plus size={18} strokeWidth={3} /> 新增單據
+                        </button>
+
                         {/* Always show Printer if it's an existing document */}
                         {isEdit && (
                             <button
@@ -1647,6 +1811,143 @@ const DocumentEditorPage = () => {
                     }}
                 />
             )}
+
+            {!isDocListDrawerOpen && (
+                <button
+                    type="button"
+                    aria-label="開啟單據列表"
+                    title="單據列表"
+                    onClick={() => setIsDocListDrawerOpen(true)}
+                    style={{
+                        position: 'fixed',
+                        right: 0,
+                        top: '42%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 999,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.4rem',
+                        padding: '0.85rem 0.5rem',
+                        border: '1px solid var(--border-color)',
+                        borderRight: 'none',
+                        borderTopLeftRadius: '12px',
+                        borderBottomLeftRadius: '12px',
+                        background: 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        boxShadow: '-3px 2px 14px rgba(0,0,0,0.14)',
+                        fontSize: '0.82rem',
+                        fontWeight: 800,
+                        writingMode: 'vertical-rl',
+                        textOrientation: 'mixed',
+                        letterSpacing: '0.12em',
+                    }}
+                >
+                    <FileText size={17} style={{ transform: 'rotate(90deg)' }} aria-hidden />
+                    單據列表
+                </button>
+            )}
+
+            {isDocListDrawerOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        left: docListPanelRect.x,
+                        top: docListPanelRect.y,
+                        width: docListPanelRect.w,
+                        height: docListPanelRect.h,
+                        zIndex: 1000,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        backgroundColor: 'var(--bg-primary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '10px',
+                        boxShadow: '0 16px 48px rgba(0,0,0,0.22)',
+                        overflow: 'hidden',
+                    }}
+                >
+                    <div
+                        onMouseDown={onDocListDragStart}
+                        style={{
+                            flexShrink: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.45rem 0.65rem',
+                            background: 'var(--bg-secondary)',
+                            borderBottom: '1px solid var(--border-color)',
+                            cursor: 'grab',
+                            userSelect: 'none',
+                        }}
+                    >
+                        <FileText size={17} aria-hidden />
+                        <span style={{ fontWeight: 800, fontSize: '0.88rem' }}>單據列表</span>
+                        <span style={{ flex: 1 }} />
+                        <button
+                            type="button"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={() => setIsDocListDrawerOpen(false)}
+                            style={{
+                                background: 'var(--bg-tertiary)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '50%',
+                                width: '34px',
+                                height: '34px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--text-primary)',
+                            }}
+                            aria-label="關閉單據列表"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                    <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                        <DocumentHub
+                            isDrawerMode={true}
+                            drawerAnchorDocType={type}
+                            onSelectDoc={(nextType, docId) => {
+                                const next = new URLSearchParams(searchParams);
+                                next.set('type', nextType);
+                                if (docId) {
+                                    next.set('id', String(docId));
+                                    next.delete('new');
+                                } else {
+                                    next.delete('id');
+                                }
+                                setSearchParams(next, { replace: true });
+                            }}
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        aria-label="調整視窗大小"
+                        onMouseDown={onDocListResizeStart}
+                        style={{
+                            position: 'absolute',
+                            right: 2,
+                            bottom: 2,
+                            width: 18,
+                            height: 18,
+                            padding: 0,
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'nwse-resize',
+                            lineHeight: 0,
+                            color: 'var(--text-muted)',
+                        }}
+                    >
+                        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+                            <path fill="currentColor" d="M11 11h3v3h-3v-3zm-5.5 5.5h3v3h-3v-3zm5.5 0h3v3h-3v-3zm-5.5-5.5h3v3h-3v-3z" />
+                        </svg>
+                    </button>
+                </div>
+            )}
+
         </div>
     );
 };

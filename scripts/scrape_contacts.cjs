@@ -145,14 +145,14 @@ async function scrapeDetails(page, editUrlBase, id) {
     const targets = [
         {
             name: '供應商',
-            listUrl: 'http://cck2.uparts.info/car2009/supplier_query/',
-            editUrlBase: 'http://cck2.uparts.info/CAR2009/Supplier_Query_Edit/',
+            listUrl: 'http://cck.uparts.info/car2009/supplier_query/',
+            editUrlBase: 'http://cck.uparts.info/CAR2009/Supplier_Query_Edit/',
             csvFile: path.join(OUTPUT_DIR, 'scraped_suppliers.csv')
         },
         {
             name: '客戶',
-            listUrl: 'http://cck2.uparts.info/car2009/customer_query/',
-            editUrlBase: 'http://cck2.uparts.info/CAR2009/Customer_Query_Edit/',
+            listUrl: 'http://cck.uparts.info/car2009/customer_query/',
+            editUrlBase: 'http://cck.uparts.info/CAR2009/Customer_Query_Edit/',
             csvFile: path.join(OUTPUT_DIR, 'scraped_customers.csv')
         }
     ];

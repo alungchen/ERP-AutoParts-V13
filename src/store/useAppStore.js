@@ -11,6 +11,11 @@ export const useAppStore = create(persist((set) => ({
     language: 'zh', // Default to Traditional Chinese
     setLanguage: (lang) => set({ language: lang }),
 
+    // Page Title for Topnav
+    pageTitle: '',
+    pageTitleColor: '',
+    setPageTitle: (title, color = '') => set({ pageTitle: title, pageTitleColor: color }),
+
     // System Settings
     defaultCurrency: 'TWD',
     setDefaultCurrency: (curr) => set({ defaultCurrency: curr }),

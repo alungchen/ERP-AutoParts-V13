@@ -5,7 +5,7 @@ const os = require('os');
 
 const PROFILE_DIR = path.join(__dirname, '.chrome-profile-shorthand');
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
-const BASE_URL = 'http://cck2.uparts.info/car2009';
+const BASE_URL = 'http://cck.uparts.info/car2009';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 

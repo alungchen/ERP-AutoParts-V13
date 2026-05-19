@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
-const MEDIA_URL = 'http://cck2.uparts.info/car2009/Iframe_MEDIA_List/?KeyValue=7BA007A3-4869-4713-8164-88058D8327B5&TableName=%E9%9B%B6%E4%BB%B6%E4%B8%BB%E6%AA%94';
+const MEDIA_URL = 'http://cck.uparts.info/car2009/Iframe_MEDIA_List/?KeyValue=7BA007A3-4869-4713-8164-88058D8327B5&TableName=%E9%9B%B6%E4%BB%B6%E4%B8%BB%E6%AA%94';
 const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 const PROFILE_DIR = path.join(__dirname, '.chrome-profile');
 

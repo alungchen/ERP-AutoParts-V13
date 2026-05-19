@@ -44,21 +44,30 @@ const SystemSettings = () => {
         showBatchDelete, setShowBatchDelete,
         enablePermissionRole, setEnablePermissionRole,
         enableLoginSystem, setEnableLoginSystem,
-        operationMode, setOperationMode,
+        setOperationMode,
         displayMode, setDisplayMode,
         displayModeCardOrder, setDisplayModeCardOrder
     } = useAppStore();
     const [draggingDisplayModeIndex, setDraggingDisplayModeIndex] = useState(null);
-    const [pendingOperationMode, setPendingOperationMode] = useState(operationMode);
+    const [pendingOperationMode, setPendingOperationMode] = useState(() => useAppStore.getState().operationMode);
     const [systemThemeLabel, setSystemThemeLabel] = useState(() => (
         window.matchMedia('(prefers-color-scheme: dark)').matches ? '深色' : '淺色'
     ));
     const [dbSyncLoading, setDbSyncLoading] = useState(null);
     const [dbSyncMessage, setDbSyncMessage] = useState(null);
+    const [opModeSaved, setOpModeSaved] = useState(false);
 
+    // 僅在進入設定頁時與 store 對齊一次；若隨 store（跨分頁 rehydrate）不斷同步，會沖掉使用者尚未儲存的選項切換
     useEffect(() => {
-        setPendingOperationMode(operationMode);
-    }, [operationMode]);
+        const syncFromStore = () => setPendingOperationMode(useAppStore.getState().operationMode);
+        if (useAppStore.persist.hasHydrated()) {
+            syncFromStore();
+            return undefined;
+        }
+        return useAppStore.persist.onFinishHydration(() => {
+            syncFromStore();
+        });
+    }, []);
 
     const normalizedDisplayModeOrder = useMemo(() => [
         ...displayModeCardOrder.filter((k) => DEFAULT_DISPLAY_MODE_CARD_ORDER.includes(k)),
@@ -98,11 +107,15 @@ const SystemSettings = () => {
         return () => mediaQuery.removeEventListener('change', updateThemeLabel);
     }, []);
 
-    const handleSaveOperationMode = () => {
-        if (pendingOperationMode === operationMode) return;
+    const handleSaveOperationMode = async () => {
         setOperationMode(pendingOperationMode);
-        // Refresh to matching layout state immediately
-        window.location.href = '/settings';
+        setOpModeSaved(true);
+        try {
+            await pushAllStoresToD1();
+        } catch {
+            /* 本機 persist 已寫入；雲端同步失敗仍導向 */
+        }
+        window.location.href = '/pim';
     };
 
     const apiBaseHint = import.meta.env.VITE_API_BASE
@@ -181,6 +194,7 @@ const SystemSettings = () => {
         borderRadius: '50%',
         background: '#fff',
         transition: 'all 0.2s ease',
+        pointerEvents: 'none',
     };
 
     return (
@@ -496,19 +510,23 @@ const SystemSettings = () => {
                                     </button>
                                 </div>
                             </div>
-                            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.75rem' }}>
+                                {opModeSaved && (
+                                    <span style={{ fontSize: '0.85rem', color: '#34d399', fontWeight: 700 }}>
+                                        ✓ 已儲存，{pendingOperationMode === 'tabbed' ? '新分頁模式' : '傳統配置模式'} 生效中
+                                    </span>
+                                )}
                                 <button
                                     type="button"
                                     onClick={handleSaveOperationMode}
-                                    disabled={pendingOperationMode === operationMode}
                                     style={{
                                         border: 'none',
                                         borderRadius: '8px',
                                         padding: '0.55rem 1rem',
                                         fontWeight: 700,
                                         color: 'white',
-                                        background: pendingOperationMode === operationMode ? 'var(--text-muted)' : 'var(--accent-primary)',
-                                        cursor: pendingOperationMode === operationMode ? 'not-allowed' : 'pointer'
+                                        background: 'var(--accent-primary)',
+                                        cursor: 'pointer'
                                     }}
                                 >
                                     儲存

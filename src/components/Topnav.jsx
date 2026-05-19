@@ -11,7 +11,7 @@ import styles from './Topnav.module.css';
 const Topnav = () => {
     const { searchQuery, setSearchQuery } = useProductStore();
     const { t, language, setLanguage } = useTranslation();
-    const { enableLoginSystem, currentUserEmpId, currentUserPhotoURL, logout } = useAppStore();
+    const { enableLoginSystem, currentUserEmpId, currentUserPhotoURL, logout, pageTitle, pageTitleColor } = useAppStore();
     const { employees } = useEmployeeStore();
     const [showBackupModal, setShowBackupModal] = useState(false);
     const currentUser = employees.find((e) => e.emp_id === currentUserEmpId);
@@ -19,7 +19,18 @@ const Topnav = () => {
 
     return (
         <header className={styles.topnav}>
-            <div style={{ flex: 1 }} />
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                {pageTitle && (
+                    <h1 style={{ 
+                        margin: 0, 
+                        fontSize: '1.4rem', 
+                        fontWeight: 800, 
+                        color: pageTitleColor || 'var(--text-primary)' 
+                    }}>
+                        {pageTitle}
+                    </h1>
+                )}
+            </div>
 
             <div className={styles.profileDiv}>
                 <button

@@ -17,7 +17,7 @@ const readline = require('readline');
 
 const PROFILE_DIR = path.join(__dirname, '.chrome-profile-shorthand');
 const OUTPUT_DIR  = path.join(__dirname, '..', 'output');
-const TARGET_URL  = 'http://cck2.uparts.info/car2009/Chname_Query2/';
+const TARGET_URL  = 'http://cck.uparts.info/car2009/Chname_Query2/';
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'shorthand_parts.csv');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));

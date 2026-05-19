@@ -4,7 +4,7 @@ const puppeteer = require('puppeteer');
   const browser = await puppeteer.launch({ headless: false, userDataDir: './.chrome-profile' });
   try {
     const page = await browser.newPage();
-    try { await page.goto('http://cck2.uparts.info/car2009/parts_query/', { waitUntil: 'domcontentloaded' }); } catch(e){}
+    try { await page.goto('http://cck.uparts.info/car2009/Default/', { waitUntil: 'domcontentloaded' }); } catch(e){}
     await new Promise(r => setTimeout(r, 2000));
     
     // Search for COM-B048

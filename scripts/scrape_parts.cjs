@@ -10,7 +10,8 @@ const path = require('path');
 const os   = require('os');
 const { execSync } = require('child_process');
 
-const BASE_URL     = 'http://cck2.uparts.info/car2009/parts_query/';
+const BASE_URL     = 'http://cck.uparts.info/car2009/Default/';
+const PARTS_URL    = 'http://cck.uparts.info/car2009/parts_query/';
 const OUTPUT_DIR   = path.join(__dirname, '..', 'output');
 const KEYWORDS_FILE = path.join(__dirname, '..', 'keywords.txt');
 
@@ -69,6 +70,7 @@ function writeCSV(filePath, headers, rows) {
     defaultViewport: { width: 1440, height: 900 },
     ...(executablePath ? { executablePath } : {}),
     userDataDir: PROFILE_DIR,
+    protocolTimeout: 1200000,
     args: ['--no-sandbox','--disable-setuid-sandbox','--allow-running-insecure-content',
            '--ignore-certificate-errors','--disable-popup-blocking']
   });
@@ -123,9 +125,10 @@ function writeCSV(filePath, headers, rows) {
   const allMainRows   = [];
   const allCompatRows = [];
 
-  for (const SEARCH_TERM of searchTerms) {
-    try { await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' }); } catch {}
-    await ensurePageReady(page);
+  try {
+    for (const SEARCH_TERM of searchTerms) {
+      try { await page.goto(PARTS_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+      await ensurePageReady(page);
     await sleep(1500);
 
     console.log(`\n[2] Searching: "${SEARCH_TERM}"`);
@@ -264,7 +267,18 @@ function writeCSV(filePath, headers, rows) {
 
         // 從 iframe 讀取資料
         let compatData = [];
-        const partkeyFrame = page.frames().find(f => f.url().includes('product_info_partkey_big'));
+        let partkeyFrame = null;
+        try {
+            const el = await page.$('#iframe_partkey');
+            if (el) partkeyFrame = await el.contentFrame();
+        } catch(e) {}
+        
+        // Fallback or validation
+        if (!partkeyFrame) {
+            partkeyFrame = page.frames().find(f => {
+                try { return f.url().includes('product_info_partkey_big'); } catch(e) { return false; }
+            });
+        }
 
         if (partkeyFrame) {
           try {
@@ -353,20 +367,30 @@ function writeCSV(filePath, headers, rows) {
       await sleep(1000);
       await ensurePageReady(page);
     }
+      }
     }
+  } catch (err) {
+      console.log(`\n❌ 執行中斷: ${err.message}`);
+      if (err.message.includes('detached Frame') || err.message.includes('Execution context was destroyed')) {
+          console.log(`⚠️ 偵測到網頁被強制登出或重新整理 (這是 ERP 系統本身的安全性自動登出)！`);
+          console.log(`💾 系統將為您自動保存中斷前已抓取的進度...`);
+      }
+  } finally {
+      // ── [5] 輸出 ──────────────────────────────────────────────────────
+      console.log(`\n${'═'.repeat(50)}`);
+      if (allMainRows.length > 0) {
+          writeCSV(path.join(OUTPUT_DIR,'products_main.csv'),
+            ['p_id','name','brand','stock','specifications','car_model','year','price_a','price_b','price_c','notes'],
+            allMainRows);
+          writeCSV(path.join(OUTPUT_DIR,'products_compatible.csv'),
+            ['p_id','is_primary','compatible_number','car_model','vehicle_spec','year','product_name','product_spec','brand','note'],
+            allCompatRows);
+          console.log(`\n✅ 爬取已儲存！ Main: ${allMainRows.length}, Compatible: ${allCompatRows.length}`);
+      } else {
+          console.log(`\n⚠ 尚未抓取到任何資料。`);
+      }
+      await browser.close();
   }
-
-  // ── [5] 輸出 ──────────────────────────────────────────────────────
-  console.log(`\n${'═'.repeat(50)}`);
-  writeCSV(path.join(OUTPUT_DIR,'products_main.csv'),
-    ['p_id','name','brand','stock','specifications','car_model','year','price_a','price_b','price_c','notes'],
-    allMainRows);
-  writeCSV(path.join(OUTPUT_DIR,'products_compatible.csv'),
-    ['p_id','is_primary','compatible_number','car_model','vehicle_spec','year','product_name','product_spec','brand','note'],
-    allCompatRows);
-
-  console.log(`\n✅ Done scraping! Main: ${allMainRows.length}, Compatible: ${allCompatRows.length}`);
-  await browser.close();
 
   // ── [6] 自動轉換 SQL 並匯入資料庫 ──────────────────────────────────────
   console.log(`\n${'═'.repeat(50)}`);
@@ -377,12 +401,12 @@ function writeCSV(filePath, headers, rows) {
     execSync(`node scripts/generate_import_sql.cjs${forceFlag}`, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
     
     console.log('\n  2. 匯入遠端 D1 資料庫 (這可能需要幾十秒)...');
-    execSync('npx wrangler d1 execute erp-db --remote --file=output/import_products.sql', { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+    execSync('npx wrangler d1 execute erp-db --remote --file=output/import_products.sql --yes', { stdio: 'inherit', cwd: path.join(__dirname, '..') });
     
     console.log('\n✅ 恭喜！所有爬取到的資料已成功匯入 ERP 遠端資料庫！');
   } catch (err) {
     console.error('\n❌ 匯入資料庫時發生錯誤：', err.message);
-    console.log('您可以稍後手動執行以下指令來匯入：\n  node scripts/generate_import_sql.cjs\n  npx wrangler d1 execute erp-db --remote --file=output/import_products.sql');
+    console.log('您可以稍後手動執行以下指令來匯入：\n  node scripts/generate_import_sql.cjs\n  npx wrangler d1 execute erp-db --remote --file=output/import_products.sql --yes');
     process.exit(1);
   }
 

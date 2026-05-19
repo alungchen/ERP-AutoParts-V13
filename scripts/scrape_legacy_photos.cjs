@@ -1,12 +1,27 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 
 const DB_NAME = 'erp-db'; // 你的 D1 資料庫名稱
 const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 const PROFILE_DIR = path.join(__dirname, '.chrome-profile');
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
+
+// 自動啟動防休眠程式 (在新視窗開啟)，防止重複開啟
+if (!process.env.KEEP_AWAKE_STARTED) {
+  console.log('🛡️ 正在自動啟動防休眠程式...');
+  const keepAwakePath = path.join(__dirname, 'keep_awake_api.ps1');
+  try {
+    spawn('powershell', ['-ExecutionPolicy', 'Bypass', '-File', keepAwakePath], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref();
+    process.env.KEEP_AWAKE_STARTED = '1';
+  } catch (e) {
+    console.log('⚠️ 防休眠程式啟動失敗，請確保您有執行 PowerShell 腳本的權限。');
+  }
+}
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -74,6 +89,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const browser = await puppeteer.launch({
     headless: "new",
     userDataDir: PROFILE_DIR,
+    protocolTimeout: 1200000,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   const page = await browser.newPage();
@@ -95,7 +111,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
     try {
       // 1. 到搜尋頁面搜尋這個料號
-      await page.goto('http://cck2.uparts.info/car2009/parts_query/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.goto('http://cck.uparts.info/car2009/Default/', { waitUntil: 'domcontentloaded', timeout: 60000 });
       await sleep(1000);
       
       await page.evaluate((partNo) => {
@@ -122,7 +138,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       console.log(`  - 取得舊系統 GUID: ${legacyGuid}`);
 
       // 3. 使用 Iframe_MEDIA_List 抓取圖片
-      const url = `http://cck2.uparts.info/car2009/Iframe_MEDIA_List/?KeyValue=${legacyGuid}&TableName=%E9%9B%B6%E4%BB%B6%E4%B8%BB%E6%AA%94&message=&TYPE_LABLE=&CHNAME_LABLE=`;
+      const url = `http://cck.uparts.info/car2009/Iframe_MEDIA_List/?KeyValue=${legacyGuid}&TableName=%E9%9B%B6%E4%BB%B6%E4%B8%BB%E6%AA%94&message=&TYPE_LABLE=&CHNAME_LABLE=`;
       
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await sleep(1000); // 確保圖片 DOM 載入
@@ -171,11 +187,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     
     try {
         console.log('🔄 正在將圖片連結更新至遠端 D1 資料庫...');
-        execSync(`npx wrangler d1 execute ${DB_NAME} --remote --file=output/update_legacy_photos.sql`, { cwd: path.join(__dirname, '..'), stdio: 'inherit' });
+        execSync(`npx wrangler d1 execute ${DB_NAME} --remote --file=output/update_legacy_photos.sql --yes`, { cwd: path.join(__dirname, '..'), stdio: 'inherit' });
         console.log('🎉 照片更新完成！');
     } catch (e) {
         console.log('❌ 更新至遠端資料庫失敗，請手動執行:');
-        console.log(`npx wrangler d1 execute ${DB_NAME} --remote --file=output/update_legacy_photos.sql`);
+        console.log(`npx wrangler d1 execute ${DB_NAME} --remote --file=output/update_legacy_photos.sql --yes`);
     }
 
   } else {

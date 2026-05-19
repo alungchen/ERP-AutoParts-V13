@@ -2,16 +2,18 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 
-const LOGIN_URL = 'http://cck2.uparts.info/car2009/parts_query/'; // 登入專用網址
+const LOGIN_URL = 'http://cck.uparts.info/car2009/Default/'; // 登入專用網址
 const DOC_URLS = {
-  quotation: 'http://cck2.uparts.info/car2009/tq/',
-  sales: 'http://cck2.uparts.info/car2009/ts/',
-  salesReturn: 'http://cck2.uparts.info/car2009/tt/',
-  inquiry: 'http://cck2.uparts.info/car2009/tii/',
-  purchase: 'http://cck2.uparts.info/car2009/tip/',
-  purchaseReturn: 'http://cck2.uparts.info/car2009/tr/',
+  quotation: 'http://cck.uparts.info/car2009/tq/',
+  sales: 'http://cck.uparts.info/car2009/ts/',
+  salesReturn: 'http://cck.uparts.info/car2009/tt/',
+  inquiry: 'http://cck.uparts.info/car2009/tii/',
+  po: 'http://cck.uparts.info/car2009/tip/',            // 採購單 (Purchase Order)
+  purchase: 'http://cck.uparts.info/car2009/tb/',          // 進貨單 (Purchase Inbound) - 已修正從 /tip/ 變更為 /tb/
+  purchaseReturn: 'http://cck.uparts.info/car2009/tr/',
+  order: 'http://cck.uparts.info/car2009/to/',           // 客戶訂單 (Sales Order)
 };
 
 // 參數解析
@@ -23,8 +25,8 @@ const endArg = args.find(a => a.startsWith('--end='))?.split('=')[1];
 if (!typeArg || !startArg || !endArg) {
   console.log(`
 使用方式: node scripts/scrape_documents.cjs --type=<單據類型> --start=<開始日期> --end=<結束日期>
-單據類型支援: quotation (報價), sales (銷貨), salesReturn (銷退), inquiry (詢價), purchase (進貨), purchaseReturn (進退)
-範例: node scripts/scrape_documents.cjs --type=sales --start=2023-01-01 --end=2023-01-31
+單據類型支援: quotation (報價), sales (銷貨), salesReturn (銷退), inquiry (詢價), po (採購), purchase (進貨), purchaseReturn (進退), order (訂單)
+範例: node scripts/scrape_documents.cjs --type=purchase --start=2026-05-18 --end=2026-05-18
 `);
   process.exit(1);
 }
@@ -38,6 +40,21 @@ const targetUrl = DOC_URLS[typeArg];
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
 const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 const PROFILE_DIR = path.join(__dirname, '.chrome-profile-docs');
+
+// 自動啟動防休眠程式 (在新視窗開啟)，防止重複開啟
+if (!process.env.KEEP_AWAKE_STARTED) {
+  console.log('🛡️ 正在自動啟動防休眠程式...');
+  const keepAwakePath = path.join(__dirname, 'keep_awake_api.ps1');
+  try {
+    spawn('powershell', ['-ExecutionPolicy', 'Bypass', '-File', keepAwakePath], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref();
+    process.env.KEEP_AWAKE_STARTED = '1';
+  } catch (e) {
+    console.log('⚠️ 防休眠程式啟動失敗，請確保您有執行 PowerShell 腳本的權限。');
+  }
+}
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -77,6 +94,7 @@ function writeCSV(filePath, headers, rows) {
     defaultViewport: { width: 1440, height: 900 },
     ...(executablePath ? { executablePath } : {}),
     userDataDir: PROFILE_DIR,
+    protocolTimeout: 1200000,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-popup-blocking']
   });
 
@@ -155,8 +173,9 @@ function writeCSV(filePath, headers, rows) {
   const allDetailRows = [];
   let processedDocNos = new Set();
 
-  for (const targetDate of dateList) {
-      console.log(`\n▶ 開始查詢日期: ${targetDate}`);
+  try {
+    for (const targetDate of dateList) {
+        console.log(`\n▶ 開始查詢日期: ${targetDate}`);
       
       await page.evaluate((d) => {
         const docNoInput = document.querySelector('#ele_單號');
@@ -274,21 +293,31 @@ function writeCSV(filePath, headers, rows) {
         }
         await sleep(1000); // 確保明細表也載入完畢
       }
+    }
+  } catch (err) {
+      console.log(`\n❌ 執行中斷: ${err.message}`);
+      if (err.message.includes('detached Frame') || err.message.includes('Execution context was destroyed')) {
+          console.log(`⚠️ 偵測到網頁被強制登出或重新整理 (這是 ERP 系統本身的安全性自動登出)！`);
+          console.log(`💾 系統將為您自動保存中斷前已抓取的進度...`);
+      }
+  } finally {
+      // 5. 輸出 CSV
+      console.log(`\n${'═'.repeat(50)}`);
+      if (allMasterRows.length > 0) {
+          writeCSV(path.join(OUTPUT_DIR, `documents_master_${typeArg}.csv`),
+            ['doc_id','type','doc_date','customer_name','total_amount','notes'],
+            allMasterRows);
+          writeCSV(path.join(OUTPUT_DIR, `documents_detail_${typeArg}.csv`),
+            ['doc_id','part_id','quantity','unit_price','subtotal'],
+            allDetailRows);
+          console.log(`\n✅ 爬取已儲存！主檔: ${allMasterRows.length} 筆, 明細: ${allDetailRows.length} 筆`);
+      } else {
+          console.log(`\n⚠ 尚未抓取到任何資料。`);
+      }
+      
+      // 6. 產生 SQL 並匯入 (如果您需要自動匯入，可解除註解此段)
+      // execSync(`node scripts/generate_document_sql.cjs`, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+      
+      await browser.close();
   }
-
-  // 5. 輸出 CSV
-  console.log(`\n${'═'.repeat(50)}`);
-  writeCSV(path.join(OUTPUT_DIR, `documents_master_${typeArg}.csv`),
-    ['doc_id','type','doc_date','customer_name','total_amount','notes'],
-    allMasterRows);
-  writeCSV(path.join(OUTPUT_DIR, `documents_detail_${typeArg}.csv`),
-    ['doc_id','part_id','quantity','unit_price','subtotal'],
-    allDetailRows);
-
-  console.log(`\n✅ 爬取完成！主檔: ${allMasterRows.length} 筆, 明細: ${allDetailRows.length} 筆`);
-  
-  // 6. 產生 SQL 並匯入 (如果您需要自動匯入，可解除註解此段)
-  // execSync(`node scripts/generate_document_sql.cjs`, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
-  
-  await browser.close();
 })();

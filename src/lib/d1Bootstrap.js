@@ -11,6 +11,53 @@ import { useShorthandStore } from '../store/useShorthandStore';
 import { useImportEstimateStore } from '../store/useImportEstimateStore';
 import { useSettlementStore } from '../store/useSettlementStore';
 
+/**
+ * 寫入雲端下載的 store 快照到 localStorage。
+ * erp-app-store：自動 bootstrap 時保留「本機已存的 operationMode」，避免雲端快照落後而覆寫剛儲存的傳統/新分頁設定。
+ */
+function applyIncomingStoreKeyToLocalStorage(key, incomingValue, { preserveLocalOperationMode = false } = {}) {
+    if (incomingValue === undefined || incomingValue === null) return;
+    if (key !== 'erp-app-store' || !preserveLocalOperationMode) {
+        const raw = typeof incomingValue === 'string' ? incomingValue : JSON.stringify(incomingValue);
+        localStorage.setItem(key, raw);
+        return;
+    }
+    const prevRaw = localStorage.getItem(key);
+    let inc = incomingValue;
+    if (typeof inc === 'string') {
+        try {
+            inc = JSON.parse(inc);
+        } catch {
+            localStorage.setItem(key, incomingValue);
+            return;
+        }
+    }
+    if (!inc || typeof inc !== 'object') {
+        localStorage.setItem(key, JSON.stringify(incomingValue));
+        return;
+    }
+    let prev = null;
+    if (prevRaw) {
+        try {
+            prev = JSON.parse(prevRaw);
+        } catch {
+            prev = null;
+        }
+    }
+    const localMode = prev?.state?.operationMode;
+    if (localMode !== undefined && localMode !== null && inc.state && typeof inc.state === 'object') {
+        localStorage.setItem(
+            key,
+            JSON.stringify({
+                ...inc,
+                state: { ...inc.state, operationMode: localMode },
+            })
+        );
+        return;
+    }
+    localStorage.setItem(key, JSON.stringify(inc));
+}
+
 function rehydrateAllStores() {
     useDocumentStore.persist.rehydrate();
     // useSupplierStore / useCustomerStore 已改為 API 模式，不使用 persist
@@ -44,7 +91,7 @@ export async function pullStoresFromD1() {
     let updatedKeys = 0;
     for (const k of STORE_KEYS) {
         if (incoming[k] !== undefined) {
-            localStorage.setItem(k, JSON.stringify(incoming[k]));
+            applyIncomingStoreKeyToLocalStorage(k, incoming[k], { preserveLocalOperationMode: false });
             updatedKeys += 1;
         }
     }
@@ -77,7 +124,7 @@ export async function bootstrapFromD1() {
 
         for (const k of STORE_KEYS) {
             if (incoming[k] !== undefined) {
-                localStorage.setItem(k, JSON.stringify(incoming[k]));
+                applyIncomingStoreKeyToLocalStorage(k, incoming[k], { preserveLocalOperationMode: k === 'erp-app-store' });
             }
         }
         rehydrateAllStores();

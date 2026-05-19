@@ -2,7 +2,7 @@ const p=require('puppeteer');
 (async()=>{
   const b=await p.launch({userDataDir:'./.chrome-profile',headless:true});
   const pg=await b.newPage();
-  await pg.goto('http://cck2.uparts.info/car2009/parts_query/', {waitUntil:'domcontentloaded'});
+  await pg.goto('http://cck.uparts.info/car2009/Default/', {waitUntil:'domcontentloaded'});
   await new Promise(r=>setTimeout(r,1000));
   await pg.evaluate(()=>{
     const i=document.querySelector('input[type="text"]');

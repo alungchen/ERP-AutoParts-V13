@@ -20,7 +20,7 @@ const os = require('os');
   
   try {
     const page = await browser.newPage();
-    await page.goto('http://cck2.uparts.info/car2009/parts_query/', { waitUntil: 'domcontentloaded' });
+    await page.goto('http://cck.uparts.info/car2009/Default/', { waitUntil: 'domcontentloaded' });
     await new Promise(r => setTimeout(r, 2000));
     
     // Search

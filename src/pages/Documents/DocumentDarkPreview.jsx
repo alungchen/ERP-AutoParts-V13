@@ -155,35 +155,35 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
                 )}
 
                 {/* 單據基本資訊：單號優先，移除狀態/幣別，客戶/開單加寬；inline 模式包含統計 */}
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', padding: '0.3rem 0.4rem', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', padding: '0.4rem 0.5rem', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)' }}>
                     {/* 單號 — 固定寬，monospace */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 800, flexShrink: 0 }}>單號</span>
-                        <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 800, fontFamily: 'monospace' }}>{doc.doc_id}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.75rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 800, flexShrink: 0 }}>單號</span>
+                        <span style={{ fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 800, fontFamily: 'monospace' }}>{doc.doc_id}</span>
                     </div>
                     {/* 日期 */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 800 }}>日期</span>
-                        <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700 }}>{doc.date || '-'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.75rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 800 }}>日期</span>
+                        <span style={{ fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 700 }}>{doc.date || '-'}</span>
                     </div>
                     {/* 客戶/供應商 — 加寬 */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', minWidth: 0, flex: '0 1 auto' }}>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 800, flexShrink: 0 }}>{isSupplier ? '供應商' : '客戶'}</span>
-                        <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>{getPartyName() || '-'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.75rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', minWidth: 0, flex: '0 1 auto' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 800, flexShrink: 0 }}>{isSupplier ? '供應商' : '客戶'}</span>
+                        <span style={{ fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>{getPartyName() || '-'}</span>
                     </div>
                     {/* 開單人員 — 加寬 */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', minWidth: 0, flex: '0 1 auto' }}>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 800, flexShrink: 0 }}>開單</span>
-                        <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '220px' }}>{getOpenerDisplay() || '-'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.75rem', background: 'var(--bg-tertiary)', borderRadius: '4px', border: '1px solid var(--border-color)', minWidth: 0, flex: '0 1 auto' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 800, flexShrink: 0 }}>開單</span>
+                        <span style={{ fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '220px' }}>{getOpenerDisplay() || '-'}</span>
                     </div>
                     {/* inline 模式：統計數字在此顯示 */}
                     {inline && (
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: 'auto', flexShrink: 0 }}>
-                            <span>總項數: <b style={{ color: 'var(--text-primary)' }}>{(doc.items || []).length}</b></span>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)', marginLeft: 'auto', flexShrink: 0 }}>
+                            <span>總項數: <b style={{ color: 'var(--text-primary)', fontSize: '1rem' }}>{(doc.items || []).length}</b></span>
                             <span style={{ color: 'var(--border-color)' }}>|</span>
-                            <span>總件數: <b style={{ color: 'var(--text-primary)' }}>{(doc.items || []).reduce((s, i) => s + (i.qty || 0), 0)}</b></span>
+                            <span>總件數: <b style={{ color: 'var(--text-primary)', fontSize: '1rem' }}>{(doc.items || []).reduce((s, i) => s + (i.qty || 0), 0)}</b></span>
                             <span style={{ color: 'var(--border-color)' }}>|</span>
-                            <span>未稅: <b style={{ color: 'var(--text-primary)' }}>{formatAmount(subtotal)}</b></span>
+                            <span>未稅: <b style={{ color: 'var(--accent-primary)', fontSize: '1rem' }}>{formatAmount(subtotal)}</b></span>
                         </div>
                     )}
                 </div>

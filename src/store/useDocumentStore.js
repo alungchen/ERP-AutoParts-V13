@@ -241,6 +241,7 @@ export const useDocumentStore = create(persist((set, get) => ({
     shortageBook: [],
     shortageDismissedIds: [],
     statusColors: STATUS_COLORS,
+    isDocumentsLoaded: false,
 
     fetchDocuments: async () => {
         try {
@@ -254,9 +255,10 @@ export const useDocumentStore = create(persist((set, get) => ({
                 salesReturns: data.filter(d => d.type === 'salesReturn'),
                 purchaseReturns: data.filter(d => d.type === 'purchaseReturn'),
             };
-            set({ ...grouped });
+            set({ ...grouped, isDocumentsLoaded: true });
         } catch (err) {
             console.error('Failed to fetch documents', err);
+            set({ isDocumentsLoaded: true }); // Also set to true on failure so it doesn't hang forever
         }
     },
 

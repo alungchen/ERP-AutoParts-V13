@@ -26,7 +26,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   // --- 探測 Supplier ---
   console.log('前往廠商查詢頁面...');
-  await page.goto('http://cck2.uparts.info/car2009/supplier_query/', { waitUntil: 'domcontentloaded' });
+  await page.goto('http://cck.uparts.info/car2009/supplier_query/', { waitUntil: 'domcontentloaded' });
   await sleep(2000);
 
   // 嘗試點擊查詢按鈕
@@ -65,7 +65,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   if (supplierId) {
     console.log(`找到廠商 ID: ${supplierId}，前往編輯頁面...`);
-    await page.goto(`http://cck2.uparts.info/CAR2009/Supplier_Query_Edit/?id=${supplierId}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`http://cck.uparts.info/CAR2009/Supplier_Query_Edit/?id=${supplierId}`, { waitUntil: 'domcontentloaded' });
     await sleep(2000);
     const supplierEditHtml = await page.evaluate(() => document.body.innerHTML);
     fs.writeFileSync(path.join(OUTPUT_DIR, 'supplier_edit_dump.html'), supplierEditHtml);
@@ -76,7 +76,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   // --- 探測 Customer ---
   console.log('前往客戶查詢頁面...');
-  await page.goto('http://cck2.uparts.info/car2009/customer_query/', { waitUntil: 'domcontentloaded' });
+  await page.goto('http://cck.uparts.info/car2009/customer_query/', { waitUntil: 'domcontentloaded' });
   await sleep(2000);
 
   await page.evaluate(() => {
@@ -110,7 +110,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   if (customerId) {
     console.log(`找到客戶 ID: ${customerId}，前往編輯頁面...`);
-    await page.goto(`http://cck2.uparts.info/CAR2009/Customer_Query_Edit/?id=${customerId}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`http://cck.uparts.info/CAR2009/Customer_Query_Edit/?id=${customerId}`, { waitUntil: 'domcontentloaded' });
     await sleep(2000);
     const customerEditHtml = await page.evaluate(() => document.body.innerHTML);
     fs.writeFileSync(path.join(OUTPUT_DIR, 'customer_edit_dump.html'), customerEditHtml);

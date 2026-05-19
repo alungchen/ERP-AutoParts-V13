@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const LOGIN_URL = 'http://cck2.uparts.info/car2009/parts_query/';
-const TARGET_URL = 'http://cck2.uparts.info/car2009/ts/';
+const LOGIN_URL = 'http://cck.uparts.info/car2009/Default/';
+const TARGET_URL = 'http://cck.uparts.info/car2009/ts/';
 
 (async () => {
   const PROFILE_DIR = path.join(__dirname, '.chrome-profile-docs');

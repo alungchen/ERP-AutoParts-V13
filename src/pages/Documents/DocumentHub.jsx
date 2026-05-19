@@ -65,7 +65,17 @@ const isTypingTarget = (target) => {
 const DEFAULT_SEARCH_FILTERS = { docId: '', date: '', status: '', party: '', opener: '' };
 const DOC_HUB_SEARCH_STATE_KEY = 'erp-doc-hub-search-state';
 
-const DocumentHub = () => {
+const DOC_TAB_META = {
+    quotation: { label: '報價單', color: '#2563eb' },
+    sales: { label: '銷貨單', color: '#16a34a' },
+    salesReturn: { label: '銷貨退回', color: '#0ea5e9' },
+    inquiry: { label: '詢價單', color: '#8b5cf6' },
+    purchase: { label: '進貨單', color: '#f59e0b' },
+    shortageBook: { label: '缺貨簿', color: '#dc2626' },
+    purchaseReturn: { label: '進貨退回', color: '#f97316' },
+};
+
+const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const {
         inquiries = [],
@@ -83,7 +93,7 @@ const DocumentHub = () => {
         statusColors = {}
     } = useDocumentStore();
     const { products } = useProductStore();
-    const { defaultCurrency, isMultiCountryMode, enableLoginSystem, enablePermissionRole, currentUserEmpId } = useAppStore();
+    const { defaultCurrency, isMultiCountryMode, enableLoginSystem, enablePermissionRole, currentUserEmpId, operationMode, setPageTitle } = useAppStore();
     const setProductHistoryFocusPId = useAppStore((s) => s.setProductHistoryFocusPId);
     const { suppliers } = useSupplierStore();
     const { customers } = useCustomerStore();
@@ -92,8 +102,11 @@ const DocumentHub = () => {
     const { employees } = useEmployeeStore();
     const { t, language } = useTranslation();
     const initialTab = searchParams.get('tab');
-    // 進入製單系統預設為 銷售業務/報價單
-    const tabFromQuery = VALID_DOC_TABS.includes(initialTab) ? initialTab : 'quotation';
+    const typeFromQuery = searchParams.get('type');
+    // 進入製單系統預設為 銷售業務/報價單；若有指定 type 則預設為該單別
+    const tabFromQuery = VALID_DOC_TABS.includes(initialTab) 
+        ? initialTab 
+        : (VALID_DOC_TABS.includes(typeFromQuery) ? typeFromQuery : 'quotation');
     /** 新分頁模式（standalone=1）：只顯示當前單別，隱藏銷售/採購切換與同區其他子分頁 */
     const isStandaloneDocHub = searchParams.get('standalone') === '1';
     const isDocFocusMode = isStandaloneDocHub;
@@ -107,6 +120,18 @@ const DocumentHub = () => {
         shortageBook: 'procurement',
         purchaseReturn: 'procurement',
     }), []);
+    const drawerHiddenBusinessGroup = useMemo(() => {
+        if (!isDrawerMode || !drawerAnchorDocType) return null;
+        if (['quotation', 'sales', 'salesReturn'].includes(drawerAnchorDocType)) return 'sales';
+        if (['inquiry', 'purchase', 'shortageBook', 'purchaseReturn'].includes(drawerAnchorDocType)) return 'procurement';
+        return null;
+    }, [isDrawerMode, drawerAnchorDocType]);
+    const tabGroupsForToolbar = useMemo(
+        () => (drawerHiddenBusinessGroup ? TAB_GROUPS.filter((g) => g.type !== drawerHiddenBusinessGroup) : TAB_GROUPS),
+        [drawerHiddenBusinessGroup]
+    );
+    /** 編輯器內已開銷貨單時的抽屜：隱藏單別分頁、快速預覽、新增單據、搜尋結果筆數等多餘操作列 */
+    const hideSalesDrawerListChrome = isDrawerMode && drawerAnchorDocType === 'sales';
     const [activeBusinessGroup, setActiveBusinessGroup] = useState(tabGroupMap[tabFromQuery] || 'sales');
     const [selectedDoc, setSelectedDoc] = useState(null);
     const [isQuickPreview, setIsQuickPreview] = useState(false);
@@ -114,6 +139,7 @@ const DocumentHub = () => {
     const [previewIndex, setPreviewIndex] = useState(0);
     const [isSearching, setIsSearching] = useState(true); // Search is now always active
     const [searchFilters, setSearchFilters] = useState(() => {
+        if (isDrawerMode) return DEFAULT_SEARCH_FILTERS;
         try {
             const raw = localStorage.getItem(DOC_HUB_SEARCH_STATE_KEY);
             if (!raw) return DEFAULT_SEARCH_FILTERS;
@@ -124,6 +150,7 @@ const DocumentHub = () => {
         }
     });
     const [appliedSearchFilters, setAppliedSearchFilters] = useState(() => {
+        if (isDrawerMode) return DEFAULT_SEARCH_FILTERS;
         try {
             const raw = localStorage.getItem(DOC_HUB_SEARCH_STATE_KEY);
             if (!raw) return DEFAULT_SEARCH_FILTERS;
@@ -164,12 +191,13 @@ const DocumentHub = () => {
 
     // 鍵盤切換分頁時同步 URL，與銷售業務行為一致
     useEffect(() => {
+        if (isDrawerMode) return; // 抽屜模式下不要同步 URL
         if (!VALID_DOC_TABS.includes(activeTab)) return;
         if (searchParams.get('tab') === activeTab) return;
         const next = new URLSearchParams(searchParams);
         next.set('tab', activeTab);
         setSearchParams(next, { replace: true });
-    }, [activeTab, searchParams, setSearchParams]);
+    }, [activeTab, searchParams, setSearchParams, isDrawerMode]);
 
     useEffect(() => {
         const nextGroup = tabGroupMap[activeTab];
@@ -180,19 +208,29 @@ const DocumentHub = () => {
 
     // 移除：不再在非 focus 模式下強制重置分頁，避免覆蓋使用者的分頁選擇
 
-    const DOC_TAB_META = {
-        quotation: { label: '報價單', color: '#2563eb' },
-        sales: { label: '銷貨單', color: '#16a34a' },
-        salesReturn: { label: '銷貨退回', color: '#0ea5e9' },
-        inquiry: { label: '詢價單', color: '#8b5cf6' },
-        purchase: { label: '進貨單', color: '#f59e0b' },
-        shortageBook: { label: '缺貨簿', color: '#dc2626' },
-        purchaseReturn: { label: '進貨退回', color: '#f97316' },
-    };
+
     const focusedMeta = DOC_TAB_META[activeTab] || { label: t('docs.title'), color: '#60a5fa' };
+
+    // 同步標題至 Topnav
+    useEffect(() => {
+        if (isDrawerMode) return; // 抽屜模式下不要去動 Topnav 標題
+        if (!isStandaloneDocHub) return; // 只有在主頁面時才同步標題，抽屜模式不影響
+        if (isDocFocusMode && focusedMeta) {
+            setPageTitle(focusedMeta.label, focusedMeta.color);
+        } else {
+            setPageTitle(t('docs.title'), '#60a5fa');
+        }
+        return () => {
+            if (isStandaloneDocHub) setPageTitle('', '');
+        };
+    }, [isStandaloneDocHub, isDocFocusMode, focusedMeta?.label, focusedMeta?.color, t, setPageTitle, isDrawerMode]);
+
     const activeGroupTabs = TAB_GROUPS.find((group) => group.type === activeBusinessGroup)?.tabs || TAB_GROUPS[0].tabs;
 
     const isShortageTab = activeTab === 'shortageBook';
+    /** 編輯器側邊抽屜內不顯示「檢視／列印」欄（仍可依列雙擊切換單據） */
+    const showDocListRowActions = !isDrawerMode;
+    const docListEmptyColSpan = (activeTab === 'sales' ? 5 : 6) + (showDocListRowActions ? 1 : 0);
 
     const getPartyName = (doc) => {
         if (doc.supplier_name) return doc.supplier_name;
@@ -471,6 +509,38 @@ const DocumentHub = () => {
     }, []);
 
     const openEditor = (type, id = null) => {
+        if (isDrawerMode && onSelectDoc) {
+            onSelectDoc(type, id);
+            return;
+        }
+
+        // tabbed mode = 新分頁模式：另開瀏覽器新分頁
+        if (operationMode === 'tabbed') {
+            try {
+                sessionStorage.setItem(
+                    'erp-doc-hub-return',
+                    `${window.location.pathname}${window.location.search}`
+                );
+            } catch {
+                /* ignore */
+            }
+            let url = `/document-editor?type=${type}`;
+            if (id) url += `&id=${encodeURIComponent(id)}`;
+            window.open(url, '_blank');
+            return;
+        }
+
+        // current mode = 傳統配置模式：inline 快速預覽
+        if (id) {
+            const nextIndex = filteredDocs.findIndex((d) => d.doc_id === id);
+            if (nextIndex !== -1) {
+                setPreviewIndex(nextIndex);
+                setIsQuickPreview(true);
+                setIsSearchOpen(false);
+                return;
+            }
+        }
+        // 若是新增（無 id），仍用舊的 editor 頁面開新分頁
         try {
             sessionStorage.setItem(
                 'erp-doc-hub-return',
@@ -845,7 +915,7 @@ const DocumentHub = () => {
 
         window.addEventListener('keydown', handleGlobalDocFlowKeyDown, true);
         return () => window.removeEventListener('keydown', handleGlobalDocFlowKeyDown, true);
-    }, [isShortageTab, isStandaloneDocHub, selectedDoc, isQuickPreview, filteredDocs, activeTab, activeDocIndex, activeBusinessGroup, tabGroupMap]);
+    }, [isShortageTab, isStandaloneDocHub, selectedDoc, isQuickPreview, filteredDocs, activeTab, activeDocIndex, activeBusinessGroup, tabGroupMap, focusedMeta, t, setPageTitle]);
 
     const calcTotal = (doc) => {
         if (!doc.items) return 0;
@@ -862,25 +932,10 @@ const DocumentHub = () => {
     };
 
     return (
-        <div className={styles.container}>
+        <div className={styles.container} style={isDrawerMode ? { height: '100%', minHeight: 0, padding: 0 } : {}}>
+            {!isDrawerMode && (
             <div className={styles.docHubTop}>
-            <div className={styles.header} style={{ alignItems: 'center', minHeight: '64px' }}>
-                <div style={{ flex: 1 }}>
-                    <h1
-                        className={`${styles.title} ${isStandaloneDocHub ? styles.titleStandalone : ''}`}
-                        style={isDocFocusMode ? { color: focusedMeta.color } : {}}
-                    >
-                        {isDocFocusMode ? focusedMeta.label : t('docs.title')}
-                    </h1>
-                    <p className={styles.subtitle}>
-                        {isDocFocusMode
-                            ? isStandaloneDocHub
-                                ? '單據列表、查詢與新增'
-                                : `目前顯示：${focusedMeta.label} 列表`
-                            : t('docs.subtitle')}
-                    </p>
-                </div>
-
+            <div className={styles.header} style={{ alignItems: 'center', minHeight: '44px' }}>
                 <div
                     className={styles.actions}
                     style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}
@@ -966,8 +1021,10 @@ const DocumentHub = () => {
                     )}
                 </div>
             </div>
+            </div>
+            )}
 
-            {/* 搜尋面板：抽屜式 */}
+            {/* Sub-header Controls */}
             <div style={{ marginBottom: '0.5rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', overflow: 'hidden' }}>
                 {/* 收折切換列 */}
                 <button
@@ -1004,7 +1061,9 @@ const DocumentHub = () => {
                             ].filter(Boolean).join(' / ')}】
                         </span>
                     )}
+                    {!hideSalesDrawerListChrome && (
                     <span style={{ marginLeft: 'auto', color: 'var(--accent-primary)', fontWeight: 800, fontSize: '0.85rem' }}>{filteredDocs.length} 筆</span>
+                    )}
                 </button>
 
                 {/* 展開內容：用 opacity + visibility 做動畫，避免 overflow:hidden 截斷下拉選單 */}
@@ -1074,12 +1133,12 @@ const DocumentHub = () => {
 
             {/* Low stock alert banner removed */}
 
-            {/* 新分頁模式不顯示業務區／子分頁（由網址 tab 固定單別） */}
-            {!isStandaloneDocHub && (
+            {/* 銷貨單抽屜內不顯示子單別／快速預覽列（等同移除紅框標籤區） */}
+            {!isStandaloneDocHub && !hideSalesDrawerListChrome && (
             <div className={styles.tabsContainer} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.65rem' }}>
                         <div style={{ display: 'flex', gap: '0.65rem' }}>
-                            {TAB_GROUPS.map((group) => {
+                            {tabGroupsForToolbar.map((group) => {
                                 const isActiveGroup = activeBusinessGroup === group.type;
                                 const activeColor = group.type === 'sales' ? '#3b82f6' : '#8b5cf6';
                                 return (
@@ -1259,8 +1318,6 @@ const DocumentHub = () => {
                 </div>
             )}
 
-            </div>
-
             {!isQuickPreview ? (
             <div className={styles.docHubMain}>
                 <div
@@ -1300,14 +1357,15 @@ const DocumentHub = () => {
                                 <tr>
                                     <th style={{ width: '140px' }}>{t('docs.thDocId')}</th>
                                     <th style={{ width: '120px' }}>{t('docs.thDate')}</th>
-                                    <th>交易對象</th>
+                                    <th style={{ minWidth: '260px', width: '32%' }}>交易對象</th>
                                     <th style={{ width: '100px' }}>{t('docs.thItems')}</th>
                                     <th style={{ width: '150px' }}>{t('docs.thTotal')}</th>
-                                    <th style={{ width: '180px' }}>{t('docs.thCreator')}</th>
                                     {activeTab !== 'sales' && (
                                     <th style={{ width: '120px' }}>{t('docs.thStatus')}</th>
                                     )}
+                                    {showDocListRowActions && (
                                     <th style={{ width: '220px' }}></th>
+                                    )}
                                 </tr>
                             )}
                         </thead>
@@ -1391,7 +1449,7 @@ const DocumentHub = () => {
                             ) : (
                                 paginatedDocs.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" className={styles.emptyState}>
+                                        <td colSpan={docListEmptyColSpan} className={styles.emptyState}>
                                             <Search size={48} strokeWidth={1.5} />
                                             <p>{appliedSearchFilters.docId || appliedSearchFilters.party || appliedSearchFilters.opener || appliedSearchFilters.date ? t('docs.noResults') : t('docs.noData')}</p>
                                         </td>
@@ -1405,6 +1463,9 @@ const DocumentHub = () => {
                                         onClick={() => {
                                             setActiveDocIndex(idx);
                                             docListKeyboardRef.current?.focus();
+                                            if (isDrawerMode && onSelectDoc) {
+                                                onSelectDoc(activeTab, doc.doc_id);
+                                            }
                                         }}
                                         onDoubleClick={(e) => {
                                             e.preventDefault();
@@ -1418,7 +1479,7 @@ const DocumentHub = () => {
                                             </div>
                                         </td>
                                         <td className="text-sm text-muted">{doc.date}</td>
-                                        <td className="font-semibold">{getPartyName(doc)}</td>
+                                        <td className="font-semibold" style={{ minWidth: '260px', wordBreak: 'break-word' }}>{getPartyName(doc)}</td>
                                         <td className="text-sm text-muted">{doc.items?.length || 0} {t('docs.items')}</td>
                                         <td>
                                             {doc.items && doc.items[0]?.unit_price
@@ -1426,7 +1487,6 @@ const DocumentHub = () => {
                                                 : <span className="text-muted text-sm">—</span>
                                             }
                                         </td>
-                                        <td className="text-sm text-muted">{getOpenerName(doc)}</td>
                                         {activeTab !== 'sales' && (
                                         <td>
                                             <span className={styles.statusBadge} style={{ color: getStatusColor(doc.status), background: getStatusColor(doc.status) + '22' }}>
@@ -1434,6 +1494,7 @@ const DocumentHub = () => {
                                             </span>
                                         </td>
                                         )}
+                                        {showDocListRowActions && (
                                         <td>
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                 <button tabIndex={-1} className={styles.editRowBtn} onClick={(e) => { e.stopPropagation(); openEditor(activeTab, doc.doc_id); }} onDoubleClick={(e) => e.stopPropagation()} title={t('docs.inspect')}>
@@ -1444,6 +1505,7 @@ const DocumentHub = () => {
                                                 </button>
                                             </div>
                                         </td>
+                                        )}
                                     </tr>
                                 ))
                                 )
@@ -1480,7 +1542,7 @@ const DocumentHub = () => {
                 )}
             </div>
 
-            {!isShortageTab && (
+            {!isShortageTab && !hideSalesDrawerListChrome && (
                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                     <button
                         ref={addDocBtnRef}
