@@ -1,1 +1,8 @@
+在專案根目錄執行（需已 wrangler login）：
+
 npm run db:sync:local
+
+會將遠端 D1 完整匯出為 d1-mirror-erp.sql（已列入 .gitignore），再匯入本機 D1。
+匯入前會刪除 .wrangler/state/v3/d1 —— 請先停止 npm run worker／dev:all（否則會 EBUSY）。
+若已遠端匯出成功但清快取失敗，請停止 worker 後手動：npx wrangler d1 execute erp-db --local --file=./d1-mirror-erp.sql --yes
+完成後請重啟 worker，並重新整理瀏覽器。
