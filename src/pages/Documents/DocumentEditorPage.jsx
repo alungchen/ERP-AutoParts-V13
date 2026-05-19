@@ -45,7 +45,7 @@ const DocumentEditorPage = () => {
     const { customers } = useCustomerStore();
     const { employees } = useEmployeeStore();
     const { models, parts, brands } = useShorthandStore();
-    const { defaultCurrency, isMultiCountryMode, enableLoginSystem, enablePermissionRole, currentUserEmpId, vatEnabled, vatRate } = useAppStore();
+    const { defaultCurrency, isMultiCountryMode, enableLoginSystem, enablePermissionRole, currentUserEmpId } = useAppStore();
 
     const type = searchParams.get('type') || 'inquiry';
     const id = searchParams.get('id');
@@ -55,6 +55,13 @@ const DocumentEditorPage = () => {
     const customerOptions = useMemo(() => sortedCustomersForSelect(customers), [customers]);
     const supplierOptions = useMemo(() => sortedSuppliersForSelect(suppliers), [suppliers]);
     const docTypeTitleZh = DOC_TYPE_TITLE_ZH[type] || '單據';
+
+    useEffect(() => {
+        document.title = docTypeTitleZh;
+        return () => {
+            document.title = 'ARUFA';
+        };
+    }, [docTypeTitleZh]);
 
     const currentUser = employees.find((e) => e.emp_id === currentUserEmpId);
     const canEditThisDocType = canEditDocType({
@@ -97,80 +104,6 @@ const DocumentEditorPage = () => {
     const [mappingProduct, setMappingProduct] = useState(null);
     const [isViewerOpen, setIsViewerOpen] = useState(false);
     const [isDocListDrawerOpen, setIsDocListDrawerOpen] = useState(false);
-    const [docListPanelRect, setDocListPanelRect] = useState(() => {
-        if (typeof window === 'undefined') return { x: 80, y: 56, w: 720, h: 560 };
-        const w = Math.min(720, Math.max(320, window.innerWidth - 24));
-        const h = Math.max(320, window.innerHeight - 96);
-        return {
-            x: Math.max(8, window.innerWidth - w - 12),
-            y: 56,
-            w,
-            h,
-        };
-    });
-    const docListDragRef = useRef(null);
-    const docListResizeRef = useRef(null);
-    const docListPanelRectRef = useRef(docListPanelRect);
-    docListPanelRectRef.current = docListPanelRect;
-
-    const onDocListDragStart = useCallback((e) => {
-        if (e.button !== 0) return;
-        e.preventDefault();
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const orig = { ...docListPanelRectRef.current };
-        docListDragRef.current = true;
-        const onMove = (ev) => {
-            if (!docListDragRef.current) return;
-            const dx = ev.clientX - startX;
-            const dy = ev.clientY - startY;
-            setDocListPanelRect((r) => {
-                let nx = orig.x + dx;
-                let ny = orig.y + dy;
-                const maxX = Math.max(0, window.innerWidth - r.w);
-                const maxY = Math.max(0, window.innerHeight - 40);
-                nx = Math.max(0, Math.min(nx, maxX));
-                ny = Math.max(0, Math.min(ny, maxY));
-                return { ...r, x: nx, y: ny };
-            });
-        };
-        const onUp = () => {
-            docListDragRef.current = false;
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onUp);
-        };
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
-    }, []);
-
-    const onDocListResizeStart = useCallback((e) => {
-        e.stopPropagation();
-        if (e.button !== 0) return;
-        e.preventDefault();
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const orig = { ...docListPanelRectRef.current };
-        docListResizeRef.current = true;
-        const minW = 300;
-        const minH = 260;
-        const onMove = (ev) => {
-            if (!docListResizeRef.current) return;
-            const dw = ev.clientX - startX;
-            const dh = ev.clientY - startY;
-            setDocListPanelRect((r) => {
-                const newW = Math.max(minW, Math.min(orig.w + dw, window.innerWidth - r.x - 4));
-                const newH = Math.max(minH, Math.min(orig.h + dh, window.innerHeight - r.y - 4));
-                return { ...r, w: newW, h: newH };
-            });
-        };
-        const onUp = () => {
-            docListResizeRef.current = false;
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onUp);
-        };
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
-    }, []);
 
     const [focusedHeaderAction, setFocusedHeaderAction] = useState('');
     const pickerFirstInputRef = useRef(null);
@@ -182,7 +115,6 @@ const DocumentEditorPage = () => {
     const printBtnRef = useRef(null);
     const editBtnRef = useRef(null);
     const saveBtnRef = useRef(null);
-    const closeBtnRef = useRef(null);
     const selectAllRef = useRef(null);
     const pickerSelectAllRef = useRef(null);
     const addPartBtnRef = useRef(null);
@@ -192,6 +124,7 @@ const DocumentEditorPage = () => {
     const [isAddPartFocused, setIsAddPartFocused] = useState(false);
     const itemTbodyRef = useRef(null);
     const docListKeyboardRef = useRef(null);
+    const editorPaneRef = useRef(null);
     const setProductHistoryFocusPId = useAppStore((s) => s.setProductHistoryFocusPId);
 
     const docHistoryFocusPId = useMemo(() => {
@@ -450,9 +383,8 @@ const DocumentEditorPage = () => {
     const isSupplier = type === 'inquiry' || type === 'purchase' || type === 'purchaseReturn';
     const isCustomer = type === 'quotation' || type === 'sales' || type === 'salesReturn';
     const formatAmount = (value) => Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const subtotal = doc.items.reduce((sum, item) => sum + ((item.qty || 0) * (item.unit_price || 0)), 0);
-    const vatAmount = vatEnabled ? subtotal * ((Number(vatRate) || 0) / 100) : 0;
-    const grandTotal = subtotal + vatAmount;
+    const docItems = doc?.items ?? [];
+    const subtotal = docItems.reduce((sum, item) => sum + ((item.qty || 0) * (item.unit_price || 0)), 0);
 
     // Currency Lock Rules:
     // 1. Inquiry/Purchase (Buying) -> Lock to default currency ONLY IF NOT in international mode
@@ -466,26 +398,37 @@ const DocumentEditorPage = () => {
         }
     }, [isCurrencyLocked, defaultCurrency, doc.currency]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!canEditThisDocType) {
             alert('\u60a8\u6c92\u6709\u6b0a\u9650\u7de8\u8f2f\u6b64\u55ae\u64da\u3002');
             return;
         }
+        const payload = {
+            ...doc,
+            items: Array.isArray(doc.items) ? doc.items : [],
+        };
         let savedDoc;
-        if (isEdit) {
-            savedDoc = updateDocument(type, doc);
-        } else {
-            savedDoc = addDocument(type, doc);
-            // Update URL so subsequent saves work as updates
-            const url = new URL(window.location);
-            url.searchParams.set('id', savedDoc.doc_id);
-            window.history.replaceState({}, '', url);
+        try {
+            if (isEdit) {
+                savedDoc = await updateDocument(type, payload);
+            } else {
+                savedDoc = await addDocument(type, payload);
+                const url = new URL(window.location);
+                url.searchParams.set('id', savedDoc.doc_id);
+                window.history.replaceState({}, '', url);
+            }
+        } catch (err) {
+            console.error('Save document failed', err);
+            alert('\u5132\u5b58\u5931\u6557\uff0c\u8acb\u7a0d\u5f8c\u518d\u8a66\u3002');
+            return;
         }
 
-        // Signal the main window to switch to this tab of the hub
         localStorage.setItem('erp-last-doc-type', type);
-        setDoc(savedDoc);
-        setIsReadOnly(true); // Switch back to view mode after save
+        setDoc({
+            ...savedDoc,
+            items: Array.isArray(savedDoc?.items) ? savedDoc.items : payload.items,
+        });
+        setIsReadOnly(true);
     };
 
     const handleClose = () => {
@@ -590,7 +533,6 @@ const DocumentEditorPage = () => {
         const actionButtonRefs = [
             isEdit ? printBtnRef : null,
             isReadOnly ? editBtnRef : saveBtnRef,
-            closeBtnRef,
         ]
             .filter(Boolean)
             .filter((refObj) => refObj.current);
@@ -717,9 +659,8 @@ const DocumentEditorPage = () => {
         if (rowEl) rowEl.scrollIntoView({ block: 'nearest' });
     }, [activeItemIndex]);
 
-    //
     useEffect(() => {
-        if (isReadOnly || isPickerOpen || isViewerOpen || (doc?.items || []).length === 0) return;
+        if (isPickerOpen || isViewerOpen || (doc?.items || []).length === 0) return;
         const isTypingTarget = (el) => {
             if (!el || !el.tagName) return false;
             const tag = el.tagName.toLowerCase();
@@ -728,17 +669,19 @@ const DocumentEditorPage = () => {
         };
         const handleGlobal = (e) => {
             if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+            const inEditor = document.activeElement?.closest?.('[data-editor-pane]');
+            if (!inEditor) return;
+            if (!isDocListDrawerOpen && isReadOnly) return;
             const listEl = docListKeyboardRef.current;
-            if (!listEl) return;
-            if (listEl.contains(document.activeElement)) return; //
-            if (isTypingTarget(document.activeElement)) return; //
+            if (listEl?.contains(document.activeElement) && !isTypingTarget(document.activeElement)) return;
+            if (isTypingTarget(document.activeElement)) return;
             e.preventDefault();
-            listEl.focus();
-            setActiveItemIndex(e.key === 'ArrowDown' ? 0 : (doc?.items || []).length - 1);
+            e.stopPropagation();
+            applyItemArrowNavigation(e.key);
         };
-        document.addEventListener('keydown', handleGlobal);
-        return () => document.removeEventListener('keydown', handleGlobal);
-    }, [isReadOnly, isPickerOpen, isViewerOpen, (doc?.items || []).length]);
+        window.addEventListener('keydown', handleGlobal, true);
+        return () => window.removeEventListener('keydown', handleGlobal, true);
+    }, [isReadOnly, isDocListDrawerOpen, isPickerOpen, isViewerOpen, (doc?.items || []).length, activeItemIndex]);
 
     const isTypingInList = () => {
         const el = document.activeElement;
@@ -761,8 +704,42 @@ const DocumentEditorPage = () => {
         row?.querySelector('[data-doc-item-price]')?.focus();
     };
 
+    const applyItemArrowNavigation = (key) => {
+        const items = doc?.items || [];
+        if (items.length === 0) return;
+        if (key === 'ArrowDown') {
+            if (activeItemIndex === items.length - 1) {
+                if (!isReadOnly) addPartBtnRef.current?.focus();
+            } else {
+                const nextIdx = Math.min(activeItemIndex + 1, items.length - 1);
+                setActiveItemIndex(nextIdx);
+                focusItemRow(nextIdx);
+            }
+        } else if (key === 'ArrowUp') {
+            if (!isReadOnly && document.activeElement === addPartBtnRef.current) {
+                const lastIdx = items.length - 1;
+                setActiveItemIndex(lastIdx);
+                focusItemRow(lastIdx);
+            } else if (!isReadOnly && activeItemIndex === 0) {
+                saveBtnRef.current?.focus();
+            } else if (activeItemIndex > 0) {
+                const prevIdx = activeItemIndex - 1;
+                setActiveItemIndex(prevIdx);
+                focusItemRow(prevIdx);
+            }
+        }
+    };
+
     const handleDocListKeyDown = (e) => {
-        if (isReadOnly || (doc?.items || []).length === 0) return;
+        if ((doc?.items || []).length === 0) return;
+
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            applyItemArrowNavigation(e.key);
+            return;
+        }
+
+        if (isReadOnly) return;
 
         if (e.key === 'Enter' && document.activeElement === addPartBtnRef.current) {
             e.preventDefault();
@@ -784,29 +761,7 @@ const DocumentEditorPage = () => {
             return;
         }
 
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            if (activeItemIndex === doc.items.length - 1) {
-                addPartBtnRef.current?.focus();
-            } else {
-                const nextIdx = Math.min(activeItemIndex + 1, doc.items.length - 1);
-                setActiveItemIndex(nextIdx);
-                focusItemRow(nextIdx);
-            }
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (document.activeElement === addPartBtnRef.current) {
-                const lastIdx = doc.items.length - 1;
-                setActiveItemIndex(lastIdx);
-                focusItemRow(lastIdx);
-            } else if (activeItemIndex === 0) {
-                saveBtnRef.current?.focus();
-            } else {
-                const prevIdx = Math.max(activeItemIndex - 1, 0);
-                setActiveItemIndex(prevIdx);
-                focusItemRow(prevIdx);
-            }
-        } else if (e.key === ' ' || e.code === 'Space') {
+        if (e.key === ' ' || e.code === 'Space') {
             e.preventDefault();
             const checked = selectedIndexes.includes(activeItemIndex);
             toggleItemSelection(activeItemIndex, !checked);
@@ -1027,7 +982,27 @@ const DocumentEditorPage = () => {
     }, [activePickerRowIndex, isPickerOpen, pickerResults.length]);
 
     return (
-        <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div
+            style={{
+                backgroundColor: 'var(--bg-primary)',
+                height: '100vh',
+                color: 'var(--text-primary)',
+                display: 'flex',
+                flexDirection: 'row',
+                overflow: 'hidden',
+            }}
+        >
+            <div
+                ref={editorPaneRef}
+                data-editor-pane
+                style={{
+                    flex: isDocListDrawerOpen ? '1 1 50%' : '1 1 100%',
+                    minWidth: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                }}
+            >
             {/* Header section (Basic Info) */}
             <div style={{ padding: '1rem 1.5rem', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
@@ -1114,23 +1089,10 @@ const DocumentEditorPage = () => {
                                 <Save size={18} /> {'\u5132\u5b58'}
                             </button>
                         )}
-                        <button
-                            ref={closeBtnRef}
-                            onClick={handleClose}
-                            onKeyDown={(e) => handleHeaderActionKeyDown(e, closeBtnRef)}
-                            onFocus={() => setFocusedHeaderAction('close')}
-                            onBlur={() => setFocusedHeaderAction('')}
-                            style={getHeaderActionStyle(
-                                { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '0.6rem 0.8rem', borderRadius: '6px', cursor: 'pointer' },
-                                'close'
-                            )}
-                        >
-                            <X size={20} />
-                        </button>
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1.1fr 1fr 1.7fr', gap: '0.85rem', alignItems: 'end', padding: '0.7rem', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1fr) minmax(200px, 2.5fr) minmax(180px, 1.4fr)', gap: '0.85rem', alignItems: 'end', padding: '0.7rem', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)' }}>
                     <div>
                         <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{'\u65e5\u671f'}</label>
                         <input
@@ -1201,74 +1163,6 @@ const DocumentEditorPage = () => {
                         )}
                     </div>
                     <div>
-                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>
-                            {type === 'sales' ? '狀態（暫不開放）' : '狀態'}
-                        </label>
-                        {type === 'sales' ? (
-                            <div
-                                title="銷貨單開單即入應收；狀態日後處理"
-                                style={{
-                                    width: '100%',
-                                    padding: '0.5rem',
-                                    backgroundColor: 'var(--bg-secondary)',
-                                    border: '1px dashed var(--border-color)',
-                                    borderRadius: '4px',
-                                    color: 'var(--text-muted)',
-                                    fontSize: '0.9rem',
-                                    fontWeight: 600,
-                                }}
-                            >
-                                銷貨單開單即入帳；狀態選項日後開放
-                            </div>
-                        ) : (
-                            <select
-                                disabled={isReadOnly}
-                                value={doc.status}
-                                onChange={(e) => setDoc({ ...doc, status: e.target.value })}
-                                style={{
-                                    width: '100%',
-                                    padding: '0.5rem',
-                                    backgroundColor: isReadOnly ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: '4px',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '1rem',
-                                    fontWeight: 700,
-                                }}
-                            >
-                                <option value="pending">{'\u5f85\u8655\u7406'}</option>
-                                <option value="accepted">{'\u5df2\u6838\u51c6'}</option>
-                                <option value="received">{'\u5df2\u5165\u5eab'}</option>
-                            </select>
-                        )}
-                    </div>
-                    <div>
-                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{'\u5e63\u5225'}</label>
-                        <select
-                            disabled={isCurrencyLocked || isReadOnly}
-                            value={doc.currency}
-                            onChange={e => setDoc({ ...doc, currency: e.target.value })}
-                            style={{
-                                width: '100%',
-                                padding: '0.5rem',
-                                backgroundColor: (isCurrencyLocked || isReadOnly) ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '4px',
-                                color: 'var(--text-primary)',
-                                cursor: (isCurrencyLocked || isReadOnly) ? 'not-allowed' : 'pointer',
-                                fontWeight: 700,
-                                fontSize: '1rem'
-                            }}
-                        >
-                            <option value="TWD">TWD</option>
-                            <option value="USD">USD</option>
-                            <option value="JPY">JPY</option>
-                            <option value="CNY">CNY</option>
-                            <option value="EUR">EUR</option>
-                            <option value="HKD">HKD</option>
-                        </select>
-                    </div>
-                    <div>
                         <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{'\u958b\u55ae\u4eba\u54e1'}</label>
                         <select
                             disabled={isReadOnly}
@@ -1316,18 +1210,25 @@ const DocumentEditorPage = () => {
 
             {/* Content Body (Table for parts) */}
             <div
-                className="custom-scrollbar"
                 data-doc-items-zone
-                style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', padding: '1.5rem' }}
+                style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '1.5rem' }}
             >
                 <div
-                    style={{ background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden' }}
+                    style={{
+                        background: 'var(--bg-secondary)',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-color)',
+                        flex: 1,
+                        minHeight: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                    }}
                     ref={docListKeyboardRef}
-                    tabIndex={!isReadOnly ? 0 : -1}
+                    tabIndex={(doc?.items || []).length > 0 ? 0 : -1}
                     onKeyDown={handleDocListKeyDown}
                 >
                     {!isReadOnly && (
-                        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
+                        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', flexShrink: 0 }}>
                             <button
                                 onClick={handleDeleteSelected}
                                 disabled={selectedIndexes.length === 0}
@@ -1345,10 +1246,12 @@ const DocumentEditorPage = () => {
                             </button>
                         </div>
                     )}
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                    <div className={`${styles.docEditorTableScroll} custom-scrollbar`}>
+                    <table className={styles.docEditorTable} style={{ textAlign: 'left' }}>
+                        <thead>
                             <tr>
-                                <th style={{ padding: '1rem', width: '54px' }}>
+                                <th style={{ width: '44px', textAlign: 'center' }}>#</th>
+                                <th style={{ width: '54px' }}>
                                     {!isReadOnly && (
                                         <input
                                             ref={selectAllRef}
@@ -1358,19 +1261,19 @@ const DocumentEditorPage = () => {
                                         />
                                     )}
                                 </th>
-                                <th style={{ padding: '1rem' }}>{'\u96f6\u4ef6\u865f\u78bc'} (ID)</th>
-                                <th style={{ padding: '1rem' }}>{'\u8eca\u578b'} / {'\u5e74\u4efd'}</th>
-                                <th style={{ padding: '1rem' }}>{'\u54c1\u540d'} / {'\u898f\u683c'}</th>
-                                <th style={{ padding: '1rem' }}>{'\u54c1\u724c'}</th>
-                                <th style={{ padding: '1rem', width: '80px', textAlign: 'center' }}>{'\u5eab\u5b58'}</th>
-                                <th style={{ padding: '1rem', width: '100px' }}>{'\u6578\u91cf'}</th>
-                                <th style={{ padding: '1rem', width: '120px' }}>{'\u55ae\u50f9'}</th>
-                                <th style={{ padding: '1rem', width: '120px' }}>{'\u5c0f\u8a08'}</th>
-                                <th style={{ padding: '1rem', width: '50px' }}></th>
+                                <th>{'\u96f6\u4ef6\u865f\u78bc'} (ID)</th>
+                                <th>{'\u8eca\u578b'} / {'\u5e74\u4efd'}</th>
+                                <th>{'\u54c1\u540d'} / {'\u898f\u683c'}</th>
+                                <th>{'\u54c1\u724c'}</th>
+                                <th style={{ width: '80px', textAlign: 'center' }}>{'\u5eab\u5b58'}</th>
+                                <th style={{ width: '100px' }}>{'\u6578\u91cf'}</th>
+                                <th style={{ width: '120px' }}>{'\u55ae\u50f9'}</th>
+                                <th style={{ width: '120px' }}>{'\u5c0f\u8a08'}</th>
+                                <th style={{ width: '50px' }}></th>
                             </tr>
                         </thead>
                         <tbody ref={itemTbodyRef}>
-                            {doc.items.map((item, idx) => {
+                            {docItems.map((item, idx) => {
                                 // Find associated product metadata if exists (to show applicability link)
                                 const associatedProduct = item._full_product || products.find(p => p.p_id === item.p_id || (item.part_number && (p.part_number === item.part_number || p.part_numbers?.some(pn => pn.part_number === item.part_number))));
                                 const mappingCount = associatedProduct?.part_numbers?.length || 0;
@@ -1385,19 +1288,20 @@ const DocumentEditorPage = () => {
                                     <tr
                                         key={idx}
                                         data-doc-item-row-idx={idx}
-                                        tabIndex={!isReadOnly ? -1 : undefined}
+                                        tabIndex={-1}
                                         style={{
                                             borderBottom: '1px solid var(--border-color)',
                                             fontSize: '0.85rem',
-                                            backgroundColor: (!isReadOnly && activeItemIndex === idx) ? 'var(--bg-tertiary)' : undefined
+                                            backgroundColor: activeItemIndex === idx ? 'var(--bg-tertiary)' : undefined
                                         }}
                                         onClick={(ev) => {
-                                            if (!isReadOnly) {
-                                                setActiveItemIndex(idx);
-                                                ev.currentTarget.focus();
-                                            }
+                                            setActiveItemIndex(idx);
+                                            ev.currentTarget.focus();
                                         }}
                                     >
+                                        <td style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 700 }}>
+                                            {idx + 1}
+                                        </td>
                                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                                             {!isReadOnly && (
                                                 <input
@@ -1496,7 +1400,7 @@ const DocumentEditorPage = () => {
                             })}
                             {!isReadOnly && (
                                 <tr>
-                                    <td colSpan={10} style={{ padding: '1rem' }}>
+                                    <td colSpan={11} style={{ padding: '1rem' }}>
                                         <button
                                             type="button"
                                             ref={addPartBtnRef}
@@ -1528,31 +1432,88 @@ const DocumentEditorPage = () => {
                             )}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
 
             {/* Footer Summary */}
-            <div style={{ padding: '1rem 2rem', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', gap: '3rem', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        <span>{'\u7e3d\u9805\u6578'}: <b>{(doc?.items || []).length}</b></span>
-                        <span>{'\u7e3d\u4ef6\u6578'}: <b>{(doc?.items || []).reduce((sum, item) => sum + (item.qty || 0), 0)}</b></span>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
-                            {'\u672a\u7a05\u5c0f\u8a08'}: {formatAmount(subtotal)}
-                        </div>
-                        {vatEnabled && (
-                            <div style={{ color: 'var(--accent-hover)', fontSize: '0.95rem', marginBottom: '0.3rem', fontWeight: 700 }}>
-                                VAT ({Number(vatRate || 0).toFixed(2)}%): {formatAmount(vatAmount)} ({'\u7a05\u984d'})
-                            </div>
-                        )}
-                        <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--warning)' }}>
-                            {vatEnabled ? '\u542b\u7a05\u7e3d\u8a08' : '\u672a\u7a05\u7e3d\u8a08'} ({doc.currency}): {formatAmount(grandTotal)}
-                        </div>
-                    </div>
+            <div style={{ padding: '0.85rem 1.5rem', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', flexShrink: 0, gap: '1rem' }}>
+                <div style={{ display: 'flex', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    <span>{'\u7e3d\u9805\u6578'}: <b style={{ color: 'var(--text-primary)' }}>{docItems.length}</b></span>
+                    <span>{'\u7e3d\u4ef6\u6578'}: <b style={{ color: 'var(--text-primary)' }}>{docItems.reduce((sum, item) => sum + (item.qty || 0), 0)}</b></span>
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--warning)' }}>
+                    {'\u672a\u7a05\u5c0f\u8a08'} ({doc.currency || defaultCurrency}): {formatAmount(subtotal)}
                 </div>
             </div>
+
+            </div>
+
+            {isDocListDrawerOpen && (
+                <aside
+                    style={{
+                        flex: '1 1 50%',
+                        minWidth: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden',
+                        borderLeft: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-primary)',
+                    }}
+                >
+                    <div
+                        style={{
+                            flexShrink: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.55rem 0.85rem',
+                            background: 'var(--bg-secondary)',
+                            borderBottom: '1px solid var(--border-color)',
+                        }}
+                    >
+                        <FileText size={17} aria-hidden />
+                        <span style={{ fontWeight: 800, fontSize: '0.88rem' }}>單據列表</span>
+                        <span style={{ flex: 1 }} />
+                        <button
+                            type="button"
+                            onClick={() => setIsDocListDrawerOpen(false)}
+                            style={{
+                                background: 'var(--bg-tertiary)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '50%',
+                                width: '34px',
+                                height: '34px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--text-primary)',
+                            }}
+                            aria-label="關閉單據列表"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                        <DocumentHub
+                            isDrawerMode={true}
+                            drawerAnchorDocType={type}
+                            onSelectDoc={(nextType, docId) => {
+                                const next = new URLSearchParams(searchParams);
+                                next.set('type', nextType);
+                                if (docId) {
+                                    next.set('id', String(docId));
+                                    next.delete('new');
+                                } else {
+                                    next.delete('id');
+                                }
+                                setSearchParams(next, { replace: true });
+                            }}
+                        />
+                    </div>
+                </aside>
+            )}
 
             {/* Product Picker Overlay */}
             {isPickerOpen && (
@@ -1848,104 +1809,6 @@ const DocumentEditorPage = () => {
                     <FileText size={17} style={{ transform: 'rotate(90deg)' }} aria-hidden />
                     單據列表
                 </button>
-            )}
-
-            {isDocListDrawerOpen && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        left: docListPanelRect.x,
-                        top: docListPanelRect.y,
-                        width: docListPanelRect.w,
-                        height: docListPanelRect.h,
-                        zIndex: 1000,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        backgroundColor: 'var(--bg-primary)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '10px',
-                        boxShadow: '0 16px 48px rgba(0,0,0,0.22)',
-                        overflow: 'hidden',
-                    }}
-                >
-                    <div
-                        onMouseDown={onDocListDragStart}
-                        style={{
-                            flexShrink: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            padding: '0.45rem 0.65rem',
-                            background: 'var(--bg-secondary)',
-                            borderBottom: '1px solid var(--border-color)',
-                            cursor: 'grab',
-                            userSelect: 'none',
-                        }}
-                    >
-                        <FileText size={17} aria-hidden />
-                        <span style={{ fontWeight: 800, fontSize: '0.88rem' }}>單據列表</span>
-                        <span style={{ flex: 1 }} />
-                        <button
-                            type="button"
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={() => setIsDocListDrawerOpen(false)}
-                            style={{
-                                background: 'var(--bg-tertiary)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '50%',
-                                width: '34px',
-                                height: '34px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                color: 'var(--text-primary)',
-                            }}
-                            aria-label="關閉單據列表"
-                        >
-                            <X size={18} />
-                        </button>
-                    </div>
-                    <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                        <DocumentHub
-                            isDrawerMode={true}
-                            drawerAnchorDocType={type}
-                            onSelectDoc={(nextType, docId) => {
-                                const next = new URLSearchParams(searchParams);
-                                next.set('type', nextType);
-                                if (docId) {
-                                    next.set('id', String(docId));
-                                    next.delete('new');
-                                } else {
-                                    next.delete('id');
-                                }
-                                setSearchParams(next, { replace: true });
-                            }}
-                        />
-                    </div>
-                    <button
-                        type="button"
-                        aria-label="調整視窗大小"
-                        onMouseDown={onDocListResizeStart}
-                        style={{
-                            position: 'absolute',
-                            right: 2,
-                            bottom: 2,
-                            width: 18,
-                            height: 18,
-                            padding: 0,
-                            border: 'none',
-                            background: 'transparent',
-                            cursor: 'nwse-resize',
-                            lineHeight: 0,
-                            color: 'var(--text-muted)',
-                        }}
-                    >
-                        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-                            <path fill="currentColor" d="M11 11h3v3h-3v-3zm-5.5 5.5h3v3h-3v-3zm5.5 0h3v3h-3v-3zm-5.5-5.5h3v3h-3v-3z" />
-                        </svg>
-                    </button>
-                </div>
             )}
 
         </div>

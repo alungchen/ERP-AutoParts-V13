@@ -352,6 +352,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (!isQuickPreview || filteredDocs.length === 0 || isEditingInline || isShortageTab) return;
+            if (isDrawerMode && document.activeElement?.closest?.('[data-editor-pane]')) return;
 
             if (e.key === 'ArrowUp') {
                 e.preventDefault();
@@ -366,7 +367,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
     }, [isQuickPreview, filteredDocs, isEditingInline, isShortageTab]);
 
     useEffect(() => {
-        if (isQuickPreview || isShortageTab || selectedDoc || !docListKeyboardRef.current) return;
+        if (isDrawerMode || isQuickPreview || isShortageTab || selectedDoc || !docListKeyboardRef.current) return;
         const focusList = () => docListKeyboardRef.current?.focus();
         focusList();
         const t = setTimeout(focusList, 80);
@@ -828,6 +829,9 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
 
             // 焦點在單據搜尋區塊時，不攔截（由 useSearchFormKeyboardNav 處理 開單人員↔查詢↔重設 左/右鍵）
             if (e.target.closest('[data-search-form]')) return;
+
+            // 抽屜模式：焦點在左側單據編輯區時，右側列表不攔截鍵盤
+            if (isDrawerMode && document.activeElement?.closest?.('[data-editor-pane]')) return;
 
             if (isTypingTarget(e.target)) return;
 
