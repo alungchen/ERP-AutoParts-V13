@@ -1,8 +1,27 @@
 const fs = require('fs');
 const path = require('path');
 
-const OUTPUT_DIR = path.join(__dirname, '..', 'output');
-const sqlFile = path.join(OUTPUT_DIR, 'import_documents.sql');
+const args = process.argv.slice(2);
+const branchArg = args.find(a => a.startsWith('--branch='))?.split('=')[1] || 'songshan';
+const allowedBranches = ['songshan', 'xizhi', 'linkou'];
+if (!allowedBranches.includes(branchArg)) {
+    console.error(`未知的分店代號: ${branchArg}。支援的分店有: ${allowedBranches.join(', ')}`);
+    process.exit(1);
+}
+
+let OUTPUT_DIR = path.join(__dirname, '..', 'output', branchArg);
+let sqlFile = path.join(__dirname, '..', 'output', branchArg === 'songshan' ? '' : branchArg, 'import_documents.sql');
+
+if (branchArg === 'songshan') {
+    // 為了向下相容：如果 output/songshan 不存在，但根目錄 output/ 有 CSV 檔案，就回退至根目錄
+    const songshanDirExists = fs.existsSync(OUTPUT_DIR);
+    const hasRootMasterFiles = fs.existsSync(path.join(__dirname, '..', 'output')) && 
+        fs.readdirSync(path.join(__dirname, '..', 'output')).some(f => f.startsWith('documents_master_') && f.endsWith('.csv'));
+    
+    if (!songshanDirExists && hasRootMasterFiles) {
+        OUTPUT_DIR = path.join(__dirname, '..', 'output');
+    }
+}
 
 function parseCSVRow(str) {
     let result = [];
@@ -45,11 +64,15 @@ function parseCSV(filePath) {
 }
 
 // 掃描 output 目錄下的所有 documents_master_*.csv 檔案
+if (!fs.existsSync(OUTPUT_DIR)) {
+    console.error(`找不到目錄 ${OUTPUT_DIR}，請確認是否已針對該分店執行過爬蟲抓取資料！`);
+    process.exit(1);
+}
 const files = fs.readdirSync(OUTPUT_DIR);
 const masterFiles = files.filter(f => f.startsWith('documents_master_') && f.endsWith('.csv'));
 
 if (masterFiles.length === 0) {
-    console.error('找不到任何 documents_master_*.csv 檔案，請先執行爬蟲抓取資料。');
+    console.error(`在 ${OUTPUT_DIR} 找不到任何 documents_master_*.csv 檔案，請先執行爬蟲抓取資料。`);
     process.exit(1);
 }
 
@@ -91,7 +114,7 @@ for (const masterFile of masterFiles) {
         const partyName = (m.customer_name || '').replace(/'/g, "''");
         const notes = (m.notes || '').replace(/'/g, "''");
         
-        sql += `INSERT OR REPLACE INTO documents (doc_id, type, date, ${partyColumn}, notes, status) VALUES ('${doc_id}', '${doc_type}', '${date}', '${partyName}', '${notes}', 'completed');\n`;
+        sql += `INSERT OR REPLACE INTO documents (doc_id, type, date, ${partyColumn}, notes, status, branch_id) VALUES ('${doc_id}', '${doc_type}', '${date}', '${partyName}', '${notes}', 'completed', '${branchArg}');\n`;
     }
     
     sql += `\n-- === 刪除舊有明細 [${type}] === --\n`;

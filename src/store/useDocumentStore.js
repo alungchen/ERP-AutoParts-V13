@@ -245,7 +245,7 @@ export const useDocumentStore = create(persist((set, get) => ({
 
     fetchDocuments: async () => {
         try {
-            const res = await fetch('/api/documents?limit=5000');
+            const res = await fetch('/api/documents?limit=15000');
             const data = await res.json();
             const grouped = {
                 inquiries: data.filter(d => d.type === 'inquiry'),

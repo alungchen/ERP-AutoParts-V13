@@ -43,4 +43,5 @@ try {
 } catch (error) {
   console.error('\n❌ 執行過程中發生中斷或錯誤，自動化流程已暫停。');
   console.error('請檢查上方紅字錯誤訊息後再試一次。');
+  process.exit(error.status || 1);
 }

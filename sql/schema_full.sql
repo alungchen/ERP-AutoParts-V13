@@ -1,4 +1,13 @@
--- 從雲端同步的完整 Schema
+-- 從雲端同步的完整 Schema (已更新為多分店版本)
+
+CREATE TABLE IF NOT EXISTS branches (
+  branch_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone TEXT,
+  address TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS products (
   p_id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -7,11 +16,21 @@ CREATE TABLE IF NOT EXISTS products (
   images TEXT, 
   part_numbers TEXT, 
   brand TEXT,
-  stock INTEGER,
   specifications TEXT,
   safety_stock INTEGER,
   base_cost REAL,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_stock (
+  p_id TEXT NOT NULL,
+  branch_id TEXT NOT NULL,
+  location_code TEXT NOT NULL,
+  qty INTEGER NOT NULL DEFAULT 0,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (p_id, branch_id, location_code),
+  FOREIGN KEY (p_id) REFERENCES products(p_id) ON DELETE CASCADE,
+  FOREIGN KEY (branch_id) REFERENCES branches(branch_id)
 );
 
 CREATE TABLE IF NOT EXISTS store_snapshots (
@@ -56,6 +75,7 @@ CREATE TABLE IF NOT EXISTS suppliers (
   rating REAL DEFAULT 0,
   notes TEXT DEFAULT '',
   tier TEXT DEFAULT 'B',
+  branch_id TEXT NOT NULL DEFAULT 'songshan',
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -89,6 +109,7 @@ CREATE TABLE IF NOT EXISTS customers (
   tier TEXT DEFAULT 'B',
   credit_limit REAL DEFAULT 0,
   notes TEXT DEFAULT '',
+  branch_id TEXT NOT NULL DEFAULT 'songshan',
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -119,6 +140,7 @@ CREATE TABLE IF NOT EXISTS documents (
   expected_date TEXT,
   valid_until TEXT,
   quotation_ref TEXT,
+  branch_id TEXT NOT NULL DEFAULT 'songshan',
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -88,3 +88,44 @@
     border: 2px solid var(--bg-primary);
     cursor: pointer;
 }
+
+.branchSelectorWrapper {
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0 0.75rem;
+    height: 42px;      /* 加大高度 */
+    gap: 0.5rem;       /* 圖示與選單的間距 */
+    transition: all var(--trans-fast);
+}
+
+.branchSelectorWrapper:focus-within {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.branchIcon {
+    color: var(--accent-primary);
+    transition: color var(--trans-fast);
+    display: flex;
+    align-items: center;
+}
+
+.branchSelect {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.95rem; /* 字體放大 */
+    font-weight: 700;   /* 字體加粗 */
+    outline: none;
+    cursor: pointer;
+    height: 100%;
+    padding-right: 0.25rem;
+}
+
+.branchSelect option {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}

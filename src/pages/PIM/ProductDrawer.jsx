@@ -3,6 +3,7 @@ import { X, Copy, Camera, Edit2, Trash2, CopyPlus, Save, XCircle, Eye, EyeOff } 
 import { useProductStore } from '../../store/useProductStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
 import { useTranslation } from '../../i18n';
+import { useAppStore } from '../../store/useAppStore';
 import AutocompleteInput from '../../components/AutocompleteInput';
 import { getSafeImageUrl, isExternalHttpImageUrl } from '../../utils/imageUtils';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -12,6 +13,7 @@ const ProductDrawer = () => {
     const { selectedProduct, setSelectedProduct, duplicateProduct, deleteProduct, updateProduct } = useProductStore();
     const { models, parts, brands } = useShorthandStore();
     const { t } = useTranslation();
+    const { branches } = useAppStore();
 
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState(null);
@@ -94,6 +96,18 @@ const ProductDrawer = () => {
                 data.specifications = mainPart.name_spec || data.specifications || '';
                 data.brand = mainPart.brand || data.brand || '';
                 data.notes = mainPart.note || data.notes || '';
+            }
+
+            // 初始化多分店庫存明細 (向後相容舊資料)
+            if (!data.stock_details) {
+                data.stock_details = [];
+                if (data.stock) {
+                    data.stock_details.push({
+                        branch_id: 'songshan',
+                        location_code: 'A1',
+                        qty: data.stock
+                    });
+                }
             }
 
             setFormData(data);
@@ -180,6 +194,20 @@ const ProductDrawer = () => {
     };
 
     const handleSave = () => {
+        setConfirmModalState({
+            open: true,
+            title: '儲存產品確認',
+            message: '確定要儲存此次產品資料與庫位的變更嗎？',
+            confirmLabel: '確認儲存',
+            danger: false,
+            onConfirm: () => {
+                setConfirmModalState(s => ({ ...s, open: false }));
+                executeSave();
+            }
+        });
+    };
+
+    const executeSave = () => {
         const productToSave = { ...formData };
         
         // Auto-sync main fields to the "main" part number before saving
@@ -521,24 +549,169 @@ const ProductDrawer = () => {
                         />
                     </div>
 
-                    {/* Row 6: 庫存, 安全庫存 */}
-                    <div className="flex gap-3 flex-wrap mb-4">
-                        <div className={styles.inputGroup} style={{ flex: 1, minWidth: '120px' }}>
-                            <label className={styles.label}>{t('pim.thStock')}</label>
-                            <input ref={stockInputRef} disabled={!isEditing} type="number" className={styles.input} value={formData.stock || 0} onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })} />
+                    {/* Row 6: 多分店與多庫位庫存管理 */}
+                    <div className={styles.section} style={{ marginBottom: '1.5rem', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1rem' }}>
+                        <div style={{ marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span className={styles.label} style={{ margin: 0, fontSize: '0.9rem', fontWeight: 'bold' }}>多分店庫存與庫位</span>
+                            <span className="badge badge-blue" style={{ fontSize: '0.75rem' }}>
+                                總庫存: {(formData.stock_details || []).reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0)} 件
+                            </span>
                         </div>
-                        <div className={styles.inputGroup} style={{ flex: 1, minWidth: '120px' }}>
-                            <label className={styles.label}>{t('pim.safetyStock')}</label>
-                            <input
-                                ref={safetyStockInputRef}
-                                disabled={!isEditing}
-                                type="number"
-                                className={styles.input}
-                                value={formData.safety_stock || 0}
-                                onKeyDown={(e) => handleEnterFocusByRef(e, { nextRef: baseCostInputRef, prevRef: stockInputRef })}
-                                onChange={(e) => setFormData({ ...formData, safety_stock: parseInt(e.target.value) || 0 })}
-                            />
+                        
+                        <div className="flex-col gap-3">
+                            {branches.map(branch => {
+                                // 篩選出該分店的庫存明細
+                                const branchStocks = (formData.stock_details || []).filter(s => s.branch_id === branch.branch_id);
+                                
+                                return (
+                                    <div key={branch.branch_id} style={{ padding: '0.75rem', background: 'var(--bg-secondary)', borderRadius: '6px', border: '1px solid var(--border-color)', borderLeft: '3px solid var(--accent-primary)' }}>
+                                        <div style={{ fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                                            <span>{branch.name}</span>
+                                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                                小計: {branchStocks.reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0)} 件
+                                            </span>
+                                        </div>
+                                        
+                                        {/* 庫位列表 */}
+                                        <div className="flex-col gap-2">
+                                            {branchStocks.map((stockItem, idx) => {
+                                                // 找到這個品項在整個 stock_details 陣列中的真實 index
+                                                const realIndex = (formData.stock_details || []).findIndex(
+                                                    s => s.branch_id === branch.branch_id && s.location_code === stockItem.location_code
+                                                );
+                                                
+                                                return (
+                                                    <div key={idx} className="flex gap-2 items-center">
+                                                        <input
+                                                            disabled={!isEditing}
+                                                            className={styles.input}
+                                                            style={{ flex: 2, fontSize: '0.8rem', padding: '0.3rem 0.5rem', height: '32px' }}
+                                                            placeholder="庫位 (例如 A1)"
+                                                            value={stockItem.location_code}
+                                                            onChange={(e) => {
+                                                                const nextDetails = [...(formData.stock_details || [])];
+                                                                if (realIndex !== -1) {
+                                                                    nextDetails[realIndex].location_code = e.target.value;
+                                                                    setFormData({ ...formData, stock_details: nextDetails });
+                                                                }
+                                                            }}
+                                                        />
+                                                        <input
+                                                            disabled={!isEditing}
+                                                            type="number"
+                                                            className={styles.input}
+                                                            style={{ flex: 1, fontSize: '0.8rem', padding: '0.3rem 0.5rem', height: '32px' }}
+                                                            placeholder="數量"
+                                                            value={stockItem.qty}
+                                                            onChange={(e) => {
+                                                                const nextDetails = [...(formData.stock_details || [])];
+                                                                if (realIndex !== -1) {
+                                                                    const oldValue = parseInt(nextDetails[realIndex].qty) || 0;
+                                                                    const newValue = Math.max(0, parseInt(e.target.value) || 0);
+                                                                    const diff = newValue - oldValue;
+
+                                                                    // Find other locations for this same branch
+                                                                    const branchId = nextDetails[realIndex].branch_id;
+                                                                    const otherIndices = nextDetails
+                                                                        .map((item, idx) => ({ item, idx }))
+                                                                        .filter(x => x.idx !== realIndex && x.item.branch_id === branchId)
+                                                                        .map(x => x.idx);
+
+                                                                    if (otherIndices.length > 0) {
+                                                                        // Subtract diff from the first available other location (clamping to 0)
+                                                                        const targetIdx = otherIndices[0];
+                                                                        const targetOldQty = parseInt(nextDetails[targetIdx].qty) || 0;
+                                                                        const targetNewQty = Math.max(0, targetOldQty - diff);
+                                                                        
+                                                                        // actual amount we could subtract
+                                                                        const actualSubtracted = targetOldQty - targetNewQty;
+                                                                        
+                                                                        nextDetails[targetIdx].qty = targetNewQty;
+                                                                        nextDetails[realIndex].qty = oldValue + actualSubtracted;
+                                                                    } else {
+                                                                        // No other locations, just update directly
+                                                                        nextDetails[realIndex].qty = newValue;
+                                                                    }
+                                                                    setFormData({ ...formData, stock_details: nextDetails });
+                                                                }
+                                                            }}
+                                                        />
+                                                        {isEditing && (
+                                                            <button
+                                                                type="button"
+                                                                className="text-muted hover:text-danger p-1"
+                                                                onClick={() => {
+                                                                    const deletedItem = (formData.stock_details || [])[realIndex];
+                                                                    if (!deletedItem) return;
+                                                                    const deletedQty = parseInt(deletedItem.qty) || 0;
+                                                                    const branchId = deletedItem.branch_id;
+                                                                    
+                                                                    // Filter out the deleted item
+                                                                    let nextDetails = (formData.stock_details || []).filter(
+                                                                        (_, rIdx) => rIdx !== realIndex
+                                                                    );
+                                                                    
+                                                                    // Find if there are other locations for this branch
+                                                                    const remainingBranchIdx = nextDetails.findIndex(s => s.branch_id === branchId);
+                                                                    if (remainingBranchIdx !== -1) {
+                                                                        // Add deleted qty to the first remaining location of this branch
+                                                                        nextDetails[remainingBranchIdx].qty = (parseInt(nextDetails[remainingBranchIdx].qty) || 0) + deletedQty;
+                                                                    } else {
+                                                                        // No remaining locations, create default 'A1' with the deleted qty
+                                                                        nextDetails.push({
+                                                                            branch_id: branchId,
+                                                                            location_code: 'A1',
+                                                                            qty: deletedQty
+                                                                        });
+                                                                    }
+                                                                    
+                                                                    setFormData({ ...formData, stock_details: nextDetails });
+                                                                }}
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                            
+                                            {isEditing && (
+                                                <button
+                                                    type="button"
+                                                    style={{ fontSize: '0.75rem', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.4rem', border: '1px dashed var(--border-color)', borderRadius: '4px', marginTop: '0.25rem', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-subtle)' }}
+                                                    className="hover:opacity-80 transition"
+                                                    onClick={() => {
+                                                        const nextDetails = [...(formData.stock_details || [])];
+                                                        nextDetails.push({
+                                                            branch_id: branch.branch_id,
+                                                            location_code: `庫位-${branchStocks.length + 1}`,
+                                                            qty: 0
+                                                        });
+                                                        setFormData({ ...formData, stock_details: nextDetails });
+                                                    }}
+                                                >
+                                                    + 新增庫位
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
+                    </div>
+
+                    {/* 安全庫存 */}
+                    <div className={styles.inputGroup} style={{ marginBottom: '1rem' }}>
+                        <label className={styles.label}>{t('pim.safetyStock')}</label>
+                        <input
+                            ref={safetyStockInputRef}
+                            disabled={!isEditing}
+                            type="number"
+                            className={styles.input}
+                            value={formData.safety_stock || 0}
+                            onKeyDown={(e) => handleEnterFocusByRef(e, { nextRef: baseCostInputRef, prevRef: partNumberInputRef })}
+                            onChange={(e) => setFormData({ ...formData, safety_stock: parseInt(e.target.value) || 0 })}
+                        />
                     </div>
 
                     {/* Row 7: 基礎進價 */}

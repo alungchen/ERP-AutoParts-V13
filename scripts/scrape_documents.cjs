@@ -18,28 +18,34 @@ const DOC_URLS = {
 
 // 參數解析
 const args = process.argv.slice(2);
+const branchArg = args.find(a => a.startsWith('--branch='))?.split('=')[1] || 'songshan';
 const typeArg = args.find(a => a.startsWith('--type='))?.split('=')[1];
 const startArg = args.find(a => a.startsWith('--start='))?.split('=')[1];
 const endArg = args.find(a => a.startsWith('--end='))?.split('=')[1];
 
+const allowedBranches = ['songshan', 'xizhi', 'linkou'];
+if (!allowedBranches.includes(branchArg)) {
+  console.log(`未知的分店代號: ${branchArg}。支援的分店有: ${allowedBranches.join(', ')}`);
+  process.exit(1);
+}
+
 if (!typeArg || !startArg || !endArg) {
   console.log(`
-使用方式: node scripts/scrape_documents.cjs --type=<單據類型> --start=<開始日期> --end=<結束日期>
-單據類型支援: quotation (報價), sales (銷貨), salesReturn (銷退), inquiry (詢價), po (採購), purchase (進貨), purchaseReturn (進退), order (訂單)
-範例: node scripts/scrape_documents.cjs --type=purchase --start=2026-05-18 --end=2026-05-18
+使用方式: node scripts/scrape_documents.cjs --branch=<分店代號> --type=<單據類型> --start=<開始日期> --end=<結束日期>
+分店代號支援: songshan (松山店), xizhi (汐止店), linkou (林口店) (預設為 songshan)
+單據類型支援: quotation (報價), sales (銷貨), salesReturn (銷退), inquiry (詢價), po (採購), purchase (進貨), purchaseReturn (進退), order (訂單), all (一次搬移8種)
+範例: node scripts/scrape_documents.cjs --branch=xizhi --type=purchase --start=2026-05-18 --end=2026-05-18
 `);
   process.exit(1);
 }
 
-if (!DOC_URLS[typeArg]) {
+if (typeArg !== 'all' && !DOC_URLS[typeArg]) {
   console.log('未知的單據類型。');
   process.exit(1);
 }
-
-const targetUrl = DOC_URLS[typeArg];
-const OUTPUT_DIR = path.join(__dirname, '..', 'output');
-const COOKIES_FILE = path.join(__dirname, 'cookies.json');
-const PROFILE_DIR = path.join(__dirname, '.chrome-profile-docs');
+const OUTPUT_DIR = path.join(__dirname, '..', 'output', branchArg);
+const COOKIES_FILE = path.join(__dirname, `cookies_${branchArg}.json`);
+const PROFILE_DIR = path.join(__dirname, `.chrome-profile-docs-${branchArg}`);
 
 // 自動啟動防休眠程式 (在新視窗開啟)，防止重複開啟
 if (!process.env.KEEP_AWAKE_STARTED) {
@@ -108,12 +114,41 @@ function writeCSV(filePath, headers, rows) {
   await ensurePageReady(page);
   await sleep(2000);
 
+  let cookiesLoaded = false;
   if (fs.existsSync(COOKIES_FILE)) {
     const saved = JSON.parse(fs.readFileSync(COOKIES_FILE, 'utf8'));
     await page.setCookie(...saved);
     try { await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' }); } catch {}
     await ensurePageReady(page);
     await sleep(2000);
+    cookiesLoaded = true;
+  } else {
+    // 試圖載入松山店的 MachineId 授權 Cookie，免去新裝置授權
+    const songshanCookiesFile = path.join(__dirname, 'cookies_songshan.json');
+    const defaultCookiesFile = path.join(__dirname, 'cookies.json');
+    let sourceFile = null;
+    if (fs.existsSync(songshanCookiesFile)) {
+      sourceFile = songshanCookiesFile;
+    } else if (fs.existsSync(defaultCookiesFile)) {
+      sourceFile = defaultCookiesFile;
+    }
+    
+    if (sourceFile) {
+      try {
+        const songshanCookies = JSON.parse(fs.readFileSync(sourceFile, 'utf8'));
+        const machineIdCookie = songshanCookies.find(c => c.name === 'MachineId');
+        if (machineIdCookie) {
+          await page.setCookie(machineIdCookie);
+          console.log(`ℹ️ 已自動載入松山店的 MachineId 授權 Cookie (${machineIdCookie.value})，免去新裝置授權步驟。`);
+          try { await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+          await ensurePageReady(page);
+          await sleep(2000);
+          cookiesLoaded = true;
+        }
+      } catch (e) {
+        console.log('⚠️ 載入松山店 MachineId Cookie 失敗:', e.message);
+      }
+    }
   }
   
   const needLogin = await page.evaluate(() => {
@@ -122,6 +157,53 @@ function writeCSV(filePath, headers, rows) {
   });
 
   if (needLogin) {
+    // 嘗試自動填寫登入資訊 (若為汐止店)
+    if (branchArg === 'xizhi') {
+      console.log('✍️ 正在自動輸入汐止店登入認證 (服務編號: car00401, 帳號: b9)...');
+      await page.evaluate(() => {
+        const inputs = Array.from(document.querySelectorAll('input, select'));
+        const textInputs = inputs.filter(i => i.tagName === 'INPUT' && (i.type === 'text' || !i.type));
+        const passwordInput = inputs.find(i => i.tagName === 'INPUT' && i.type === 'password');
+        
+        if (passwordInput) {
+          passwordInput.value = '1';
+          
+          let serviceInput = null;
+          let userInput = null;
+          
+          for (const input of textInputs) {
+            const id = (input.id || '').toLowerCase();
+            const name = (input.name || '').toLowerCase();
+            if (id.includes('service') || name.includes('service') || id.includes('center') || name.includes('center')) {
+              serviceInput = input;
+            } else if (id.includes('user') || name.includes('user') || id.includes('uid') || name.includes('uid') || id.includes('account') || name.includes('account')) {
+              userInput = input;
+            }
+          }
+          
+          if (!serviceInput && textInputs.length >= 2) {
+            serviceInput = textInputs[0];
+            userInput = textInputs[1];
+          } else if (!userInput && textInputs.length === 1) {
+            userInput = textInputs[0];
+          }
+          
+          if (serviceInput) {
+            serviceInput.value = 'car00401';
+            serviceInput.dispatchEvent(new Event('input', { bubbles: true }));
+            serviceInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          if (userInput) {
+            userInput.value = 'b9';
+            userInput.dispatchEvent(new Event('input', { bubbles: true }));
+            userInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+          passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }).catch(() => {});
+    }
+
     await page.evaluate(() => {
       document.title = '🔴 請在此視窗登入！';
       const b = document.createElement('div');
@@ -133,7 +215,13 @@ function writeCSV(filePath, headers, rows) {
     console.log('⚠️ 請在開啟的 Chrome 視窗手動登入！登入完成後程式會自動繼續...');
     for (let i = 0; i < 120; i++) {
       await sleep(3000);
-      const isStillLogin = await page.evaluate(() => Array.from(document.querySelectorAll('input')).some(i => i.type === 'password') && !document.querySelector('#btn_search'));
+      let isStillLogin = true;
+      try {
+        isStillLogin = await page.evaluate(() => Array.from(document.querySelectorAll('input')).some(i => i.type === 'password') && !document.querySelector('#btn_search'));
+      } catch (e) {
+        // 網頁跳轉中 context 會失效，此為正常現象，忽略並繼續等待
+        isStillLogin = true;
+      }
       if (!isStillLogin) break;
     }
     fs.writeFileSync(COOKIES_FILE, JSON.stringify(await page.cookies(), null, 2));
@@ -146,11 +234,21 @@ function writeCSV(filePath, headers, rows) {
     console.log('✅ 已經登入。');
   }
 
-  // 2. 前往目標單據頁面
-  console.log(`\n[2] 前往 ${typeArg} 單據頁面: ${targetUrl}`);
-  try { await page.goto(targetUrl, { waitUntil: 'domcontentloaded' }); } catch {}
-  await ensurePageReady(page);
-  await sleep(2000);
+  // 2. 確定處理類型與計算日期範圍
+  const typesToProcess = typeArg === 'all'
+    ? ['sales', 'quotation', 'inquiry', 'po', 'purchase', 'salesReturn', 'purchaseReturn', 'order']
+    : [typeArg];
+
+  const TYPE_NAMES = {
+    sales: '銷貨單',
+    quotation: '報價單',
+    inquiry: '詢價單',
+    po: '採購單',
+    purchase: '進貨單',
+    salesReturn: '銷退單',
+    purchaseReturn: '進退單',
+    order: '訂單'
+  };
 
   function getDatesInRange(startStr, endStr) {
     const dates = [];
@@ -166,158 +264,187 @@ function writeCSV(filePath, headers, rows) {
     return dates;
   }
 
+  const BRANCH_NAMES = {
+    songshan: '松山店',
+    xizhi: '汐止店',
+    linkou: '林口店'
+  };
+  const branchName = BRANCH_NAMES[branchArg] || branchArg;
+
   const dateList = getDatesInRange(startArg, endArg);
-  console.log(`\n[3] 準備逐日爬取，從 ${endArg} 爬到 ${startArg} (共 ${dateList.length} 天)...`);
+  let isTerminated = false;
 
-  const allMasterRows = [];
-  const allDetailRows = [];
-  let processedDocNos = new Set();
+  for (const currentType of typesToProcess) {
+    if (isTerminated) break;
 
-  try {
-    for (const targetDate of dateList) {
+    const targetUrl = DOC_URLS[currentType];
+    const typeName = TYPE_NAMES[currentType] || currentType;
+
+    console.log(`\n${'═'.repeat(60)}`);
+    console.log(`🚀 [單據搬家 - ${branchName}] 正在處理單據類型: ${currentType} (${typeName})`);
+    console.log(`🔗 網址: ${targetUrl}`);
+    console.log(`${'═'.repeat(60)}`);
+
+    // 前往目標單據頁面
+    console.log(`\n[2] 前往 ${typeName} 頁面...`);
+    try { await page.goto(targetUrl, { waitUntil: 'domcontentloaded' }); } catch {}
+    await ensurePageReady(page);
+    await sleep(2000);
+
+    console.log(`\n[3] 準備逐日爬取，從 ${endArg} 爬到 ${startArg} (共 ${dateList.length} 天)...`);
+
+    const allMasterRows = [];
+    const allDetailRows = [];
+    const processedDocNos = new Set();
+
+    try {
+      for (const targetDate of dateList) {
+        if (isTerminated) break;
         console.log(`\n▶ 開始查詢日期: ${targetDate}`);
-      
-      await page.evaluate((d) => {
-        const docNoInput = document.querySelector('#ele_單號');
-        if (docNoInput) docNoInput.value = ''; // 清空單號以利判斷是否載入成功
-        const searchInput = document.querySelector('#ele_QueryMaster');
-        if (searchInput) {
-          searchInput.value = d;
-          searchInput.focus();
-        }
-        document.querySelector('#btn_QueryMaster')?.click();
-      }, targetDate);
-
-      // 等待資料載入 (等待單號有值，或3秒逾時代表當天沒單)
-      let hasData = true;
-      try {
-        await page.waitForFunction(() => {
-            return document.querySelector('#ele_單號')?.value !== '';
-        }, { timeout: 3000 });
-      } catch (e) {
-        console.log(`  (查無單據或載入逾時，跳過 ${targetDate})`);
-        hasData = false;
-      }
-      
-      await sleep(1000); // 給予明細表 AJAX 載入時間
-
-      if (!hasData) continue;
-
-      // 當天有資料，開始「上一筆」迴圈
-      while (true) {
-        const docData = await page.evaluate(() => {
-            const getValue = (selector) => {
-                const el = document.querySelector(selector);
-                return el ? (el.value || el.innerText || '').trim() : '';
-            };
-            
-            const docNo = getValue('#ele_單號');
-            const docDate = getValue('#ele_交易日期');
-            const customer = getValue('#ele_對象名稱');
-            const total = getValue('#ele_總額') || getValue('#ele_外幣總額');
-            const note = getValue('#ele_備註');
-            
-            // 抓表明細
-            const grid = document.querySelector('#display_DataGridDetail table') || document.querySelector('#DataGridDetail');
-            let items = [];
-            if (grid) {
-                const trs = grid.querySelectorAll('tbody tr');
-                trs.forEach(tr => {
-                    const getValueByField = (field) => {
-                        const el = tr.querySelector(`input[fieldname="${field}"]`);
-                        return el ? el.value.trim() : '0';
-                    };
-                    
-                    const partNo = getValueByField('零件號碼');
-                    if (partNo) {
-                        items.push({
-                            partNo: partNo,
-                            qty: getValueByField('數量') || '1',
-                            price: getValueByField('單價') || '0',
-                            subtotal: getValueByField('小計') || '0'
-                        });
-                    }
-                });
-            }
-            
-            return { docNo, docDate, customer, total, note, items };
-        });
-
-        if (!docData.docNo) break;
-
-        if (processedDocNos.has(docData.docNo)) {
-            // 已經抓過的單號，代表這一天的「上一筆」已經繞回最新一筆了，或者重複
-            console.log(`  ⚠️ 已經抓過 ${docData.docNo}，本日前翻結束。`);
-            break;
-        }
-        processedDocNos.add(docData.docNo);
-
-        console.log(`  📝 擷取: ${docData.docDate} | ${docData.docNo} | ${docData.customer} | 明細 ${docData.items.length} 筆`);
         
-        allMasterRows.push([
-            docData.docNo,
-            typeArg, 
-            docData.docDate,
-            docData.customer,
-            docData.total,
-            docData.note
-        ]);
+        await page.evaluate((d) => {
+          const docNoInput = document.querySelector('#ele_單號');
+          if (docNoInput) docNoInput.value = ''; // 清空單號以利判斷是否載入成功
+          const searchInput = document.querySelector('#ele_QueryMaster');
+          if (searchInput) {
+            searchInput.value = d;
+            searchInput.focus();
+          }
+          document.querySelector('#btn_QueryMaster')?.click();
+        }, targetDate);
 
-        docData.items.forEach((item) => {
-            const cleanNum = (str) => String(str).replace(/,/g, '').trim() || '0';
-            allDetailRows.push([
-                docData.docNo,
-                item.partNo,                        // PartNo
-                cleanNum(item.qty),                 // Qty
-                cleanNum(item.price),               // Unit Price
-                cleanNum(item.subtotal)             // Subtotal
-            ]);
-        });
-
-        // 點擊「上一筆」
-        const prevDocNo = docData.docNo;
-        await page.evaluate(() => {
-            const btn = document.querySelector('#btn_UpRecord');
-            if (btn) btn.click();
-        });
-        
-        // 等待單號改變
+        // 等待資料載入 (等待單號有值，或3秒逾時代表當天沒單)
+        let hasData = true;
         try {
-            await page.waitForFunction((oldDoc) => {
-                const newDoc = document.querySelector('#ele_單號')?.value || '';
-                return newDoc !== oldDoc && newDoc !== '';
-            }, { timeout: 3000 }, prevDocNo);
+          await page.waitForFunction(() => {
+              return document.querySelector('#ele_單號')?.value !== '';
+          }, { timeout: 3000 });
         } catch (e) {
-            console.log(`  (這天已經沒有上一筆資料了)`);
-            break;
+          console.log(`  (查無單據或載入逾時，跳過 ${targetDate})`);
+          hasData = false;
         }
-        await sleep(1000); // 確保明細表也載入完畢
+        
+        await sleep(1000); // 給予明細表 AJAX 載入時間
+
+        if (!hasData) continue;
+
+        // 當天有資料，開始「上一筆」迴圈
+        while (true) {
+          if (isTerminated) break;
+
+          const docData = await page.evaluate(() => {
+              const getValue = (selector) => {
+                  const el = document.querySelector(selector);
+                  return el ? (el.value || el.innerText || '').trim() : '';
+              };
+              
+              const docNo = getValue('#ele_單號');
+              const docDate = getValue('#ele_交易日期');
+              const customer = getValue('#ele_對象名稱');
+              const total = getValue('#ele_總額') || getValue('#ele_外幣總額');
+              const note = getValue('#ele_備註');
+              
+              // 抓表明細
+              const grid = document.querySelector('#display_DataGridDetail table') || document.querySelector('#DataGridDetail');
+              let items = [];
+              if (grid) {
+                  const trs = grid.querySelectorAll('tbody tr');
+                  trs.forEach(tr => {
+                      const getValueByField = (field) => {
+                          const el = tr.querySelector(`input[fieldname="${field}"]`);
+                          return el ? el.value.trim() : '0';
+                      };
+                      
+                      const partNo = getValueByField('零件號碼');
+                      if (partNo) {
+                          items.push({
+                              partNo: partNo,
+                              qty: getValueByField('數量') || '1',
+                              price: getValueByField('單價') || '0',
+                              subtotal: getValueByField('小計') || '0'
+                          });
+                      }
+                  });
+              }
+              
+              return { docNo, docDate, customer, total, note, items };
+          });
+
+          if (!docData.docNo) break;
+
+          if (processedDocNos.has(docData.docNo)) {
+              // 已經抓過的單號，代表這一天的「上一筆」已經繞回最新一筆了，或者重複
+              console.log(`  ⚠️ 已經抓過 ${docData.docNo}，本日前翻結束。`);
+              break;
+          }
+          processedDocNos.add(docData.docNo);
+
+          console.log(`  📝 擷取: ${docData.docDate} | ${docData.docNo} | ${docData.customer} | 明細 ${docData.items.length} 筆`);
+          
+          allMasterRows.push([
+              docData.docNo,
+              currentType, 
+              docData.docDate,
+              docData.customer,
+              docData.total,
+              docData.note
+          ]);
+
+          docData.items.forEach((item) => {
+              const cleanNum = (str) => String(str).replace(/,/g, '').trim() || '0';
+              allDetailRows.push([
+                  docData.docNo,
+                  item.partNo,                        // PartNo
+                  cleanNum(item.qty),                 // Qty
+                  cleanNum(item.price),               // Unit Price
+                  cleanNum(item.subtotal)             // Subtotal
+              ]);
+          });
+
+          // 點擊「上一筆」
+          const prevDocNo = docData.docNo;
+          await page.evaluate(() => {
+              const btn = document.querySelector('#btn_UpRecord');
+              if (btn) btn.click();
+          });
+          
+          // 等待單號改變
+          try {
+              await page.waitForFunction((oldDoc) => {
+                  const newDoc = document.querySelector('#ele_單號')?.value || '';
+                  return newDoc !== oldDoc && newDoc !== '';
+              }, { timeout: 3000 }, prevDocNo);
+          } catch (e) {
+              console.log(`  (這天已經沒有上一筆資料了)`);
+              break;
+          }
+          await sleep(1000); // 確保明細表也載入完畢
+        }
       }
+    } catch (err) {
+        console.log(`\n❌ [${typeName}] 執行中斷: ${err.message}`);
+        if (err.message.includes('detached Frame') || err.message.includes('Execution context was destroyed')) {
+            console.log(`⚠️ 偵測到網頁被強制登出或重新整理 (這是 ERP 系統本身的安全性自動登出)！`);
+            console.log(`💾 系統將為您自動保存中斷前已抓取的進度...`);
+            isTerminated = true;
+        }
+    } finally {
+        // 5. 輸出 CSV
+        console.log(`\n${'═'.repeat(50)}`);
+        if (allMasterRows.length > 0) {
+            writeCSV(path.join(OUTPUT_DIR, `documents_master_${currentType}.csv`),
+              ['doc_id','type','doc_date','customer_name','total_amount','notes'],
+              allMasterRows);
+            writeCSV(path.join(OUTPUT_DIR, `documents_detail_${currentType}.csv`),
+              ['doc_id','part_id','quantity','unit_price','subtotal'],
+              allDetailRows);
+            console.log(`\n✅ [${typeName}] 爬取已儲存！主檔: ${allMasterRows.length} 筆, 明細: ${allDetailRows.length} 筆`);
+        } else {
+            console.log(`\n⚠ [${typeName}] 尚未抓取到任何資料。`);
+        }
     }
-  } catch (err) {
-      console.log(`\n❌ 執行中斷: ${err.message}`);
-      if (err.message.includes('detached Frame') || err.message.includes('Execution context was destroyed')) {
-          console.log(`⚠️ 偵測到網頁被強制登出或重新整理 (這是 ERP 系統本身的安全性自動登出)！`);
-          console.log(`💾 系統將為您自動保存中斷前已抓取的進度...`);
-      }
-  } finally {
-      // 5. 輸出 CSV
-      console.log(`\n${'═'.repeat(50)}`);
-      if (allMasterRows.length > 0) {
-          writeCSV(path.join(OUTPUT_DIR, `documents_master_${typeArg}.csv`),
-            ['doc_id','type','doc_date','customer_name','total_amount','notes'],
-            allMasterRows);
-          writeCSV(path.join(OUTPUT_DIR, `documents_detail_${typeArg}.csv`),
-            ['doc_id','part_id','quantity','unit_price','subtotal'],
-            allDetailRows);
-          console.log(`\n✅ 爬取已儲存！主檔: ${allMasterRows.length} 筆, 明細: ${allDetailRows.length} 筆`);
-      } else {
-          console.log(`\n⚠ 尚未抓取到任何資料。`);
-      }
-      
-      // 6. 產生 SQL 並匯入 (如果您需要自動匯入，可解除註解此段)
-      // execSync(`node scripts/generate_document_sql.cjs`, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
-      
-      await browser.close();
   }
+
+  // 關閉瀏覽器
+  await browser.close();
 })();

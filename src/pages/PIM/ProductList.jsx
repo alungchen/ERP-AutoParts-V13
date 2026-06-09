@@ -137,6 +137,8 @@ const ProductList = () => {
     const showImportExport = useAppStore((s) => s.showImportExport);
     const showBatchDelete = useAppStore((s) => s.showBatchDelete);
     const setProductHistoryFocusPId = useAppStore((s) => s.setProductHistoryFocusPId);
+    const activeBranchId = useAppStore((s) => s.activeBranchId);
+    const branches = useAppStore((s) => s.branches || []);
 
     const [query, setQuery] = useState(() => {
         try {
@@ -174,6 +176,7 @@ const ProductList = () => {
     const [mappingProduct, setMappingProduct] = useState(null);
     const [showPrices, setShowPrices] = useState(false);
     const [showSalesPrices, setShowSalesPrices] = useState(false);
+    const [expandedStockPid, setExpandedStockPid] = useState(null);
     const [selectedPriceLevel, setSelectedPriceLevel] = useState('A');
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [isImportResultOpen, setIsImportResultOpen] = useState(false);
@@ -232,10 +235,21 @@ const ProductList = () => {
 
     const searchBtnRef = useRef(null);
 
-    // 進入頁面時強制從雲端抓取最新產品資料
+    // 進入頁面時，若無本地快取，才從雲端抓取最新產品資料
     useEffect(() => {
-        useProductStore.getState().fetchProducts();
-    }, []);
+        if (!products || products.length === 0) {
+            useProductStore.getState().fetchProducts();
+        }
+    }, [products?.length]);
+
+    useEffect(() => {
+        if (expandedStockPid === null) return;
+        const handleGlobalClick = () => {
+            setExpandedStockPid(null);
+        };
+        document.addEventListener('click', handleGlobalClick);
+        return () => document.removeEventListener('click', handleGlobalClick);
+    }, [expandedStockPid]);
 
     // 依「上次按搜尋」的條件套用篩選；未搜尋時顯示全庫
     useEffect(() => {
@@ -400,8 +414,6 @@ const ProductList = () => {
         setResults(products);
         setHasSearched(false);
         localStorage.removeItem(PIM_SEARCH_STATE_KEY);
-        // 強制從雲端重新抓取最新資料，確保同步
-        void useProductStore.getState().fetchProducts();
     };
 
     useSearchFormKeyboardNav(formRef, searchBtnRef, resetBtnRef);
@@ -1592,13 +1604,112 @@ const ProductList = () => {
                                     </td>
 
                                     <td className={styles.tdList}>
-                                        <div className="flex flex-col gap-1 items-start">
-                                            <span className={`text-xs px-2 py-0.5 rounded-sm font-bold ${stockBadgeClass}`}>
-                                                {stockNum}
-                                                <span className={belowSafety ? 'text-danger' : undefined}> 現貨</span>
-                                            </span>
-                                            <span className="text-[10px] text-muted font-mono">安全庫存: {safetyNum}</span>
-                                        </div>
+                                        {(() => {
+                                            const activeBranchStocks = (p.stock_details || []).filter(s => s.branch_id === activeBranchId);
+                                            const activeBranchStockNum = activeBranchStocks.reduce((sum, item) => sum + (item.qty || 0), 0);
+                                            const activeBranchObj = branches.find(b => b.branch_id === activeBranchId);
+                                            const activeBranchName = activeBranchObj ? activeBranchObj.name : '當前店';
+                                            const activeLocationSummary = activeBranchStocks.length > 0
+                                                ? activeBranchStocks.map(s => `${s.location_code}: ${s.qty}`).join(', ')
+                                                : '無庫位';
+                                            const totalAllBranches = (p.stock_details || []).reduce((sum, item) => sum + (item.qty || 0), 0);
+                                            const belowSafetyActive = safetyNum > 0 && activeBranchStockNum < safetyNum;
+                                            
+                                            // 本店的 Badge 樣式 (庫存不足為紅色警告，正常為當前分店主題高亮色)
+                                            const activeStockBadgeClass = belowSafetyActive
+                                                ? 'bg-danger-subtle text-primary border border-danger/25'
+                                                : activeBranchStockNum > safetyNum
+                                                    ? 'bg-success-subtle text-success border border-success/20'
+                                                    : activeBranchStockNum > 0
+                                                        ? 'bg-warning-subtle text-warning border border-warning/20'
+                                                        : 'bg-danger-subtle text-danger border border-danger/10';
+
+                                            return (
+                                                <div className="flex flex-col gap-1 items-start min-w-[130px]">
+                                                    {/* 1. 本店高亮顯示 */}
+                                                    <div className="flex flex-col items-start w-full mb-1">
+                                                        {activeBranchStocks.length >= 2 ? (
+                                                            <div className={styles.stockDropdown}>
+                                                                <span className={`text-xs px-2 py-0.5 rounded-sm font-bold flex items-center gap-1 cursor-pointer ${activeStockBadgeClass}`}>
+                                                                    {activeBranchName}: {activeBranchStockNum}
+                                                                    <span className={belowSafetyActive ? 'text-danger' : undefined}> 現貨</span>
+                                                                    <ChevronDown size={11} className="opacity-70" />
+                                                                </span>
+                                                                <div className={styles.stockDropdownMenu}>
+                                                                    <div className="text-[10px] text-muted mb-1 px-1 border-b border-border-color pb-1">{activeBranchName} 庫位明細</div>
+                                                                    {activeBranchStocks.map(s => (
+                                                                        <div key={s.location_code} className={styles.stockDropdownItem}>
+                                                                            <span className="font-semibold text-accent-primary">{s.location_code}</span>
+                                                                            <span>{s.qty}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className={`text-xs px-2 py-0.5 rounded-sm font-bold ${activeStockBadgeClass}`}>
+                                                                {activeBranchName}: {activeBranchStockNum}
+                                                                <span className={belowSafetyActive ? 'text-danger' : undefined}> 現貨</span>
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* 2. 其他分店顯示 (按同樣邏輯) */}
+                                                    <div className="flex flex-col gap-1 pl-1 w-full">
+                                                        {branches.filter(b => b.branch_id !== activeBranchId).map(b => {
+                                                            const bStocks = (p.stock_details || []).filter(s => s.branch_id === b.branch_id);
+                                                            const bStockNum = bStocks.reduce((sum, item) => sum + (item.qty || 0), 0);
+                                                            const hasStock = bStockNum > 0;
+                                                            let bColor = '#3b82f6'; // default songshan blue
+                                                            if (b.branch_id === 'xizhi') bColor = '#10b981'; // green
+                                                            if (b.branch_id === 'linkou') bColor = '#f59e0b'; // orange
+
+                                                            const displayColor = hasStock ? bColor : `${bColor}80`; // 50% opacity for no stock
+
+                                                            if (bStocks.length >= 2) {
+                                                                return (
+                                                                    <div 
+                                                                        key={b.branch_id}
+                                                                        className={`${styles.stockDropdown} flex items-center gap-1`}
+                                                                        style={{ color: displayColor }}
+                                                                    >
+                                                                        <div className="flex items-center gap-1 text-[11px] cursor-pointer">
+                                                                            <span className="font-semibold">{b.name}:</span>
+                                                                            <span className="font-mono font-bold">{bStockNum}</span>
+                                                                            <ChevronDown size={10} className="opacity-70" />
+                                                                        </div>
+                                                                        <div className={styles.stockDropdownMenu} style={{ color: 'var(--text-primary)' }}>
+                                                                            <div className="text-[10px] text-muted mb-1 px-1 border-b border-border-color pb-1">{b.name} 庫位明細</div>
+                                                                            {bStocks.map(s => (
+                                                                                <div key={s.location_code} className={styles.stockDropdownItem}>
+                                                                                    <span className="font-semibold" style={{ color: displayColor }}>{s.location_code}</span>
+                                                                                    <span>{s.qty}</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            } else {
+                                                                return (
+                                                                    <div 
+                                                                        key={b.branch_id}
+                                                                        className="flex items-center gap-1.5 text-[11px]"
+                                                                        style={{ color: displayColor }}
+                                                                    >
+                                                                        <span className="font-semibold">{b.name}:</span>
+                                                                        <span className="font-mono font-bold">{bStockNum}</span>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                        })}
+                                                    </div>
+
+                                                    {/* 3. 全店總計 */}
+                                                    <div className="text-[10px] text-muted border-t border-border-color/40 w-full pt-1 mt-1 pl-1">
+                                                        全店總計: <strong style={{ color: 'var(--text-primary)' }}>{totalAllBranches}</strong>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </td>
 
                                     <td className={styles.tdList}>

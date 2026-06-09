@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS suppliers (
   rating REAL DEFAULT 0,
   notes TEXT DEFAULT '',
   tier TEXT DEFAULT 'B',
+  branch_id TEXT NOT NULL DEFAULT 'songshan',
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -60,5 +61,6 @@ CREATE TABLE IF NOT EXISTS customers (
   tier TEXT DEFAULT 'B',
   credit_limit REAL DEFAULT 0,
   notes TEXT DEFAULT '',
+  branch_id TEXT NOT NULL DEFAULT 'songshan',
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

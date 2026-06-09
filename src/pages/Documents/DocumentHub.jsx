@@ -223,7 +223,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         return () => {
             if (isStandaloneDocHub) setPageTitle('', '');
         };
-    }, [isStandaloneDocHub, isDocFocusMode, focusedMeta?.label, focusedMeta?.color, t, setPageTitle, isDrawerMode]);
+    }, [isStandaloneDocHub, isDocFocusMode, focusedMeta?.label, focusedMeta?.color, language, setPageTitle, isDrawerMode]);
 
     const activeGroupTabs = TAB_GROUPS.find((group) => group.type === activeBusinessGroup)?.tabs || TAB_GROUPS[0].tabs;
 
@@ -919,7 +919,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
 
         window.addEventListener('keydown', handleGlobalDocFlowKeyDown, true);
         return () => window.removeEventListener('keydown', handleGlobalDocFlowKeyDown, true);
-    }, [isShortageTab, isStandaloneDocHub, selectedDoc, isQuickPreview, filteredDocs, activeTab, activeDocIndex, activeBusinessGroup, tabGroupMap, focusedMeta, t, setPageTitle]);
+    }, [isShortageTab, isStandaloneDocHub, selectedDoc, isQuickPreview, filteredDocs, activeTab, activeDocIndex, activeBusinessGroup, tabGroupMap, focusedMeta, language, setPageTitle]);
 
     const calcTotal = (doc) => {
         if (!doc.items) return 0;

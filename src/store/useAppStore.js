@@ -11,6 +11,29 @@ export const useAppStore = create(persist((set) => ({
     language: 'zh', // Default to Traditional Chinese
     setLanguage: (lang) => set({ language: lang }),
 
+    // Multi-branch settings
+    activeBranchId: 'songshan',
+    setActiveBranch: (branchId) => set({ activeBranchId: branchId }),
+    branches: [
+        { branch_id: 'songshan', name: '松山店' },
+        { branch_id: 'xizhi', name: '汐止店' },
+        { branch_id: 'linkou', name: '林口店' }
+    ],
+    setBranches: (branches) => set({ branches }),
+    fetchBranches: async () => {
+        try {
+            const res = await fetch('/api/branches');
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    set({ branches: data });
+                }
+            }
+        } catch (err) {
+            console.error('Failed to fetch branches:', err);
+        }
+    },
+
     // Page Title for Topnav
     pageTitle: '',
     pageTitleColor: '',

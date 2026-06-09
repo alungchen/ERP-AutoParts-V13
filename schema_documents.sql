@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS documents (
   expected_date TEXT,
   valid_until TEXT,
   quotation_ref TEXT,
+  branch_id TEXT NOT NULL DEFAULT 'songshan',
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

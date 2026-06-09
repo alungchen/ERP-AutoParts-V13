@@ -21,8 +21,12 @@
     "db:migrate:local": "wrangler d1 execute erp-db --local --file=./sql/schema.sql --yes",
     "db:migrate:remote": "wrangler d1 execute erp-db --remote --file=./sql/schema.sql --yes",
     "db:sync:local": "node scripts/sync_remote_to_local.mjs",
-    "db:import-docs:local": "node scripts/generate_document_sql.cjs && wrangler d1 execute erp-db --local --file=./output/import_documents.sql --yes",
-    "db:import-docs:remote": "node scripts/generate_document_sql.cjs && wrangler d1 execute erp-db --remote --file=./output/import_documents.sql --yes"
+    "db:import-docs:local": "node scripts/generate_document_sql.cjs --branch=songshan && wrangler d1 execute erp-db --local --file=./output/import_documents.sql --yes",
+    "db:import-docs:remote": "node scripts/generate_document_sql.cjs --branch=songshan && wrangler d1 execute erp-db --remote --file=./output/import_documents.sql --yes",
+    "db:import-docs:xizhi:local": "node scripts/generate_document_sql.cjs --branch=xizhi && wrangler d1 execute erp-db --local --file=./output/xizhi/import_documents.sql --yes",
+    "db:import-docs:xizhi:remote": "node scripts/generate_document_sql.cjs --branch=xizhi && wrangler d1 execute erp-db --remote --file=./output/xizhi/import_documents.sql --yes",
+    "db:import-docs:linkou:local": "node scripts/generate_document_sql.cjs --branch=linkou && wrangler d1 execute erp-db --local --file=./output/linkou/import_documents.sql --yes",
+    "db:import-docs:linkou:remote": "node scripts/generate_document_sql.cjs --branch=linkou && wrangler d1 execute erp-db --remote --file=./output/linkou/import_documents.sql --yes"
   },
   "dependencies": {
     "firebase": "^12.12.0",

@@ -30,21 +30,26 @@ import { usePriceInputSelectOnFocus } from './hooks/usePriceInputSelectOnFocus';
 function App() {
   usePriceInputSelectOnFocus(); // 聚焦單價/售價/定價等數字欄位時全選
   // useGlobalEnterNavigation(); // 暫時停用以排查白屏問題
-  const { enableLoginSystem, currentUserEmpId, displayMode } = useAppStore();
+  const { enableLoginSystem, currentUserEmpId, displayMode, activeBranchId, fetchBranches } = useAppStore();
   const fetchProducts = useProductStore(state => state.fetchProducts);
   const fetchShorthands = useShorthandStore(state => state.fetchShorthands);
   const fetchDocuments = useDocumentStore(state => state.fetchDocuments);
+  const fetchCustomers = useCustomerStore(state => state.fetchCustomers);
+  const fetchSuppliers = useSupplierStore(state => state.fetchSuppliers);
 
   useEffect(() => {
     void bootstrapFromD1();
-  }, []);
-
-  // Fetch initial data from Cloudflare database
-  useEffect(() => {
+    fetchBranches();
     fetchProducts();
     fetchShorthands();
+  }, [fetchBranches, fetchProducts, fetchShorthands]);
+
+  // Fetch branch-specific data on active branch change (which covers initial load too)
+  useEffect(() => {
     fetchDocuments();
-  }, [fetchProducts, fetchShorthands, fetchDocuments]);
+    fetchCustomers();
+    fetchSuppliers();
+  }, [activeBranchId, fetchDocuments, fetchCustomers, fetchSuppliers]);
 
   // Logic to sync Zustand stores across tabs
   useEffect(() => {
@@ -80,6 +85,27 @@ function App() {
     mediaQuery.addEventListener('change', applySystemTheme);
     return () => mediaQuery.removeEventListener('change', applySystemTheme);
   }, [displayMode]);
+
+  // Dynamic theme colors per branch to prevent user operation errors
+  useEffect(() => {
+    const root = document.documentElement;
+    if (activeBranchId === 'xizhi') {
+      // Emerald Green theme for Xizhi
+      root.style.setProperty('--accent-primary', '#10B981');
+      root.style.setProperty('--accent-hover', '#059669');
+      root.style.setProperty('--accent-subtle', 'rgba(16, 185, 129, 0.15)');
+    } else if (activeBranchId === 'linkou') {
+      // Amber/Orange theme for Linkou
+      root.style.setProperty('--accent-primary', '#F59E0B');
+      root.style.setProperty('--accent-hover', '#D97706');
+      root.style.setProperty('--accent-subtle', 'rgba(245, 158, 11, 0.15)');
+    } else {
+      // Default (songshan) - reset to default stylesheet styles
+      root.style.removeProperty('--accent-primary');
+      root.style.removeProperty('--accent-hover');
+      root.style.removeProperty('--accent-subtle');
+    }
+  }, [activeBranchId]);
 
   return (
     <BrowserRouter>

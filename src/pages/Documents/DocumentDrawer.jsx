@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useTranslation } from '../../i18n';
+import { useAppStore } from '../../store/useAppStore';
 import styles from './Documents.module.css';
 import drawerStyles from '../PIM/ProductDrawer.module.css';
 import { useProductStore } from '../../store/useProductStore';
@@ -85,6 +86,7 @@ const DocumentDrawer = ({ docItem, type, onClose }) => {
     const { products } = useProductStore();
     const { suppliers } = useSupplierStore();
     const { customers } = useCustomerStore();
+    const { activeBranchId } = useAppStore();
 
     const isEdit = !!docItem;
 
@@ -120,7 +122,7 @@ const DocumentDrawer = ({ docItem, type, onClose }) => {
     const addItem = () => {
         setDoc({
             ...doc,
-            items: [...doc.items, { p_id: '', name: '', qty: 1, unit_price: 0, unit: 'PCS' }]
+            items: [...doc.items, { p_id: '', name: '', qty: 1, unit_price: 0, unit: 'PCS', location_code: 'A1' }]
         });
     };
 
@@ -139,6 +141,17 @@ const DocumentDrawer = ({ docItem, type, onClose }) => {
                 newItems[index].name = product.name;
                 if (!newItems[index].unit_price) {
                     newItems[index].unit_price = product.price || 0;
+                }
+                // default location code to active branch first stock location or A1
+                if (product && Array.isArray(product.stock_details)) {
+                    const branchStocks = product.stock_details.filter(s => s.branch_id === activeBranchId);
+                    if (branchStocks.length > 0 && branchStocks[0].location_code) {
+                        newItems[index].location_code = branchStocks[0].location_code;
+                    } else {
+                        newItems[index].location_code = 'A1';
+                    }
+                } else {
+                    newItems[index].location_code = 'A1';
                 }
             }
         }
@@ -249,11 +262,21 @@ const DocumentDrawer = ({ docItem, type, onClose }) => {
                                             </select>
                                         </div>
                                         <div className={drawerStyles.inputGroup}>
+                                            <label className={drawerStyles.label}>庫位 (Location)</label>
+                                            <input 
+                                                className={drawerStyles.input} 
+                                                type="text" 
+                                                value={item.location_code || 'A1'} 
+                                                onChange={e => updateItem(idx, 'location_code', e.target.value.trim().toUpperCase())}
+                                                placeholder="e.g. A1"
+                                            />
+                                        </div>
+                                        <div className={drawerStyles.inputGroup}>
                                             <label className={drawerStyles.label}>Quantity</label>
                                             <input className={drawerStyles.input} type="number" min="1" value={item.qty || 1} onChange={e => updateItem(idx, 'qty', parseInt(e.target.value))} />
                                         </div>
                                         {type !== 'inquiry' && (
-                                            <div className={drawerStyles.inputGroup}>
+                                            <div className={drawerStyles.inputGroup} style={{ gridColumn: 'span 2' }}>
                                                 <label className={drawerStyles.label}>Unit Price</label>
                                                 <input className={drawerStyles.input} type="number" value={item.unit_price || 0} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value))} />
                                             </div>

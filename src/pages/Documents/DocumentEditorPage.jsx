@@ -12,6 +12,7 @@ import { X, Plus, Trash2, Save, FileText, Package, RotateCcw, Edit2, Printer } f
 import AutocompleteInput from '../../components/AutocompleteInput';
 import PartMappingModal from '../PIM/PartMappingModal';
 import DocumentViewer from './DocumentViewer';
+import Topnav from '../../components/Topnav';
 import { useSearchFormKeyboardNav } from '../../hooks/useSearchFormKeyboardNav';
 import DocProductHistoryDrawer from '../../components/DocProductHistoryDrawer';
 import DocumentHub from './DocumentHub';
@@ -27,6 +28,16 @@ import {
     productYearSearchBlob
 } from '../../utils/productPickerSync';
 import styles from './Documents.module.css';
+
+const getDefaultLocation = (product, activeBranch) => {
+    if (product && Array.isArray(product.stock_details)) {
+        const branchStocks = product.stock_details.filter(s => s.branch_id === activeBranch);
+        if (branchStocks.length > 0 && branchStocks[0].location_code) {
+            return branchStocks[0].location_code;
+        }
+    }
+    return 'A1';
+};
 
 const DOC_TYPE_TITLE_ZH = {
     inquiry: '詢價單',
@@ -45,7 +56,7 @@ const DocumentEditorPage = () => {
     const { customers } = useCustomerStore();
     const { employees } = useEmployeeStore();
     const { models, parts, brands } = useShorthandStore();
-    const { defaultCurrency, isMultiCountryMode, enableLoginSystem, enablePermissionRole, currentUserEmpId } = useAppStore();
+    const { defaultCurrency, isMultiCountryMode, enableLoginSystem, enablePermissionRole, currentUserEmpId, activeBranchId } = useAppStore();
 
     const type = searchParams.get('type') || 'inquiry';
     const id = searchParams.get('id');
@@ -583,7 +594,8 @@ const DocumentEditorPage = () => {
             qty: 1,
             unit_price: 0,
             unit: 'PCS',
-            stock: 0
+            stock: 0,
+            location_code: 'A1'
         };
         const nextLen = (doc.items || []).length + 1;
         setDoc((prev) => ({ ...prev, items: [...(prev.items || []), emptyItem] }));
@@ -783,6 +795,7 @@ const DocumentEditorPage = () => {
             unit_price: isPurch ? productPurchaseUnitPrice(p) : productSalesUnitPrice(p),
             unit: 'PCS',
             stock: p.stock,
+            location_code: getDefaultLocation(p, activeBranchId),
             // Attach original product info for "Applicability" link in main list
             _full_product: p
         };
@@ -829,6 +842,7 @@ const DocumentEditorPage = () => {
                 unit_price: isPurch ? productPurchaseUnitPrice(p) : productSalesUnitPrice(p),
                 unit: 'PCS',
                 stock: p.stock,
+                location_code: getDefaultLocation(p, activeBranchId),
                 _full_product: p
             };
         });
@@ -982,16 +996,17 @@ const DocumentEditorPage = () => {
     }, [activePickerRowIndex, isPickerOpen, pickerResults.length]);
 
     return (
-        <div
-            style={{
-                backgroundColor: 'var(--bg-primary)',
-                height: '100vh',
-                color: 'var(--text-primary)',
-                display: 'flex',
-                flexDirection: 'row',
-                overflow: 'hidden',
-            }}
-        >
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--bg-primary)' }}>
+            <Topnav />
+            <div
+                style={{
+                    flex: 1,
+                    color: 'var(--text-primary)',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    overflow: 'hidden',
+                }}
+            >
             <div
                 ref={editorPaneRef}
                 data-editor-pane
@@ -1266,6 +1281,7 @@ const DocumentEditorPage = () => {
                                 <th>{'\u54c1\u540d'} / {'\u898f\u683c'}</th>
                                 <th>{'\u54c1\u724c'}</th>
                                 <th style={{ width: '80px', textAlign: 'center' }}>{'\u5eab\u5b58'}</th>
+                                <th style={{ width: '100px' }}>庫位</th>
                                 <th style={{ width: '100px' }}>{'\u6578\u91cf'}</th>
                                 <th style={{ width: '120px' }}>{'\u55ae\u50f9'}</th>
                                 <th style={{ width: '120px' }}>{'\u5c0f\u8a08'}</th>
@@ -1340,6 +1356,24 @@ const DocumentEditorPage = () => {
                                         </td>
                                         <td style={{ padding: '0.5rem 1rem' }}>
                                             <input
+                                                type="text"
+                                                disabled={isReadOnly}
+                                                value={item.location_code || 'A1'}
+                                                onChange={e => updateItem(idx, 'location_code', e.target.value.trim().toUpperCase())}
+                                                placeholder="e.g. A1"
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.4rem',
+                                                    backgroundColor: isReadOnly ? 'transparent' : 'var(--bg-tertiary)',
+                                                    border: isReadOnly ? 'none' : '1px solid var(--border-color)',
+                                                    borderRadius: '4px',
+                                                    color: 'var(--text-primary)',
+                                                    textAlign: 'center'
+                                                }}
+                                            />
+                                        </td>
+                                        <td style={{ padding: '0.5rem 1rem' }}>
+                                            <input
                                                 data-doc-item-qty
                                                 type="number"
                                                 disabled={isReadOnly}
@@ -1400,7 +1434,7 @@ const DocumentEditorPage = () => {
                             })}
                             {!isReadOnly && (
                                 <tr>
-                                    <td colSpan={11} style={{ padding: '1rem' }}>
+                                    <td colSpan={12} style={{ padding: '1rem' }}>
                                         <button
                                             type="button"
                                             ref={addPartBtnRef}
@@ -1811,6 +1845,7 @@ const DocumentEditorPage = () => {
                 </button>
             )}
 
+            </div>
         </div>
     );
 };

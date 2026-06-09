@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Bell, HelpCircle, Globe, Database, LogOut } from 'lucide-react';
+import { Search, Bell, HelpCircle, Globe, Database, LogOut, Store } from 'lucide-react';
 import { auth, signOut } from '../firebase';
 import { useProductStore } from '../store/useProductStore';
 import { useTranslation } from '../i18n';
@@ -11,7 +11,7 @@ import styles from './Topnav.module.css';
 const Topnav = () => {
     const { searchQuery, setSearchQuery } = useProductStore();
     const { t, language, setLanguage } = useTranslation();
-    const { enableLoginSystem, currentUserEmpId, currentUserPhotoURL, logout, pageTitle, pageTitleColor } = useAppStore();
+    const { enableLoginSystem, currentUserEmpId, currentUserPhotoURL, logout, pageTitle, pageTitleColor, activeBranchId, setActiveBranch, branches } = useAppStore();
     const { employees } = useEmployeeStore();
     const [showBackupModal, setShowBackupModal] = useState(false);
     const currentUser = employees.find((e) => e.emp_id === currentUserEmpId);
@@ -33,6 +33,22 @@ const Topnav = () => {
             </div>
 
             <div className={styles.profileDiv}>
+                {/* Branch Selector */}
+                <div className={styles.branchSelectorWrapper} title="切換分店">
+                    <Store size={18} className={styles.branchIcon} />
+                    <select
+                        className={styles.branchSelect}
+                        value={activeBranchId}
+                        onChange={(e) => setActiveBranch(e.target.value)}
+                    >
+                        {branches.map((b) => (
+                            <option key={b.branch_id} value={b.branch_id}>
+                                {b.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
                 <button
                     className={styles.iconBtn}
                     aria-label="Toggle Language"

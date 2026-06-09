@@ -65,8 +65,9 @@ function writeCSV(filePath, headers, rows) {
   ];
   const executablePath = chromePaths.find(p => fs.existsSync(p));
 
+  const headlessArg = process.argv.includes('--headless');
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: headlessArg ? 'new' : false,
     defaultViewport: { width: 1440, height: 900 },
     ...(executablePath ? { executablePath } : {}),
     userDataDir: PROFILE_DIR,
@@ -99,6 +100,11 @@ function writeCSV(filePath, headers, rows) {
   ).catch(() => true);
 
   if (await needLogin()) {
+    if (headlessArg) {
+      console.error('\n❌ [Error] 登入狀態已失效 (Session Cookie expired)！無法在無頭模式下進行手動登入。');
+      console.error('👉 請您在本機手動執行一次以下指令重新登入以刷新 Cookie：\n  node scripts/run_all.cjs\n');
+      process.exit(2);
+    }
     await page.evaluate(() => {
       document.title = '🔴 請在此視窗登入！';
       const b = document.createElement('div');
@@ -127,16 +133,18 @@ function writeCSV(filePath, headers, rows) {
 
   try {
     for (const SEARCH_TERM of searchTerms) {
+      let keywordResolved = false;
       try { await page.goto(PARTS_URL, { waitUntil: 'domcontentloaded' }); } catch {}
       await ensurePageReady(page);
     await sleep(1500);
 
-    console.log(`\n[2] Searching: "${SEARCH_TERM}"`);
+    const cleanSearchTerm = SEARCH_TERM.replace(/\s+/g, '');
+    console.log(`\n[2] Searching: "${SEARCH_TERM}" (clean: "${cleanSearchTerm}")`);
   await page.evaluate(term => {
     const inp = Array.from(document.querySelectorAll('input[type="text"]'))
       .find(i => (i.id || '').startsWith('ele_search_'));
     if (inp) { inp.focus(); inp.value = term; inp.dispatchEvent(new Event('change',{bubbles:true})); }
-  }, SEARCH_TERM);
+  }, cleanSearchTerm);
   await sleep(400);
   await Promise.all([
     page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
@@ -182,7 +190,7 @@ function writeCSV(filePath, headers, rows) {
       // 找料號欄 (料號可能包含數字，例如 Z2R-001S)
       let pnIdx = -1;
       for (let ci = 0; ci < cells.length; ci++) {
-        if (/^[A-Z0-9]{2,10}-[A-Z0-9-*_]{1,20}$/i.test(cells[ci]) || /^[A-Z0-9*_]{3,20}$/i.test(cells[ci])) { 
+        if (/^[A-Z0-9]{2,10}-[A-Z0-9-*_\s]{1,25}$/i.test(cells[ci]) || /^[A-Z0-9*_\s-]{3,25}$/i.test(cells[ci])) { 
             // 嘗試確保這欄真的是料號，通常料號在 index 1 或 2
             if (ci <= 3) {
                 pnIdx = ci; 
@@ -211,6 +219,10 @@ function writeCSV(filePath, headers, rows) {
 
       process.stdout.write(`  ${partNo.padEnd(18)} [row=${rowAttr}]`);
       allMainRows.push([partNo, name, brand, '0', spec, carModel, year, '0', '0', '0', notes]);
+      if (partNo.replace(/\s+/g, '') !== SEARCH_TERM.replace(/\s+/g, '')) {
+        allMainRows.push([SEARCH_TERM, name, brand, '0', spec, carModel, year, '0', '0', '0', `對照自: ${partNo}。 ${notes}`.trim()]);
+      }
+      keywordResolved = true;
 
       try {
         if (!rowAttr) throw new Error('no row attr');
@@ -367,6 +379,10 @@ function writeCSV(filePath, headers, rows) {
       await sleep(1000);
       await ensurePageReady(page);
     }
+      }
+      if (!keywordResolved) {
+        console.log(`  ⚠ 舊系統找不到 "${SEARCH_TERM}" 的規格。已自動新增為未尋獲規格佔位資料以防循環卡死。`);
+        allMainRows.push([SEARCH_TERM, "舊系統無此規格", "N/A", "0", "查無資料", "無", "無", "0", "0", "0", "舊版系統查無此零件料號"]);
       }
     }
   } catch (err) {

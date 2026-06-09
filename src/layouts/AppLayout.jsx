@@ -137,6 +137,7 @@ const AppLayout = () => {
         return (
             <div className={styles.layout}>
                 <div className={styles.mainArea}>
+                    <Topnav />
                     <main className={`${styles.content} ${styles.launcherContent}`}>
                         <div className={styles.launcherWrap}>
                             <div className={styles.launcherHeader}>
