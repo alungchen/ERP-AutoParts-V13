@@ -232,6 +232,7 @@ const ProductList = () => {
     const productTbodyRef = useRef(null);
     const productListKeyboardRef = useRef(null);
     const hasAutoFocusedListRef = useRef(false);
+    const pendingFocusFirstRef = useRef(false);
 
     const searchBtnRef = useRef(null);
 
@@ -280,6 +281,12 @@ const ProductList = () => {
         }
         setActiveRowIndex(0);
         setCurrentPage(1);
+        if (pendingFocusFirstRef.current) {
+            pendingFocusFirstRef.current = false;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => focusProductRow(0));
+            });
+        }
     }, [results]);
 
     const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
@@ -406,6 +413,8 @@ const ProductList = () => {
         }
         setAppliedQuery({ ...query });
         setHasSearched(true);
+        setActiveRowIndex(0);
+        pendingFocusFirstRef.current = true;
     }, [query]);
 
     const handleClear = () => {

@@ -1,0 +1,44 @@
+[
+  {
+    "name": "TokenID",
+    "value": "9701A1EC-8B44-422E-B4D4-32CD191FBDD9",
+    "domain": "cck.uparts.info",
+    "path": "/",
+    "expires": 1812470399.238436,
+    "size": 43,
+    "httpOnly": false,
+    "secure": false,
+    "session": false,
+    "priority": "Medium",
+    "sourceScheme": "NonSecure",
+    "sameParty": false
+  },
+  {
+    "name": "MachineId",
+    "value": "c62492b3-62da-4b30-b3e6-b0221e975382",
+    "domain": "cck.uparts.info",
+    "path": "/",
+    "expires": 1813404801.290184,
+    "size": 45,
+    "httpOnly": false,
+    "secure": false,
+    "session": false,
+    "priority": "Medium",
+    "sourceScheme": "NonSecure",
+    "sameParty": false
+  },
+  {
+    "name": "uid",
+    "value": "b9",
+    "domain": "cck.uparts.info",
+    "path": "/",
+    "expires": 1812470399.33136,
+    "size": 5,
+    "httpOnly": false,
+    "secure": false,
+    "session": false,
+    "priority": "Medium",
+    "sourceScheme": "NonSecure",
+    "sameParty": false
+  }
+]

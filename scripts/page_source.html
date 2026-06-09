@@ -1,0 +1,475 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head id="Head1"><title>
+	宏疄資訊汽材聯網
+</title>
+ 	<!-- link type="text/css" rel="stylesheet" href="http://static.flowplayer.org/tools/css/overlay-apple.css" / --> 
+    <link type="text/css" rel="Stylesheet" href="/car2009/css/jqueryui/1.8.5/jquery-ui.css"><link type="text/css" rel="stylesheet" media="screen" href="/car2009/css/superfish.css"><link type="text/css" rel="stylesheet" media="screen" href="/car2009/css/superfish-vertical.css"><link type="text/css" rel="stylesheet" media="screen" href="/car2009/css/superfish-navbar.css">
+	
+	<style> 
+	
+	    /* black version of the overlay. simply uses a different background image */
+	    div.apple_overlay.black {
+		    background-image:url(http://static.flowplayer.org/tools/img/overlay/transparent.png);		
+		    color:#fff;
+	    }
+    	
+	    div.apple_overlay h2 {
+		    margin:10px 0 -9px 0;
+		    font-weight:bold;
+		    font-size:14px;
+	    }
+    	
+	    div.black h2 {
+		    color:#fff;
+	    }
+    	
+	    #triggers {
+		    margin-top:10px;
+		    text-align:center;
+	    }
+    	
+	    #triggers img {
+		    background-color:#fff;
+		    padding:2px;
+		    border:1px solid #ccc;
+		    margin:2px 5px;
+		    cursor:pointer;
+		    -moz-border-radius:4px;
+		    -webkit-border-radius:4px;
+	    }
+	</style>
+</head>
+<body style="min-width: 1280px;">
+    <div id="menu">		<div id="topMessage"></div>
+
+                <div style="position:absolute; top:0px; left:0px; z-index:1000;">
+                    
+                    <img id="menu_area_switch" src="..\Img\figtree2.png" style=" width:25px; height:50px;" onclick="if ($j('#menu_area').is(':visible') != true) {
+                        $j('#menu_area').show('fast'); } 
+                        else {$j('#menu_area').hide('slow');}">
+                    
+                </div>
+                <div style="position:absolute; top:20px; right:50px; z-index:1000;">
+                    <span>授權資訊</span>&nbsp;到期日:<span id="service_info_expired_date">2026-11-27</span><button id="btn_author_info_show" onclick="if ($j('#author_info').is(':visible') != true) {$j('#author_info').show('fast'); author_info_show();} else $j('#author_info').hide('slow');">...</button>
+                    <div style="position:relative;">
+                        <div id="author_info" style="display:none; position:absolute; top:10px; right:10px; border-style:solid; background-color: White; width:430px; height:500px; overflow:auto;"></div>
+                    </div>
+                </div>
+                <div id="menu_area" style="overflow: hidden; height: 1px; margin: 0px; padding: 0px; width: 1px; opacity: 0;">
+                <ul id="sample-menu-1" class="sf-menu sf-js-enabled sf-shadow"> 
+					<li class="current secret_field" secret_name="基本資料"> 
+						<a href="#" class="sf-with-ul">基本資料<span class="sf-sub-indicator"> »</span></a> 
+						<ul style="display: none; visibility: hidden;"> 
+							<li class="current secret_field" secret_name="廠商資料"> 
+								<a target="_blank" href="../supplier_query/">廠商資料</a>							</li> 
+							<li class="secret_field" secret_name="客戶資料"> 
+								<a target="_blank" href="../customer_query/">客戶資料</a>							</li> 
+							<li class="secret_field" secret_name="零件資料"> 
+								<a target="_blank" href="../parts_query/">零件資料</a>							</li> 
+							<li class="secret_field" secret_name="業務員資料"> 
+								<a target="_blank" href="../sales_query/">業務員資料</a>							</li> 
+							<li class="secret_field" secret_name="員工資料"> 
+								<a target="_blank" href="../staff_query/">員工資料</a>							</li> 
+							<li class="secret_field" secret_name="片語資料"> 
+								<a href="#" class="sf-with-ul">片語資料<span class="sf-sub-indicator"> »</span></a> 
+								<ul style="display: none; visibility: hidden;"> 
+                                    <li class="secret_field" secret_name="車型片語"> 
+                                        <a class="PhraseMode_Type_Query" target="_blank" href="../Type_Query2/">車型片語</a>                                    </li> 
+                                    <li class="secret_field" secret_name="品名片語"> 
+                                        <a class="PhraseMode_Chname_Query" target="_blank" href="../Chname_Query2/">品名片語</a>                                    </li> 
+                                    <li class="secret_field" secret_name="品牌片語"> 
+                                        <a class="PhraseMode_Brand_Query" target="_blank" href="../Brand_Query2/">品牌片語</a>                                    </li> 
+                                    <li class="secret_field" secret_name="常用片語"> 
+                                        <a target="_blank" href="../hotkey_query/">常用片語</a>                                    </li> 
+								</ul> 
+							</li> 
+							<li class="secret_field" secret_name="零件報表"> 
+                                <a href="#" class="sf-with-ul">零件報表<span class="sf-sub-indicator"> »</span></a>
+                                <ul style="display: none; visibility: hidden;">
+                                    <li class="secret_field" secret_name="庫存明細">
+                                        <a target="_blank" href="../Parts_Report_Detail/">庫存明細</a>                     </li>
+                                    <li class="secret_field" secret_name="庫存金額">
+                                        <a target="_blank" href="../Parts_Report_Amount/">庫存金額</a>                     </li>
+                                </ul>
+                            </li> 
+							<li class="secret_field" secret_name="車籍資料"> 
+								<a target="_blank" href="../carriage_query/">車籍資料</a>							</li> 
+                            
+							<li class="secret_field" secret_name="零件開發"> 
+								<a target="_blank" href="../parts_develop/">零件開發</a>							</li> 
+						</ul> 
+					</li> 
+					<li class="secret_field" secret_name="製單系統"> 
+						<a href="#" class="sf-with-ul">製單系統<span class="sf-sub-indicator"> »</span></a> 
+                        <ul style="display: none; visibility: hidden;">
+							<li class="secret_field" secret_name="報價製單"> 
+								<a target="_blank" href="../tq/">報價製單</a>							</li> 
+							<li class="secret_field" secret_name="銷貨製單"> 
+								<a target="_blank" href="../ts/">銷貨製單</a>							</li> 
+							<li class="secret_field" secret_name="銷退製單"> 
+								<a target="_blank" href="../tt/">銷退製單</a>							</li> 
+							<li class="secret_field" secret_name="進貨製單"> 
+								<a target="_blank" href="../tb/">進貨製單</a>							</li> 
+							<li class="secret_field" secret_name="進退製單"> 
+								<a target="_blank" href="../tr/">進退製單</a>							</li> 
+							<li class="secret_field" secret_name="客戶訂單"> 
+								<a target="_blank" href="../to/">客戶訂單</a>							</li> 
+                            <li class="secret_field" secret_name="訂單待出"> 
+								<a target="_blank" href="../to_plan/">訂單待出</a>						</li> 
+                            <li class="secret_field" secret_name="交易報表"> 
+								<a href="#" class="sf-with-ul">交易報表<span class="sf-sub-indicator"> »</span></a> 
+								<ul style="display: none; visibility: hidden;"> 
+                                    <li class="secret_field" secret_name="日報表"> 
+                                        <a target="_blank" href="../report_daily/">日報表</a>                                    </li> 
+                                    <li class="secret_field" secret_name="客戶交易表"> 
+                                        <a target="_blank" href="../report_cus/">客戶交易表</a>                                    </li> 
+                                    <li class="secret_field" secret_name="廠商交易表"> 
+                                        <a target="_blank" href="../report_sup/">廠商交易表</a>                                    </li> 
+                                    <li class="secret_field" secret_name="零件交易表"> 
+                                        <a target="_blank" href="../report_parts/">零件交易表</a>                                    </li> 
+                                    <li class="secret_field" secret_name="客戶訂單未出表"> 
+                                        <a target="_blank" href="../report_customer_order/">客戶訂單未出表</a>                                    </li>
+                                    <li class="secret_field" secret_name="退貨分析表"> 
+                                        <a target="_blank" href="../report_parts_return/">退貨分析表</a>                                    </li> 
+                                    <li class="secret_field" secret_name="寄賣品銷售統計表"> 
+                                        <a target="_blank" href="../report_SupParts_SaleStatistics/">寄賣品銷售統計表</a>                                    </li> 
+                                    <li class="secret_field" secret_name="滯銷品統計表"> 
+                                        <a target="_blank" href="../report_slow_movingStatistics/">滯銷品統計表</a>                                    </li> 
+								</ul> 
+							</li> 
+                            <li class="secret_field" secret_name="排行資訊"> 
+                                <a href="#" class="sf-with-ul">排行資訊<span class="sf-sub-indicator"> »</span></a>    
+                                <ul style="display: none; visibility: hidden;">
+                                    <li class="secret_field" secret_name="客戶排行"> 
+                                        <a target="_blank" href="../Ranking_Customers/">客戶排行</a>                                    </li> 
+                                    <li class="secret_field" secret_name="廠商排行"> 
+                                        <a target="_blank" href="../Ranking_Suppliers/">廠商排行</a>                                    </li> 
+                                    <li class="secret_field" secret_name="商品排行"> 
+                                        <a target="_blank" href="../Ranking_Products/">商品排行</a>                                    </li> 
+                                </ul>
+                            </li> 
+							<li class="secret_field" secret_name="盤點作業"> 
+								<a target="_blank" href="../tc/">盤點作業</a>							</li> 
+                            <li class="secret_field" secret_name="移倉作業"> 
+								<a href="#" class="sf-with-ul">移倉作業<span class="sf-sub-indicator"> »</span></a>
+                                <ul style="display: none; visibility: hidden;"> 
+                                    <li class="secret_field" secret_name="移出單"> 
+                                        <a target="_blank" href="../tm/">移出單</a>                                    </li> 
+                                    <li class="secret_field" secret_name="移入單"> 
+                                        <a target="_blank" href="../tmto/">移入單</a>                                    </li> 
+                                    <li class="secret_field" secret_name="移入需求單"> 
+                                        <a target="_blank" href="../tmr/">移入需求單</a>                                    </li> 
+                                </ul>							
+                            </li>
+                            <li class="secret_field" secret_name="出貨檢核"> 
+								<a target="_blank" href="../Package_Check/">出貨檢核</a>							</li> 
+                        </ul>
+					</li> 
+					<li class="secret_field" secret_name="帳款系統"> 
+						<a href="#" class="sf-with-ul">帳款系統<span class="sf-sub-indicator"> »</span></a> 
+						<ul style="display: none; visibility: hidden;"> 
+							<li class="secret_field" secret_name="過帳"> 
+								<a target="_blank" href="../trans_table/">過帳</a>							</li> 
+							<li class="secret_field" secret_name="帳單列印"> 
+								<a href="#" class="sf-with-ul">帳單列印<span class="sf-sub-indicator"> »</span></a>
+                                <ul style="display: none; visibility: hidden;"> 
+									<li class="secret_field" secret_name="客戶帳單列印"><a target="_blank" href="../accounts_print_cus/">客戶帳單列印</a></li> 
+									<li class="secret_field" secret_name="廠商帳單列印"><a target="_blank" href="../accounts_print_sup/">廠商帳單列印</a></li> 
+								</ul> 
+							</li> 
+							<li class="secret_field" secret_name="收帳登錄"> 
+								<a target="_blank" href="../accounts_receive/">收帳登錄</a>							</li> 
+							<li class="secret_field" secret_name="付帳登錄"> 
+								<a target="_blank" href="../accounts_pay/">付帳登錄</a>							</li> 
+							<li class="secret_field" secret_name="帳務報表"> 
+								<a href="#" class="sf-with-ul">帳務報表<span class="sf-sub-indicator"> »</span></a> 
+								<ul style="display: none; visibility: hidden;"> 
+									<li class="secret_field" secret_name="客戶帳務月報表"><a target="_blank" href="../accounts_report_cus/">客戶帳務月報表</a></li> 
+									<li class="secret_field" secret_name="廠商帳務月報表"><a target="_blank" href="../accounts_report_sup/">廠商帳務月報表</a></li> 
+									<li class="secret_field" secret_name="業務帳務月報表"><a target="_blank" href="../accounts_report_sales/">業務帳務月報表</a></li> 
+									<li class="secret_field" secret_name="業務人員(開單人員)統計表"><a target="_blank" href="../accounts_report_sales_statistics/">業務人員(開單人員)統計表</a></li> 
+									<li class="secret_field" secret_name="客戶收帳歷史報表"><a target="_blank" href="../accounts_report_receive/">客戶收帳歷史報表</a></li> 
+									<li class="secret_field" secret_name="廠商付帳歷史報表"><a target="_blank" href="../accounts_report_pay/">廠商付帳歷史報表</a></li> 
+								</ul> 
+							</li> 
+							<li class="secret_field" secret_name="發票管理"> 
+								<a href="#" class="sf-with-ul">發票管理<span class="sf-sub-indicator"> »</span></a> 
+								<ul style="display: none; visibility: hidden;"> 
+									<li class="secret_field" secret_name="銷貨發票"><a target="_blank" href="../invoice_out/">銷貨發票</a></li> 
+									<li class="secret_field" secret_name="進貨發票"><a target="_blank" href="../invoice_in/">進貨發票</a></li> 
+									<li class="secret_field" secret_name="發票報表"><a target="_blank" href="../invoice_report/">發票報表</a></li> 
+								</ul> 
+							</li> 
+<!--							<li> 
+								<a href="#">menu item</a> 
+								<ul> 
+									<li><a target="_blank" href="#">menu item</a></li> 
+									<li><a target="_blank" href="#">menu item</a></li> 
+									<li><a target="_blank" href="#">menu item</a></li> 
+									<li><a target="_blank" href="#">menu item</a></li> 
+									<li><a target="_blank" href="#">menu item</a></li> 
+								</ul> 
+							</li> -->
+						</ul> 
+					</li> 
+					<li class="secret_field" secret_name="票據系統"> 
+						<a href="#" class="sf-with-ul">票據系統<span class="sf-sub-indicator"> »</span></a> 
+						<ul style="display: none; visibility: hidden;"> 
+							<li class="secret_field" secret_name="應收票據"> 
+								<a target="_blank" href="../bill_receive/">應收票據</a>							</li> 
+							<li class="secret_field" secret_name="應付票據"> 
+								<a target="_blank" href="../bill_pay/">應付票據</a>							</li> 
+							<li class="secret_field" secret_name="應收票據報表"> 
+								<a target="_blank" href="../bill_receive_report/">應收票據報表</a>							</li> 
+							<li class="secret_field" secret_name="應付票據報表"> 
+								<a target="_blank" href="../bill_pay_report/">應付票據報表</a>							</li> 
+							<li class="secret_field" secret_name="銀行戶頭"> 
+								<a target="_blank" href="../bill_account/">銀行戶頭</a>							</li> 
+							<li class="secret_field" secret_name="銀行總覽"> 
+								<a target="_blank" href="../Allbank_Query/">銀行總覽</a>							</li> 
+						</ul> 
+					</li> 
+					<li class="secret_field" secret_name="採購進口系統"> 
+						<a href="#" class="sf-with-ul">採購進口系統<span class="sf-sub-indicator"> »</span></a> 
+						<ul style="display: none; visibility: hidden;"> 
+							<li class="secret_field" secret_name="欠貨簿"> 
+								<a target="_blank" href="../import_short/">欠貨簿</a>							</li> 
+							<li class="secret_field" secret_name="待退本"> 
+								<a target="_blank" href="../import_reject/">待退本</a>							</li> 
+							<li class="secret_field" secret_name="詢價作業"> 
+								<a target="_blank" href="../TII/">詢價作業</a>							</li> 
+                            <li class="secret_field" secret_name="詢價比價作業"> 
+								<a target="_blank" href="../TII_PriceComparison/">詢價比價作業</a>							</li>
+							<li class="secret_field" secret_name="採購作業"> 
+								<a target="_blank" href="../TIP/">採購作業</a>							</li> 
+							<li class="secret_field" secret_name="到貨作業"> 
+								<a target="_blank" href="../TIA/">到貨作業</a>							</li> 
+							<li class="secret_field" secret_name="採購報表"> 
+								<a href="#" class="sf-with-ul">採購報表<span class="sf-sub-indicator"> »</span></a> 
+								<ul style="display: none; visibility: hidden;"> 
+									<li class="secret_field" secret_name="採購未到報表"><a target="_blank" href="../import_report_notyet/">採購未到報表</a></li> 
+								</ul> 
+							</li> 
+                            <li class="secret_field" secret_name="安全量審核"> 
+								<a target="_blank" href="../TIS/">安全量審核</a>							</li> 
+						</ul> 
+					</li> 
+                    <li class="secret_field" secret_name="維修系統"> 
+						<a href="#" class="sf-with-ul">維修系統<span class="sf-sub-indicator"> »</span></a> 
+						<ul style="display: none; visibility: hidden;"> 
+                            <li class="secret_field" secret_name="維修工單"> 
+								<a target="_blank" href="../trepair/">維修工單</a>							</li> 
+                            <li class="secret_field" secret_name="維修帳務列印"> 
+								<a target="_blank" href="../trepair_accounts_print/">維修帳務列印</a>							</li> 
+                            <li class="secret_field" secret_name="維修收帳登錄"> 
+								<a target="_blank" href="../trepair_accounts_receive/">維修收帳登錄</a>							</li>
+                            <li class="secret_field" secret_name="維修客戶收帳登錄"> 
+								<a target="_blank" href="../trepair_accounts_receive_customer/">維修客戶收帳登錄</a>							</li> 						
+                        </ul> 
+					</li> 
+                    <li class="secret_field" secret_name="保險系統"> 
+                        <a href="#" class="sf-with-ul">保險系統<span class="sf-sub-indicator"> »</span></a>
+                        <ul style="display: none; visibility: hidden;"> 
+                            <li class="secret_field" secret_name="保險資料"> 
+								<a target="_blank" href="../insurance_query/">保險資料</a>							</li> 
+                            <li class="secret_field" secret_name="保險帳務列印"> 
+								<a target="_blank" href="../insurance_accounts_print/">保險帳務列印</a>							</li> 
+                            <li class="secret_field" secret_name="保險收帳登錄"> 
+								<a target="_blank" href="../insurance_accounts_receive/">保險收帳登錄</a>							</li>
+                            <li class="secret_field" secret_name="保險未結案統計表"> 
+								<a target="_blank" href="../insurance_nonclose_print/">保險未結案統計表</a>							</li>
+                            						
+                        </ul> 
+                    </li>
+					<li class="secret_field" secret_name="出口系統"> 
+						<a href="#" class="sf-with-ul">出口系統<span class="sf-sub-indicator"> »</span></a> 
+						<ul style="display: none; visibility: hidden;"> 
+						</ul> 
+					</li> 
+					<li class="secret_field" secret_name="系統分析服務"> 
+						<a href="#" class="sf-with-ul">系統分析服務<span class="sf-sub-indicator"> »</span></a>
+                        <ul style="display: none; visibility: hidden;"> 
+							<li class="secret_field" secret_name="製單預設"> 
+								<a target="_blank" href="../MachineData_Setting/">製單預設</a>							</li> 
+							<li class="secret_field" secret_name="更動查詢"> 
+								<a target="_blank" href="../LogTrans_Query/">更動查詢</a>							</li> 
+ 							<li class="secret_field" secret_name="列印記錄"> 
+								<a target="_blank" href="../print_record/">列印記錄</a>							    </li> 
+                            <li class="secret_field" secret_name="啟用自動通知"> 
+								<a target="_blank" href="/CAR2009/app/AppSettings/">啟用自動通知</a>							    </li> 
+                            <li class="secret_field" secret_name="雲端印表機管理"> 
+								<a target="_blank" href="../AppPrinter/">雲端印表機管理</a>							    </li> 
+ 							<li class="secret_field" secret_name="呆料統計"> 
+								<a target="_blank" href="../parts_caculate/">呆料統計</a>							</li> 
+ 							<li class="secret_field" secret_name="清理資料"> 
+								<a target="_blank" href="../data_clean/">清理資料</a>							    </li> 
+ 							<li class="secret_field" secret_name="相簿查詢"> 
+								<a target="_blank" href="../MEDIA_Album_Query/">相簿查詢</a>						</li> 
+ 							<li class="secret_field" secret_name="資料轉進"> 
+								<a target="_blank" href="../data_transfer_in/">資料轉進</a>							</li> 
+ 							<li class="secret_field" secret_name="商品登記查詢"> 
+								<a target="_blank" href="../product_register_Query/">商品登記查詢</a>				</li> 
+                            <li class="secret_field" secret_name="電子型錄"> 
+								<a target="_blank" href="../eCatalog/">電子型錄</a>				</li> 
+                       </ul> 
+					</li>	
+                    <li class="secret_field" secret_name="會計系統"> 
+                        <a href="#" class="sf-with-ul">會計系統<span class="sf-sub-indicator"> »</span></a>
+                        <ul style="display: none; visibility: hidden;">
+                            <li class="secret_field" secret_name="會計科目作業"> 
+								<a target="_blank" href="../Standard_Accounting/Standard_Accounts/">會計科目作業</a>							
+                            </li> 
+                            <li class="secret_field" secret_name="傳票作業"> 
+								<a target="_blank" href="../Standard_Accounting/Standard_Accounting_subpoena/">傳票作業</a>							
+                            </li> 
+                            <li class="secret_field" secret_name="自動傳票作業"> 
+								<a target="_blank" href="../Standard_Accounting/Standard_Accounting_subpoena_auto/">自動傳票作業</a>							
+                            </li>
+                            <li class="secret_field" secret_name="日記簿"> 
+								<a target="_blank" href="../Standard_Accounting/Accounting_diary/">日記簿</a>							
+                            </li>
+                            <li class="secret_field" secret_name="分類帳"> 
+								<a target="_blank" href="../Standard_Accounting/Accounting_ledger/">分類帳</a>							
+                            </li>
+                            <li class="secret_field" secret_name="損益表"> 
+								<a target="_blank" href="../Standard_Accounting/Standard_Profit_Loss_statement/">損益表</a>							
+                            </li>
+                            <li class="secret_field" secret_name="資產負債表"> 
+								<a target="_blank" href="../Standard_Accounting/Standard_Balance_Sheet/">資產負債表</a>							
+                            </li>
+                            <li class="secret_field" secret_name="結轉作業"> 
+								<a target="_blank" href="../Standard_Accounting/Standard_Accountancy/">結轉作業</a>							
+                            </li>
+                            <li class="secret_field" secret_name="新年度作業"> 
+								<a target="_blank" href="../Standard_Accounting/Standard_NewAnnual/">新年度作業</a>							
+                            </li>
+                        </ul>
+                    </li>
+					<li> 
+						<a href="../Logout/">系統登出</a>
+                    </li>
+				</ul> 
+                <input type="button" value="權限管理" onclick="" id="btn_menu_author_map" class="button_class ui-button ui-widget ui-state-default ui-corner-all" style="display:none" role="button" aria-disabled="false">
+                <div id="dialog_menu_author_map" style="display:none">
+                    <iframe id="iframe_menu_author_map" width="950" height="350"></iframe>
+                </div>
+                </div>
+                <div id="dialog-message">
+                    <p id="dialog-message-p"></p>
+                </div>
+
+<script type="text/template" id="service_author_history_template">
+<table width="500" id="display_DataGrid_author_history" class="ui-widget ui-widget-conent ui-corner-all">
+    <!-- TemplateSplit -->
+    <thead>
+        <tr class="ui-widget-header">
+            <td height="25" align="center" valign="middle" width="30" >項</td>
+            <td height="25" align="center" valign="middle" width="60" >授權編號</td>
+            <td height="25" align="center" valign="middle" width="70" >開始日</td>
+            <td height="25" align="center" valign="middle" width="70" >結束日</td>
+            <td height="25" align="center" valign="middle" width="50" >工作數</td>
+        </tr>
+    </thead>
+    <tbody>
+    <!-- TemplateSplit -->
+        <tr row="%row%">
+            <td height="25" align="center" valign="middle" >%row%<button onclick="edit_row('%id%');">內容</button></td>
+            <td height="25" align="center" valign="middle" >%授權編號%</td>
+            <td height="25" align="center" valign="middle" >%開始日%</td>
+            <td height="25" align="center" valign="middle" >%結束日%</td>
+            <td height="25" align="center" valign="middle" >%工作數%</td>
+        </tr>
+    <!-- TemplateSplit -->
+        <tr row="%row%">
+            <td height="25" align="center" valign="middle" >%row%<button onclick="edit_row('%id%');">內容</button></td>
+            <td height="25" align="center" valign="middle" >%授權編號%</td>
+            <td height="25" align="center" valign="middle" >%開始日%</td>
+            <td height="25" align="center" valign="middle" >%結束日%</td>
+            <td height="25" align="center" valign="middle" >%工作數%</td>
+        </tr>
+    <!-- TemplateSplit -->
+    </tbody>
+</table>
+
+</script></div>
+    <span id="lab_layout"></span>
+
+
+
+
+<link rel="stylesheet" href="/car2009/css/alertify.core.css">
+<link rel="stylesheet" href="/car2009/css/alertify.default.css" id="toggleCSS">
+<script type="text/javascript" src="/car2009/js/alertify.min.js"></script>
+<!-- script type="text/javascript" src="/car2009/js/1.2.5-jquery.tools.min.js" ></script> 
+<script type="text/javascript" src="/car2009/js/1.8.5-jquery-ui.min.js" ></script -->
+<script type="text/javascript" src="/car2009/js/jquery.tools.min.js"></script>
+<script type="text/javascript" src="/car2009/js/jquery-ui-1.9.2.js"></script>
+
+<script type="text/javascript" src="/car2009/AJAX-framework.js?version=202605080002"></script>
+<script type="text/javascript" src="/car2009/js/hoverIntent.js"></script> 
+<script type="text/javascript" src="/car2009/js/superfish.js"></script> 
+<script>
+        PageInfo = {"片語資料 通用碼模式":"0"}
+
+        PhraseMode = PageInfo["片語資料 通用碼模式"]
+</script>
+
+<script>
+    $j = jQuery.noConflict();
+</script>
+<script>
+
+    $j(function () {
+        alert = alertify.alert;
+        confirm = alertify.confirm;
+        alertify_reset();
+    });
+
+    $j(function () {
+        $j(".button_class").button();
+
+    });
+    
+</script>
+
+<script>
+    $j(function() {
+        initialize();
+        event_setting();
+        execute();
+    });
+
+    function initialize() {
+        $j('#menu').load('../menu.htm?id=' + NewGuid(), function () {
+            
+            //            console.log("PageInfo", PageInfo);
+            //            console.log("PhraseMode", PhraseMode);
+
+
+            if (PhraseMode == "1") {
+                var $PhraseMode_Type_Query = $j(".PhraseMode_Type_Query");
+                $PhraseMode_Type_Query.attr("href", "../Type_Query3/").text("車種片語");
+                $PhraseMode_Type_Query.parent().attr("secret_name", "車種片語");
+
+                var $PhraseMode_Chname_Query = $j(".PhraseMode_Chname_Query");
+                $PhraseMode_Chname_Query.attr("href", "../Chname_Query3/");
+
+                var $PhraseMode_Brand_Query = $j(".PhraseMode_Brand_Query");
+                $PhraseMode_Brand_Query.attr("href", "../Brand_Query3/");
+            }
+
+            initial_menu();
+            $j('#menu_area_switch').click();
+        });
+
+    }
+
+    function event_setting() {
+
+    }
+
+    function execute() {
+        get_store_info("1");
+
+        setInterval(function () { get_store_info("1"); }, 1000 * 60 * 10);
+    }
+</script></body></html>

@@ -309,6 +309,8 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         return true;
     }), [docs, isShortageTab, activeTab, appliedSearchFilters, suppliers, customers, employees]);
 
+    const pendingFocusListRef = useRef(false);
+
     // 僅在切換分頁時重置 activeDocIndex，避免 filteredDocs 變動導致無法移動到第 2 項
     useEffect(() => {
         if (isShortageTab || isQuickPreview) return;
@@ -319,7 +321,13 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         }
         setActiveDocIndex(0);
         setCurrentPage(1);
-    }, [activeTab, isShortageTab, isQuickPreview]);
+        if (pendingFocusListRef.current) {
+            pendingFocusListRef.current = false;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => docListKeyboardRef.current?.focus());
+            });
+        }
+    }, [activeTab, isShortageTab, isQuickPreview, filteredDocs]);
 
     const totalPages = Math.max(1, Math.ceil(filteredDocs.length / pageSize));
     const paginatedDocs = useMemo(() => {
@@ -339,6 +347,9 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
     const handleSearchSubmit = (e) => {
         if (e) e.preventDefault();
         setAppliedSearchFilters(searchFilters);
+        setActiveDocIndex(0);
+        setCurrentPage(1);
+        pendingFocusListRef.current = true;
     };
 
     useSearchFormKeyboardNav(searchFormRef, searchBtnRef, searchResetBtnRef);
