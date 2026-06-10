@@ -186,9 +186,9 @@ const DocumentViewer = ({ doc, type, onClose, onEdit, inline = false }) => {
                                     <div className="text-sm text-gray-500">{item.name}</div>
                                 </td>
                                 <td className="text-right">{item.qty}</td>
-                                <td className="text-right">{item.unit_price ? `${displayCurrency} ${item.unit_price.toLocaleString()}` : '—'}</td>
+                                <td className="text-right">{(item.unit_price || item.unit_price === 0) ? `${displayCurrency} ${item.unit_price.toLocaleString()}` : '—'}</td>
                                 <td className="text-right font-semibold">
-                                    {item.unit_price ? `${displayCurrency} ${(item.qty * item.unit_price).toLocaleString()}` : '—'}
+                                    {(item.unit_price || item.unit_price === 0) ? `${displayCurrency} ${(item.qty * item.unit_price).toLocaleString()}` : '—'}
                                 </td>
                             </tr>
                         ))}

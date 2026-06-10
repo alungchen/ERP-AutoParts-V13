@@ -207,7 +207,7 @@ function writeCSV(filePath, headers, rows) {
     await page.evaluate(() => {
       document.title = '🔴 請在此視窗登入！';
       const b = document.createElement('div');
-      b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#f00;color:#fff;text-align:center;font-size:22px;font-weight:bold;padding:12px;';
+      b.style.cssText = 'background:#f00;color:#fff;text-align:center;font-size:22px;font-weight:bold;padding:12px;pointer-events:none;';
       b.textContent = '⚠️ 爬蟲視窗：請在此登入！';
       document.body.prepend(b);
     }).catch(() => {});

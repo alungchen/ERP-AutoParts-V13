@@ -166,6 +166,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
     const [enrichResult, setEnrichResult] = useState(null);
     const [isSearchOpen, setIsSearchOpen] = useState(true); // 搜尋面板展開/收折
     const docListKeyboardRef = useRef(null);
+    const isKeyboardNavRef = useRef(false);
     const addDocBtnRef = useRef(null);
     const searchFormRef = useRef(null);
     const searchBtnRef = useRef(null);
@@ -329,6 +330,32 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         }
     }, [activeTab, isShortageTab, isQuickPreview, filteredDocs]);
 
+    // 當在抽屜模式（isDrawerMode）下，自動將列表聚焦單據內容同步呈現於左側視窗
+    // 鍵盤模式下使用 debounce (180ms) 避免連按卡頓；滑鼠點選與初始化載入則立刻更新
+    useEffect(() => {
+        if (!isDrawerMode || !onSelectDoc || filteredDocs.length === 0) return;
+        const currentDoc = filteredDocs[activeDocIndex];
+        if (!currentDoc) return;
+
+        if (isKeyboardNavRef.current) {
+            const handler = setTimeout(() => {
+                onSelectDoc(activeTab, currentDoc.doc_id);
+            }, 180);
+            return () => clearTimeout(handler);
+        } else {
+            onSelectDoc(activeTab, currentDoc.doc_id);
+        }
+    }, [activeDocIndex, filteredDocs, activeTab, isDrawerMode, onSelectDoc]);
+
+    // 鍵盤上下鍵瀏覽時，自動將選取的單據行滾動到可見區域
+    useEffect(() => {
+        if (isShortageTab || !docListKeyboardRef.current) return;
+        const rowEl = docListKeyboardRef.current.querySelector(`[data-doc-hub-row-idx="${activeDocIndex}"]`);
+        if (rowEl) {
+            rowEl.scrollIntoView({ block: 'nearest' });
+        }
+    }, [isShortageTab, activeDocIndex]);
+
     const totalPages = Math.max(1, Math.ceil(filteredDocs.length / pageSize));
     const paginatedDocs = useMemo(() => {
         const start = (currentPage - 1) * pageSize;
@@ -346,6 +373,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
 
     const handleSearchSubmit = (e) => {
         if (e) e.preventDefault();
+        isKeyboardNavRef.current = false;
         setAppliedSearchFilters(searchFilters);
         setActiveDocIndex(0);
         setCurrentPage(1);
@@ -767,6 +795,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         if (e.key === 'ArrowDown') {
             if (filteredDocs.length === 0) return;
             e.preventDefault();
+            isKeyboardNavRef.current = true;
             if (activeDocIndex === filteredDocs.length - 1) {
                 addDocBtnRef.current?.focus();
                 return;
@@ -775,6 +804,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         } else if (e.key === 'ArrowUp') {
             if (filteredDocs.length === 0) return;
             e.preventDefault();
+            isKeyboardNavRef.current = true;
             setActiveDocIndex((prev) => Math.max(prev - 1, 0));
         } else if (e.key === ' ' || e.code === 'Space' || e.key === 'Enter') {
             if (filteredDocs.length === 0) return;
@@ -897,6 +927,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
                 if (filteredDocs.length === 0) return;
                 e.preventDefault();
                 e.stopPropagation();
+                isKeyboardNavRef.current = true;
                 if (activeDocIndex === filteredDocs.length - 1) {
                     addDocBtnRef.current?.focus();
                 } else {
@@ -909,6 +940,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
                 if (filteredDocs.length === 0) return;
                 e.preventDefault();
                 e.stopPropagation();
+                isKeyboardNavRef.current = true;
                 if (e.target === addDocBtnRef.current) {
                     setActiveDocIndex(filteredDocs.length - 1);
                     docListKeyboardRef.current?.focus();
@@ -1161,6 +1193,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
                                         key={group.type}
                                         type="button"
                                         onClick={() => {
+                                            isKeyboardNavRef.current = false;
                                             setActiveBusinessGroup(group.type);
                                             setActiveTab(group.tabs[0].key);
                                         }}
@@ -1193,7 +1226,10 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
                                             borderBottomColor: activeBusinessGroup === 'sales' ? '#3b82f6' : '#8b5cf6',
                                             paddingRight: '36px'
                                         } : { paddingRight: '36px' }}
-                                        onClick={() => setActiveTab(tab.key)}
+                                        onClick={() => {
+                                            isKeyboardNavRef.current = false;
+                                            setActiveTab(tab.key);
+                                        }}
                                     >
                                         {t(tab.labelKey)}
                                         <span className={styles.tabCount} style={activeTab === tab.key ? {
@@ -1476,11 +1512,9 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
                                         data-doc-hub-row-idx={idx}
                                         style={activeDocIndex === idx ? { backgroundColor: 'var(--bg-tertiary)' } : undefined}
                                         onClick={() => {
+                                            isKeyboardNavRef.current = false;
                                             setActiveDocIndex(idx);
                                             docListKeyboardRef.current?.focus();
-                                            if (isDrawerMode && onSelectDoc) {
-                                                onSelectDoc(activeTab, doc.doc_id);
-                                            }
                                         }}
                                         onDoubleClick={(e) => {
                                             e.preventDefault();
@@ -1497,7 +1531,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
                                         <td className="font-semibold" style={{ minWidth: '260px', wordBreak: 'break-word' }}>{getPartyName(doc)}</td>
                                         <td className="text-sm text-muted">{doc.items?.length || 0} {t('docs.items')}</td>
                                         <td>
-                                            {doc.items && doc.items[0]?.unit_price
+                                            {doc.items && doc.items.length > 0
                                                 ? <span className="font-mono font-semibold">{getDisplayCurrency(doc)} {calcTotal(doc).toLocaleString()}</span>
                                                 : <span className="text-muted text-sm">—</span>
                                             }

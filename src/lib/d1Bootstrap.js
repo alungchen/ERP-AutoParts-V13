@@ -96,6 +96,7 @@ export async function pullStoresFromD1() {
         }
     }
     rehydrateAllStores();
+    void useDocumentStore.getState().fetchDocuments();
     return { empty: false, updatedKeys };
 }
 
@@ -129,6 +130,7 @@ export async function bootstrapFromD1() {
         }
         rehydrateAllStores();
         void useProductStore.getState().fetchProducts();
+        void useDocumentStore.getState().fetchDocuments();
         // 供應商/客戶從 D1 API 載入
         void useSupplierStore.getState().fetchSuppliers();
         void useCustomerStore.getState().fetchCustomers();

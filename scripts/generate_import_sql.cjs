@@ -203,7 +203,7 @@ for (let i = 1; i < rowsMain.length; i++) {
   const category = prod_name;
   const imagesJson = existingImages;
 
-  const sql = `INSERT INTO products (p_id, name, car_models, category, images, part_numbers, brand, stock, specifications, safety_stock, base_cost, updated_at) VALUES (${[
+  const sql = `INSERT INTO products (p_id, name, car_models, category, images, part_numbers, brand, specifications, safety_stock, base_cost, updated_at) VALUES (${[
     sqlStr(p_id),
     sqlStr(prod_name),
     sqlStr(carModelsJson),
@@ -211,7 +211,6 @@ for (let i = 1; i < rowsMain.length; i++) {
     sqlStr(imagesJson),
     sqlStr(partNumbersJson),
     sqlStr(brand_raw),
-    stockNum,
     sqlStr(spec_raw),
     0,
     0,
@@ -219,6 +218,10 @@ for (let i = 1; i < rowsMain.length; i++) {
   ].join(', ')});`;
 
   sqlLines.push(sql);
+
+  // 插入庫存資料到 product_stock 表中 (松山店 A1 庫位)
+  const stockSql = `INSERT OR REPLACE INTO product_stock (p_id, branch_id, location_code, qty) VALUES (${sqlStr(p_id)}, 'songshan', 'A1', ${stockNum});`;
+  sqlLines.push(stockSql);
   inserted++;
 }
 

@@ -2,8 +2,14 @@ const { execSync } = require('child_process');
 const path = require('path');
 
 try {
-  const resultJson = execSync(`npx wrangler d1 execute erp-db --remote --command="SELECT p_id, part_number, name FROM products LIMIT 5;" --json`, { cwd: path.join(__dirname, '..'), encoding: 'utf-8' });
-  console.log(resultJson);
+  const resultJson = execSync(`node node_modules/wrangler/bin/wrangler.js d1 execute erp-db --remote --command="SELECT count(*) FROM product_stock;" --json`, { cwd: path.join(__dirname, '..'), encoding: 'utf-8' });
+
+
+
+  const data = JSON.parse(resultJson);
+  console.log(JSON.stringify(data[0].results, null, 2));
 } catch (e) {
-  console.error(e.message);
+  console.error("Error executing:", e.message);
 }
+
+
