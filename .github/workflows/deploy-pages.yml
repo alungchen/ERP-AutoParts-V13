@@ -6,7 +6,7 @@
 #       權限：Account → Cloudflare Pages → Edit；並含 D1 / R2 等資源（與儀表板綁定一致）
 #     CLOUDFLARE_ACCOUNT_ID — 儀表板右側 Account ID（多數情況下可避免 403／帳號解析錯誤）
 #   Variables（選填）
-#     CLOUDFLARE_PAGES_PROJECT_NAME — 覆寫專案名稱；未設定時預設與 wrangler.toml 的 name 相同：erp-autoparts-api
+#     CLOUDFLARE_PAGES_PROJECT_NAME — 覆寫專案名稱；未設定時預設與 wrangler.toml 的 name 相同：erp-autoparts-v13
 #
 # 首次部署前：請在 Cloudflare Dashboard → Workers & Pages → 建立 **Pages** 專案，
 # 名稱須與上面專案名稱一致；否則 wrangler 會回報 Project not found（8000007）。
@@ -61,7 +61,7 @@ jobs:
       - name: Deploy to Cloudflare Pages
         run: |
           if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then unset CLOUDFLARE_ACCOUNT_ID; fi
-          PROJECT_NAME="${CLOUDFLARE_PAGES_PROJECT_NAME:-erp-autoparts-api}"
+          PROJECT_NAME="${CLOUDFLARE_PAGES_PROJECT_NAME:-erp-autoparts-v13}"
           npx wrangler pages deploy dist \
             --project-name="$PROJECT_NAME" \
             --branch="$GITHUB_REF_NAME" \
@@ -77,7 +77,7 @@ jobs:
           cat <<'EOF' >> "$GITHUB_STEP_SUMMARY"
           ### Deploy Pages 失敗時請檢查
 
-          1. **是否已在 Cloudflare 建立 Pages 專案**：日誌若出現 `Project not found` / `8000007`，請到 **Workers & Pages** 建立專案，名稱需與部署指令一致（預設 `erp-autoparts-api`）。也可查看上一步 **List Cloudflare Pages projects** 的實際名稱。
+          1. **是否已在 Cloudflare 建立 Pages 專案**：日誌若出現 `Project not found` / `8000007`，請到 **Workers & Pages** 建立專案，名稱需與部署指令一致（預設 `erp-autoparts-v13`）。也可查看上一步 **List Cloudflare Pages projects** 的實際名稱。
           2. **API Token**：需含 **Cloudflare Pages → Edit**；並確認帳號下有該專案。
           3. **CLOUDFLARE_ACCOUNT_ID**：建議設定為儀表板右側的 Account ID。
           4. **專案名稱不同**：在 GitHub Repository → Settings → Variables 新增 `CLOUDFLARE_PAGES_PROJECT_NAME` 覆寫預設值。
