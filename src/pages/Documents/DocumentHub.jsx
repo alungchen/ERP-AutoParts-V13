@@ -331,22 +331,12 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         }
     }, [activeTab, isShortageTab, isQuickPreview, filteredDocs]);
 
-    // 當在抽屜模式（isDrawerMode）下，自動將列表聚焦單據內容同步呈現於左側視窗
-    // 鍵盤模式下使用 debounce (180ms) 避免連按卡頓；滑鼠點選與初始化載入則立刻更新
+    const onSelectDocRef = useRef(onSelectDoc);
     useEffect(() => {
-        if (!isDrawerMode || !onSelectDoc || filteredDocs.length === 0) return;
-        const currentDoc = filteredDocs[activeDocIndex];
-        if (!currentDoc) return;
+        onSelectDocRef.current = onSelectDoc;
+    }, [onSelectDoc]);
 
-        if (isKeyboardNavRef.current) {
-            const handler = setTimeout(() => {
-                onSelectDoc(activeTab, currentDoc.doc_id);
-            }, 180);
-            return () => clearTimeout(handler);
-        } else {
-            onSelectDoc(activeTab, currentDoc.doc_id);
-        }
-    }, [activeDocIndex, filteredDocs, activeTab, isDrawerMode, onSelectDoc]);
+
 
     // 鍵盤上下鍵瀏覽時，自動將選取的單據行滾動到可見區域
     useEffect(() => {
@@ -362,6 +352,23 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         const start = (currentPage - 1) * pageSize;
         return filteredDocs.slice(start, start + pageSize);
     }, [filteredDocs, currentPage]);
+
+    // 當在抽屜模式（isDrawerMode）下，自動將列表聚焦單據內容同步呈現於左側視窗
+    // 鍵盤模式下使用 debounce (180ms) 避免連按卡頓；滑鼠點選與初始化載入則立刻更新
+    useEffect(() => {
+        if (!isDrawerMode || !onSelectDocRef.current || paginatedDocs.length === 0) return;
+        const currentDoc = paginatedDocs[activeDocIndex];
+        if (!currentDoc) return;
+
+        if (isKeyboardNavRef.current) {
+            const handler = setTimeout(() => {
+                onSelectDocRef.current(activeTab, currentDoc.doc_id);
+            }, 180);
+            return () => clearTimeout(handler);
+        } else {
+            onSelectDocRef.current(activeTab, currentDoc.doc_id);
+        }
+    }, [activeDocIndex, paginatedDocs, activeTab, isDrawerMode]);
 
     const handleQuickPreviewToggle = () => {
         setIsQuickPreview(!isQuickPreview);
