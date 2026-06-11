@@ -57,6 +57,8 @@ const DEFAULT_QUERY = {
 
 const PIM_SEARCH_STATE_KEY = 'erp-pim-search-state';
 
+const escapeRegExp = (string) => string.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+
 const filterProductsByQuery = (sourceProducts, query) => {
     let filtered = sourceProducts;
 
@@ -81,11 +83,12 @@ const filterProductsByQuery = (sourceProducts, query) => {
     }
 
     if (query.partNumber) {
-        const q = query.partNumber.toLowerCase();
+        const pattern = query.partNumber.split('*').map(escapeRegExp).join('.*');
+        const regex = new RegExp(pattern, 'i');
         filtered = filtered.filter(p =>
-            (p.part_number || '').toLowerCase().includes(q) ||
-            (p.part_numbers || []).some(pn => (pn.part_number || '').toLowerCase().includes(q)) ||
-            (p.p_id || '').toLowerCase().includes(q)
+            regex.test(p.part_number || '') ||
+            (p.part_numbers || []).some(pn => regex.test(pn.part_number || '')) ||
+            regex.test(p.p_id || '')
         );
     }
 
@@ -228,6 +231,7 @@ const ProductList = () => {
     const formRef = useRef(null);
     const firstInputRef = useRef(null);
     const fileInputRef = useRef(null);
+    const batchMatchFileInputRef = useRef(null);
     const selectAllRef = useRef(null);
     const productTbodyRef = useRef(null);
     const productListKeyboardRef = useRef(null);
@@ -847,6 +851,87 @@ const ProductList = () => {
         e.target.value = '';
     };
 
+    const handleBatchMatch = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            const XLSX = await import('xlsx');
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const sheetName = wb.SheetNames[0];
+                    const sheet = wb.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                    if (jsonData.length === 0) return;
+
+                    let headerRow = jsonData[0];
+                    if (headerRow.indexOf('內容') === -1) headerRow.push('內容');
+                    if (headerRow.indexOf('適用車型料號') === -1) headerRow.push('適用車型料號');
+
+                    const contentColIdx = headerRow.indexOf('內容');
+                    const carModelPartNumColIdx = headerRow.indexOf('適用車型料號');
+
+                    for (let i = 1; i < jsonData.length; i++) {
+                        const row = jsonData[i];
+                        if (!row || row.length === 0 || !row[0]) continue;
+                        
+                        const pid = String(row[0]).trim();
+                        const pidLower = pid.toLowerCase();
+                        // Find product matching part_number or p_id case-insensitively
+                        const product = products.find(p => 
+                            (getPrimaryPartNumber(p) || '').toLowerCase() === pidLower || 
+                            (p.p_id || '').toLowerCase() === pidLower
+                        );
+                        
+                        let content = '';
+                        let applicablePartNums = '';
+                        
+                        if (product) {
+                            content = [product.name, product.brand, product.specifications].filter(Boolean).join(' | ');
+                            
+                            const pns = product.part_numbers || [];
+                            const cms = product.car_models || [];
+                            if (pns.length > 0) {
+                                applicablePartNums = pns.map(pn => {
+                                    let s = pn.part_number;
+                                    if (pn.car_model) s += ` (${pn.car_model})`;
+                                    return s;
+                                }).filter(Boolean).join(', ');
+                            } else if (cms.length > 0) {
+                                applicablePartNums = cms.map(cm => typeof cm === 'string' ? cm : cm.model).join(', ');
+                            }
+                        } else {
+                            content = '找不到此料號';
+                        }
+                        
+                        row[contentColIdx] = content;
+                        row[carModelPartNumColIdx] = applicablePartNums;
+                    }
+
+                    const newWs = XLSX.utils.aoa_to_sheet(jsonData);
+                    const newWb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(newWb, newWs, sheetName);
+                    
+                    const originalName = file.name.replace(/\.[^/.]+$/, "");
+                    XLSX.writeFile(newWb, `比對結果_${originalName}.xlsx`);
+                } catch (err) {
+                    console.error("Batch match parsing error:", err);
+                    alert("解析 Excel 檔案時發生錯誤。");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } catch (err) {
+            console.error("Failed to load xlsx:", err);
+            alert("載入 Excel 處理模組失敗。");
+        }
+        
+        e.target.value = '';
+    };
+
     const escapeHtml = (value) => String(value ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -1153,6 +1238,10 @@ const ProductList = () => {
                             </button>
                             <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setIsExportDialogOpen(true)}>
                                 <Upload size={18} /> {t('pim.export')}
+                            </button>
+                            <input type="file" ref={batchMatchFileInputRef} style={{ display: 'none' }} onChange={handleBatchMatch} accept=".xlsx, .xls, .csv" />
+                            <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => batchMatchFileInputRef.current?.click()} title="上傳 Excel 進行料號比對">
+                                <FileSpreadsheet size={18} /> 批次料號比對
                             </button>
                         </>
                     )}
