@@ -379,11 +379,10 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         setActiveDocIndex(0);
         setCurrentPage(1);
         pendingFocusListRef.current = true;
-        if (!isDrawerMode) {
-            setIsSearching(true);
-            await fetchDocuments(searchFilters);
-            setIsSearching(false);
-        }
+        
+        setIsSearching(true);
+        await fetchDocuments(searchFilters);
+        setIsSearching(false);
     };
 
     useSearchFormKeyboardNav(searchFormRef, searchBtnRef, searchResetBtnRef);
@@ -392,16 +391,15 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         setSearchFilters(DEFAULT_SEARCH_FILTERS);
         setAppliedSearchFilters(DEFAULT_SEARCH_FILTERS);
         localStorage.removeItem(DOC_HUB_SEARCH_STATE_KEY);
-        if (!isDrawerMode) {
-            setIsSearching(true);
-            await fetchDocuments({});
-            setIsSearching(false);
-        }
+        
+        setIsSearching(true);
+        await fetchDocuments({});
+        setIsSearching(false);
     };
 
     // Auto-fetch if there are saved server-side filters on mount
     useEffect(() => {
-        if (!isDrawerMode && (appliedSearchFilters.date || appliedSearchFilters.docId)) {
+        if (appliedSearchFilters.date || appliedSearchFilters.docId) {
             fetchDocuments(appliedSearchFilters);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
