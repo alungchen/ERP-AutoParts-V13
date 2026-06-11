@@ -90,7 +90,8 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         updateShortageSuggestedQty,
         deleteShortageItems,
         transferShortageToInquiry,
-        statusColors = {}
+        statusColors = {},
+        fetchDocuments
     } = useDocumentStore();
     const { products } = useProductStore();
     const { defaultCurrency, isMultiCountryMode, enableLoginSystem, enablePermissionRole, currentUserEmpId, operationMode, setPageTitle } = useAppStore();
@@ -371,22 +372,40 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         if (!isQuickPreview) setIsSearchOpen(false);
     };
 
-    const handleSearchSubmit = (e) => {
+    const handleSearchSubmit = async (e) => {
         if (e) e.preventDefault();
         isKeyboardNavRef.current = false;
         setAppliedSearchFilters(searchFilters);
         setActiveDocIndex(0);
         setCurrentPage(1);
         pendingFocusListRef.current = true;
+        if (!isDrawerMode) {
+            setIsSearching(true);
+            await fetchDocuments(searchFilters);
+            setIsSearching(false);
+        }
     };
 
     useSearchFormKeyboardNav(searchFormRef, searchBtnRef, searchResetBtnRef);
 
-    const handleClearSearch = () => {
+    const handleClearSearch = async () => {
         setSearchFilters(DEFAULT_SEARCH_FILTERS);
         setAppliedSearchFilters(DEFAULT_SEARCH_FILTERS);
         localStorage.removeItem(DOC_HUB_SEARCH_STATE_KEY);
+        if (!isDrawerMode) {
+            setIsSearching(true);
+            await fetchDocuments({});
+            setIsSearching(false);
+        }
     };
+
+    // Auto-fetch if there are saved server-side filters on mount
+    useEffect(() => {
+        if (!isDrawerMode && (appliedSearchFilters.date || appliedSearchFilters.docId)) {
+            fetchDocuments(appliedSearchFilters);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         const handleKeyDown = (e) => {

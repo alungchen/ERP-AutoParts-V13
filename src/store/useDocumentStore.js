@@ -243,9 +243,17 @@ export const useDocumentStore = create(persist((set, get) => ({
     statusColors: STATUS_COLORS,
     isDocumentsLoaded: false,
 
-    fetchDocuments: async () => {
+    fetchDocuments: async (filters = {}) => {
         try {
-            const res = await fetch('/api/documents?limit=15000');
+            let url = '/api/documents?limit=15000';
+            if (filters.date) {
+                url += `&datePrefix=${encodeURIComponent(filters.date)}`;
+            }
+            if (filters.docId) {
+                url += `&docIdLike=${encodeURIComponent(filters.docId)}`;
+            }
+            
+            const res = await fetch(url);
             const data = await res.json();
             const grouped = {
                 inquiries: data.filter(d => d.type === 'inquiry'),

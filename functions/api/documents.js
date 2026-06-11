@@ -11,6 +11,8 @@ export async function onRequestGet(context) {
         const branchId = request.headers.get('X-Active-Branch') || 'songshan';
         const url = new URL(request.url);
         const type = url.searchParams.get('type');
+        const datePrefix = url.searchParams.get('datePrefix');
+        const docIdLike = url.searchParams.get('docIdLike');
         const limit = parseInt(url.searchParams.get('limit')) || 100;
         const offset = parseInt(url.searchParams.get('offset')) || 0;
         
@@ -20,6 +22,14 @@ export async function onRequestGet(context) {
         if (type) {
             query += ' AND type = ?';
             params.push(type);
+        }
+        if (datePrefix) {
+            query += ' AND date LIKE ?';
+            params.push(`${datePrefix}%`);
+        }
+        if (docIdLike) {
+            query += ' AND doc_id LIKE ?';
+            params.push(`%${docIdLike}%`);
         }
         
         query += ' ORDER BY date DESC, updated_at DESC LIMIT ? OFFSET ?';
@@ -34,6 +44,14 @@ export async function onRequestGet(context) {
             if (type) {
                 itemQuery += ' AND type = ?';
                 itemParams.push(type);
+            }
+            if (datePrefix) {
+                itemQuery += ' AND date LIKE ?';
+                itemParams.push(`${datePrefix}%`);
+            }
+            if (docIdLike) {
+                itemQuery += ' AND doc_id LIKE ?';
+                itemParams.push(`%${docIdLike}%`);
             }
             itemQuery += ' ORDER BY date DESC, updated_at DESC LIMIT ? OFFSET ?)';
             itemParams.push(limit, offset);
