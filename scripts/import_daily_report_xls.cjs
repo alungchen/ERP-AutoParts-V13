@@ -137,12 +137,18 @@ function sqlNum(n) {
 }
 
 
-// ── 解析資料 ─────────────────────────────────────────────
-const documents = new Map();   // doc_id → { header info }
-const items     = [];           // { doc_id, p_id, name, car_model, qty, unit_price, note }
+// ── 解析資料與執行匯入 (逐檔處理) ─────────────────────────────────────────────
+let totalDocsProcessed = 0;
+let totalItemsProcessed = 0;
 
 for (const file of filesToProcess) {
-  console.log(`\n📂 讀取 XLS 檔案: ${file}`);
+  console.log(`\n======================================================`);
+  console.log(`📂 開始處理檔案: ${file}`);
+  console.log(`======================================================`);
+
+  const documents = new Map();   // doc_id → { header info }
+  const items     = [];          // { doc_id, p_id, name, car_model, qty, unit_price, note }
+
   let rows;
   try {
     const wb = xlsx.readFile(file);
@@ -171,27 +177,22 @@ for (const file of filesToProcess) {
     const col20 = row[20];   // 實價
     const col22 = row[22] != null ? String(row[22]).trim() : '';
 
-    // 跳過表頭重複列（單號=「單號」）
     if (col0 === '單號') continue;
-
-    // 跳過合計列
     if (col0.includes('合計') || col0.includes('淨額')) continue;
 
-    // 是否為新單據的起始行（col0 有單號 且 col9 有單別）
     if (col0 && TYPE_MAP[col9]) {
       const type = TYPE_MAP[col9];
       currentDoc = {
         doc_id:   col0,
         type:     type,
         date:     col5 || '',
-        party:    col3,   // 客戶或供應商名稱
+        party:    col3,
         branch:   branchArg,
       };
       documents.set(col0, currentDoc);
     }
 
-    // 有零件號碼才算明細行
-    const rawPid = col10.replace(/^'+/, '').trim();  // 去除開頭的 '
+    const rawPid = col10.replace(/^'+/, '').trim();
     if (!rawPid || !currentDoc) continue;
 
     const qty        = sqlNum(col18);
@@ -210,109 +211,88 @@ for (const file of filesToProcess) {
       note:       note,
     });
   }
-}
 
-console.log(`\n✅ 解析完成:`);
-console.log(`   單據數: ${documents.size}`);
-console.log(`   明細數: ${items.length}`);
-
-// 列出各單別統計
-const typeCounts = {};
-for (const [, doc] of documents) {
-  typeCounts[doc.type] = (typeCounts[doc.type] || 0) + 1;
-}
-for (const [type, cnt] of Object.entries(typeCounts)) {
-  console.log(`   ${type}: ${cnt} 筆`);
-}
-
-// ── 產生 SQL ─────────────────────────────────────────────
-const sqlLines = [];
-sqlLines.push('-- 日報明細表匯入 SQL');
-sqlLines.push(`-- 來源: ${filesToProcess.map(f => path.basename(f)).join(', ')}`);
-sqlLines.push(`-- 分店: ${branchArg}`);
-sqlLines.push(`-- 產生時間: ${new Date().toISOString()}`);
-sqlLines.push('-- ==========================================');
-sqlLines.push('');
-sqlLines.push('PRAGMA defer_foreign_keys = ON;');
-sqlLines.push('');
-
-// 先刪除舊有資料（以 doc_id 為鍵，允許重複匯入）
-const allDocIds = [...documents.keys()];
-if (allDocIds.length > 0) {
-  sqlLines.push('-- 清除舊有單據（如已存在）');
-  for (const doc_id of allDocIds) {
-    sqlLines.push(`DELETE FROM document_items WHERE doc_id = ${sqlStr(doc_id)};`);
-    sqlLines.push(`DELETE FROM documents WHERE doc_id = ${sqlStr(doc_id)};`);
+  console.log(`✅ [${path.basename(file)}] 解析完成: ${documents.size} 筆單據, ${items.length} 筆明細`);
+  
+  if (documents.size === 0) {
+      console.log(`⚠️ 此檔案無有效單據，跳過匯入。`);
+      continue;
   }
+
+  // ── 產生 SQL ─────────────────────────────────────────────
+  const sqlLines = [];
+  sqlLines.push('-- 日報明細表匯入 SQL');
+  sqlLines.push(`-- 來源: ${path.basename(file)}`);
+  sqlLines.push(`-- 分店: ${branchArg}`);
+  sqlLines.push(`-- 產生時間: ${new Date().toISOString()}`);
+  sqlLines.push('PRAGMA defer_foreign_keys = ON;');
   sqlLines.push('');
+
+  const allDocIds = [...documents.keys()];
+  if (allDocIds.length > 0) {
+    for (const doc_id of allDocIds) {
+      sqlLines.push(`DELETE FROM document_items WHERE doc_id = ${sqlStr(doc_id)};`);
+      sqlLines.push(`DELETE FROM documents WHERE doc_id = ${sqlStr(doc_id)};`);
+    }
+    sqlLines.push('');
+  }
+
+  for (const [, doc] of documents) {
+    const isProcurement = IS_PROCUREMENT.has(doc.type);
+    const partyCol = isProcurement ? 'supplier_name' : 'customer_name';
+    sqlLines.push(
+      `INSERT INTO documents (doc_id, type, date, ${partyCol}, status, branch_id) VALUES (` +
+      `${sqlStr(doc.doc_id)}, ${sqlStr(doc.type)}, ${sqlStr(doc.date)}, ` +
+      `${sqlStr(doc.party)}, 'completed', ${sqlStr(doc.branch)});`
+    );
+  }
+
+  sqlLines.push('');
+  for (const item of items) {
+    const noteVal = [item.car_model, item.note].filter(Boolean).join(' | ') || null;
+    sqlLines.push(
+      `INSERT INTO document_items (doc_id, p_id, part_number, name, qty, unit_price, note) VALUES (` +
+      `${sqlStr(item.doc_id)}, ${sqlStr(item.p_id)}, ${sqlStr(item.p_id)}, ` +
+      `${sqlStr(item.name)}, ${item.qty}, ${item.unit_price}, ${sqlStr(noteVal)});`
+    );
+  }
+
+  const outDir  = path.join(__dirname, '..', 'output');
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+  const baseName = path.basename(file, path.extname(file));
+  const sqlFile  = path.join(outDir, `import_daily_${branchArg}_${baseName}.sql`);
+  fs.writeFileSync(sqlFile, sqlLines.join('\n'), 'utf8');
+
+  console.log(`📄 SQL 已產生: ${sqlFile}`);
+
+  if (dryRun) {
+    console.log('🔍 Dry-run 模式，跳過實際匯入。');
+    continue;
+  }
+
+  // ── 執行匯入 ─────────────────────────────────────────────
+  const targetFlag = remote ? '--remote' : '--local';
+  const dbName     = 'erp-db';
+  const importCmd  = `npx wrangler d1 execute ${dbName} ${targetFlag} --file="${sqlFile}"`;
+
+  console.log(`🚀 正在匯入 ${path.basename(file)} 到資料庫... (這可能需要幾分鐘)`);
+  
+  try {
+    execSync(importCmd, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+    console.log(`\n✅ 成功匯入 ${path.basename(file)}！`);
+    totalDocsProcessed += documents.size;
+    totalItemsProcessed += items.length;
+  } catch (err) {
+    console.error(`\n❌ 匯入失敗: ${path.basename(file)}`, err.message);
+    console.log('您可以稍後手動重試此檔案:');
+    console.log(`  ${importCmd}`);
+    // 不中斷整個程式，繼續處理下一個檔案
+    console.log(`⚠️ 將繼續嘗試處理下一個檔案...\n`);
+  }
 }
 
-// 插入主檔
-sqlLines.push('-- === 插入單據主檔 ===');
-for (const [, doc] of documents) {
-  const isProcurement = IS_PROCUREMENT.has(doc.type);
-  const partyCol = isProcurement ? 'supplier_name' : 'customer_name';
-  sqlLines.push(
-    `INSERT INTO documents (doc_id, type, date, ${partyCol}, status, branch_id) VALUES (` +
-    `${sqlStr(doc.doc_id)}, ${sqlStr(doc.type)}, ${sqlStr(doc.date)}, ` +
-    `${sqlStr(doc.party)}, 'completed', ${sqlStr(doc.branch)});`
-  );
-}
+console.log(`\n🎉 全部檔案處理完畢！`);
+console.log(`總計匯入單據: ${totalDocsProcessed} 筆`);
+console.log(`總計匯入明細: ${totalItemsProcessed} 筆`);
 
-sqlLines.push('');
-sqlLines.push('-- === 插入明細 ===');
-for (const item of items) {
-  const noteVal = [item.car_model, item.note].filter(Boolean).join(' | ') || null;
-  sqlLines.push(
-    `INSERT INTO document_items (doc_id, p_id, part_number, name, qty, unit_price, note) VALUES (` +
-    `${sqlStr(item.doc_id)}, ${sqlStr(item.p_id)}, ${sqlStr(item.p_id)}, ` +
-    `${sqlStr(item.name)}, ${item.qty}, ${item.unit_price}, ${sqlStr(noteVal)});`
-  );
-}
-
-sqlLines.push('');
-sqlLines.push(`-- 合計: ${documents.size} 筆單據, ${items.length} 筆明細`);
-
-// ── 輸出 SQL 檔案 ─────────────────────────────────────────
-const outDir  = path.join(__dirname, '..', 'output');
-if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-
-let sqlFile;
-if (filesToProcess.length === 1) {
-  const baseName = path.basename(filesToProcess[0], path.extname(filesToProcess[0]));
-  sqlFile  = path.join(outDir, `import_daily_${branchArg}_${baseName}.sql`);
-} else {
-  const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  sqlFile  = path.join(outDir, `import_daily_${branchArg}_batch_${filesToProcess.length}files_${timestamp}.sql`);
-}
-
-const sqlContent = sqlLines.join('\n');
-fs.writeFileSync(sqlFile, sqlContent, 'utf8');
-
-console.log(`\n📄 SQL 已產生: ${sqlFile}`);
-console.log(`   ${documents.size} 筆單據, ${items.length} 筆明細`);
-
-if (dryRun) {
-  console.log('\n🔍 Dry-run 模式，顯示前 30 行 SQL:');
-  sqlLines.slice(0, 30).forEach(l => console.log('  ' + l));
-  console.log('\n⏭️  （僅預覽，未實際寫入資料庫）');
-  process.exit(0);
-}
-
-// ── 執行匯入 ─────────────────────────────────────────────
-const targetFlag = remote ? '--remote' : '--local';
-const dbName     = 'erp-db';
-const importCmd  = `npx wrangler d1 execute ${dbName} ${targetFlag} --file="${sqlFile}"`;
-
-console.log(`\n🚀 開始匯入到${remote ? '遠端' : '本地'} D1 資料庫...`);
-console.log(`   指令: ${importCmd}`);
-
-try {
-  execSync(importCmd, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
-  console.log('\n✅ 匯入成功！');
-} catch (err) {
-  console.error('\n❌ 匯入失敗:', err.message);
-  console.log('您可以手動執行以下指令:');
-  console.log(`  ${importCmd}`);
-  process.exit(1);
-}
