@@ -82,6 +82,7 @@ const DocumentEditorPage = () => {
         docType: type
     });
     const [isReadOnly, setIsReadOnly] = useState(isEdit || !canEditThisDocType);
+    const [leftPaneWidth, setLeftPaneWidth] = useState('50%');
     const [doc, setDoc] = useState({
         type: type,
         date: new Date().toISOString().split('T')[0],
@@ -1011,7 +1012,7 @@ const DocumentEditorPage = () => {
                 ref={editorPaneRef}
                 data-editor-pane
                 style={{
-                    flex: isDocListDrawerOpen ? '1 1 50%' : '1 1 100%',
+                    flex: isDocListDrawerOpen ? `0 0 ${leftPaneWidth}` : '1 1 100%',
                     minWidth: 0,
                     display: 'flex',
                     flexDirection: 'column',
@@ -1484,14 +1485,64 @@ const DocumentEditorPage = () => {
             </div>
 
             {isDocListDrawerOpen && (
+                <div
+                    style={{
+                        width: '8px',
+                        cursor: 'col-resize',
+                        backgroundColor: 'var(--bg-tertiary)',
+                        borderLeft: '1px solid var(--border-color)',
+                        borderRight: '1px solid var(--border-color)',
+                        zIndex: 10,
+                        flexShrink: 0,
+                        position: 'relative'
+                    }}
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        const startX = e.clientX;
+                        const startWidth = editorPaneRef.current.offsetWidth;
+                        const totalWidth = editorPaneRef.current.parentElement.offsetWidth;
+
+                        const onMouseMove = (moveEvent) => {
+                            let newWidth = startWidth + (moveEvent.clientX - startX);
+                            if (newWidth < 300) newWidth = 300; 
+                            if (totalWidth - newWidth < 300) newWidth = totalWidth - 300;
+                            setLeftPaneWidth(`${newWidth}px`);
+                        };
+
+                        const onMouseUp = () => {
+                            document.removeEventListener('mousemove', onMouseMove);
+                            document.removeEventListener('mouseup', onMouseUp);
+                            document.body.style.cursor = '';
+                        };
+
+                        document.addEventListener('mousemove', onMouseMove);
+                        document.addEventListener('mouseup', onMouseUp);
+                        document.body.style.cursor = 'col-resize';
+                    }}
+                >
+                    {/* Add a subtle visual indicator for the drag handle */}
+                    <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        height: '30px',
+                        width: '2px',
+                        backgroundColor: 'var(--text-muted)',
+                        borderRadius: '2px',
+                        opacity: 0.5
+                    }} />
+                </div>
+            )}
+
+            {isDocListDrawerOpen && (
                 <aside
                     style={{
-                        flex: '1 1 50%',
+                        flex: '1 1 0',
                         minWidth: 0,
                         display: 'flex',
                         flexDirection: 'column',
                         overflow: 'hidden',
-                        borderLeft: '1px solid var(--border-color)',
                         backgroundColor: 'var(--bg-primary)',
                     }}
                 >
