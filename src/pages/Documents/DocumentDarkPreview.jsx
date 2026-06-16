@@ -657,7 +657,7 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
     return (
         <>
             <div style={{
-                backgroundColor: '#0f172a',
+                backgroundColor: '#1e293b',
                 color: '#f1f5f9',
                 display: 'flex',
                 flexDirection: 'column',
@@ -668,7 +668,7 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                 height: inline ? '100%' : '90vh',
                 maxHeight: inline ? '100%' : '90vh'
             }}>
-                <div style={{ padding: '1rem 1.5rem', backgroundColor: '#1e293b', borderBottom: '1px solid #334155', flexShrink: 0 }}>
+                <div style={{ padding: '1rem 1.5rem', backgroundColor: '#334155', borderBottom: '1px solid #475569', flexShrink: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                         <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
                             <div style={{ background: isCustomer ? '#3b82f6' : '#8b5cf6', color: 'white', padding: '0.4rem 0.8rem', borderRadius: '4px', fontWeight: 800 }}>
@@ -686,17 +686,17 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1.1fr 1fr 1.7fr', gap: '0.85rem', alignItems: 'end', padding: '0.7rem', border: '1px solid #334155', borderRadius: '8px', background: '#0f172a' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1.1fr 1fr 1.7fr', gap: '0.85rem', alignItems: 'end', padding: '0.7rem', border: '1px solid #475569', borderRadius: '8px', background: '#1e293b' }}>
                         <div>
-                            <label style={{ fontSize: '0.85rem', color: '#2563eb', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>日期</label>
-                            <input type="date" value={doc.date} onChange={e => setDoc({ ...doc, date: e.target.value })} style={{ width: '100%', padding: '0.5rem', backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1rem', fontWeight: 700 }} />
+                            <label style={{ fontSize: '1rem', color: '#60a5fa', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>日期</label>
+                            <input type="date" value={doc.date} onChange={e => setDoc({ ...doc, date: e.target.value })} style={{ width: '100%', padding: '0.5rem', backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1.15rem', fontWeight: 700 }} />
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.85rem', color: '#2563eb', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{isSupplier ? '供應商' : '客戶'}</label>
-                            <div style={{ padding: '0.5rem', backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1rem', fontWeight: 700 }}>{isSupplier ? doc.supplier_name : doc.customer_name}</div>
+                            <label style={{ fontSize: '1rem', color: '#60a5fa', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{isSupplier ? '供應商' : '客戶'}</label>
+                            <div style={{ padding: '0.5rem', backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1.15rem', fontWeight: 700 }}>{isSupplier ? doc.supplier_name : doc.customer_name}</div>
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.85rem', color: '#2563eb', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>
+                            <label style={{ fontSize: '1rem', color: '#60a5fa', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>
                                 {type === 'sales' ? '狀態（暫不開放）' : '狀態'}
                             </label>
                             {type === 'sales' ? (
@@ -705,18 +705,18 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                                     style={{
                                         width: '100%',
                                         padding: '0.5rem',
-                                        backgroundColor: '#1e293b',
+                                        backgroundColor: '#334155',
                                         border: '1px dashed #475569',
                                         borderRadius: '4px',
                                         color: '#94a3b8',
-                                        fontSize: '0.9rem',
+                                        fontSize: '1.05rem',
                                         fontWeight: 600,
                                     }}
                                 >
                                     開單即入帳；狀態日後開放
                                 </div>
                             ) : (
-                                <select value={doc.status} onChange={(e) => setDoc({ ...doc, status: e.target.value })} style={{ width: '100%', padding: '0.5rem', backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1rem', fontWeight: 700 }}>
+                                <select value={doc.status} onChange={(e) => setDoc({ ...doc, status: e.target.value })} style={{ width: '100%', padding: '0.5rem', backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1.15rem', fontWeight: 700 }}>
                                     <option value="pending">待處理</option>
                                     <option value="accepted">已核准</option>
                                     <option value="received">已入庫</option>
@@ -724,13 +724,13 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                             )}
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.85rem', color: '#2563eb', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>幣別</label>
-                            <select value={doc.currency} disabled={isCurrencyLocked} onChange={e => setDoc({ ...doc, currency: e.target.value })} style={{ width: '100%', padding: '0.5rem', backgroundColor: isCurrencyLocked ? '#1e293b' : '#334155', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontWeight: 700, fontSize: '1rem' }}>
+                            <label style={{ fontSize: '1rem', color: '#60a5fa', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>幣別</label>
+                            <select value={doc.currency} disabled={isCurrencyLocked} onChange={e => setDoc({ ...doc, currency: e.target.value })} style={{ width: '100%', padding: '0.5rem', backgroundColor: isCurrencyLocked ? '#334155' : '#475569', border: '1px solid #64748b', borderRadius: '4px', color: '#dbeafe', fontWeight: 700, fontSize: '1.15rem' }}>
                                 <option value="TWD">TWD</option><option value="USD">USD</option><option value="JPY">JPY</option>
                             </select>
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.85rem', color: '#2563eb', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>開單人員</label>
+                            <label style={{ fontSize: '1rem', color: '#60a5fa', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>開單人員</label>
                             <select
                                 value={doc.opener_emp_id || ''}
                                 onChange={e => {
@@ -741,7 +741,7 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                                         opener_emp_name: emp?.name || ''
                                     });
                                 }}
-                                style={{ width: '100%', padding: '0.5rem', backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1rem', fontWeight: 700 }}
+                                style={{ width: '100%', padding: '0.5rem', backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '4px', color: '#dbeafe', fontSize: '1.15rem', fontWeight: 700 }}
                             >
                                 <option value="">-- 選擇員工 --</option>
                                 {employees.map((emp) => (
@@ -777,18 +777,18 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                     style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', padding: '1.5rem' }}
                 >
                     <div
-                        style={{ background: '#1e293b', borderRadius: '8px', border: '1px solid #334155', overflow: 'hidden' }}
+                        style={{ background: '#334155', borderRadius: '8px', border: '1px solid #475569', overflow: 'hidden' }}
                         ref={docListKeyboardRef}
                         tabIndex={0}
                         onKeyDown={handleDocListKeyDown}
                     >
-                        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #334155', backgroundColor: '#1e293b' }}>
+                        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #475569', backgroundColor: '#334155' }}>
                             <button
                                 onClick={handleDeleteSelected}
                                 disabled={selectedIndexes.length === 0}
                                 style={{
-                                    backgroundColor: selectedIndexes.length === 0 ? '#334155' : '#ef4444',
-                                    color: selectedIndexes.length === 0 ? '#94a3b8' : 'white',
+                                    backgroundColor: selectedIndexes.length === 0 ? '#475569' : '#ef4444',
+                                    color: selectedIndexes.length === 0 ? '#cbd5e1' : 'white',
                                     border: 'none',
                                     padding: '0.45rem 0.8rem',
                                     borderRadius: '6px',
@@ -800,7 +800,7 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                             </button>
                         </div>
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                            <thead style={{ backgroundColor: '#0f172a', color: '#94a3b8', fontSize: '0.75rem' }}>
+                            <thead style={{ backgroundColor: '#1e293b', color: '#cbd5e1', fontSize: '0.9rem' }}>
                                 <tr>
                                     <th style={{ padding: '0.75rem', width: '48px', textAlign: 'center' }}>
                                         <input
@@ -810,9 +810,11 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                                             onChange={(e) => toggleSelectAllItems(e.target.checked)}
                                         />
                                     </th>
-                                    <th style={{ padding: '0.75rem' }}>零件號碼</th>
-                                    <th style={{ padding: '0.75rem' }}>車型</th>
-                                    <th style={{ padding: '0.75rem' }}>品名</th>
+                                    <th style={{ padding: '0.75rem' }}>零件號碼 (ID)</th>
+                                    <th style={{ padding: '0.75rem' }}>車種 / 年份</th>
+                                    <th style={{ padding: '0.75rem' }}>品名 / 規格</th>
+                                    <th style={{ padding: '0.75rem' }}>品牌</th>
+                                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>庫存</th>
                                     <th style={{ padding: '0.75rem' }}>數量</th>
                                     <th style={{ padding: '0.75rem' }}>單價</th>
                                     <th style={{ padding: '0.75rem' }}>小計</th>
@@ -820,7 +822,13 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                                 </tr>
                             </thead>
                             <tbody ref={itemTbodyRef}>
-                                {doc.items.map((item, idx) => (
+                                {doc.items.map((item, idx) => {
+                                    const associatedProduct = products.find(prod => prod.p_id === item.p_id);
+                                    const displayCarModel = (item.car_model && typeof item.car_model === 'object') ? (item.car_model?.model || '') : (item.car_model || (associatedProduct ? productLineCarModel(associatedProduct) : ''));
+                                    const displayYear = (item.year && typeof item.year === 'object') ? (item.year?.year || '') : (item.year || (associatedProduct ? productLineYear(associatedProduct) : ''));
+                                    const displayBrand = item.brand || associatedProduct?.brand || (associatedProduct?.part_numbers?.[0]?.brand) || '';
+
+                                    return (
                                     <tr
                                         key={idx}
                                         data-doc-dark-item-row-idx={idx}
@@ -838,40 +846,50 @@ const DocumentInnerEditor = ({ docId, type, onSave, onClose, inline = false, doc
                                             />
                                         </td>
                                         <td style={{ padding: '0.75rem' }}>
-                                            <div style={{ color: '#60a5fa', fontWeight: 800, fontFamily: 'monospace' }}>{item.part_number || item.p_id}</div>
-                                            {(() => {
-                                                const p = products.find(prod => prod.p_id === item.p_id);
-                                                if (p && p.part_numbers?.length > 0) {
-                                                    return (
-                                                        <div
-                                                            onClick={(e) => { e.stopPropagation(); setMappingProduct(p); }}
-                                                            style={{
-                                                                marginTop: '4px',
-                                                                fontSize: '10px',
-                                                                backgroundColor: '#334155',
-                                                                padding: '2px 6px',
-                                                                borderRadius: '4px',
-                                                                color: '#60a5fa',
-                                                                border: '1px solid #475569',
-                                                                display: 'inline-block',
-                                                                cursor: 'pointer'
-                                                            }}
-                                                        >
-                                                            +{p.part_numbers.length} 適用
-                                                        </div>
-                                                    );
-                                                }
-                                                return null;
-                                            })()}
+                                            <div style={{ color: '#60a5fa', fontWeight: 800, fontFamily: 'monospace', fontSize: '1.05rem' }}>{item.part_number || item.p_id}</div>
+                                            <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{item.p_id !== item.part_number ? item.p_id : (associatedProduct?.p_id || '')}</div>
+                                            {associatedProduct && associatedProduct.part_numbers?.length > 0 && (
+                                                <div
+                                                    onClick={(e) => { e.stopPropagation(); setMappingProduct(associatedProduct); }}
+                                                    style={{
+                                                        marginTop: '4px',
+                                                        fontSize: '10px',
+                                                        backgroundColor: '#334155',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        color: '#60a5fa',
+                                                        border: '1px solid #475569',
+                                                        display: 'inline-block',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    +{associatedProduct.part_numbers.length} 適用
+                                                </div>
+                                            )}
                                         </td>
-                                        <td style={{ padding: '0.75rem' }}>{item.brand} {(item.car_model && typeof item.car_model === 'object') ? item.car_model.model : item.car_model}</td>
-                                        <td style={{ padding: '0.75rem' }}>{item.name}</td>
-                                        <td><input type="number" value={item.qty} onChange={e => updateItem(idx, 'qty', parseInt(e.target.value))} style={{ width: '60px', background: '#0f172a', color: 'white', border: '1px solid #334155' }} /></td>
-                                        <td><input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value))} style={{ width: '80px', background: '#0f172a', color: 'white', border: '1px solid #334155' }} /></td>
-                                        <td>{(item.qty * item.unit_price).toLocaleString()}</td>
+                                        <td style={{ padding: '0.75rem', fontSize: '1.05rem' }}>
+                                            <div style={{ fontWeight: 800 }}>{displayCarModel}</div>
+                                            <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{displayYear}</div>
+                                        </td>
+                                        <td style={{ padding: '0.75rem', fontSize: '1.05rem' }}>
+                                            <div style={{ fontWeight: 800 }}>{item.name || associatedProduct?.name || '-'}</div>
+                                            <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{item.spec || associatedProduct?.specifications || '-'}</div>
+                                        </td>
+                                        <td style={{ padding: '0.75rem', fontSize: '1.05rem' }}>
+                                            <div style={{ fontWeight: 800 }}>{displayBrand}</div>
+                                        </td>
+                                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                                            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: (associatedProduct?.stock ?? item.stock ?? 0) > 0 ? '#10b981' : '#ef4444' }}>
+                                                {associatedProduct?.stock ?? item.stock ?? '-'}
+                                            </div>
+                                        </td>
+                                        <td><input type="number" value={item.qty} onChange={e => updateItem(idx, 'qty', parseInt(e.target.value))} style={{ width: '60px', background: '#1e293b', color: 'white', border: '1px solid #475569', fontSize: '1.05rem', padding: '0.2rem', borderRadius: '4px' }} /></td>
+                                        <td><input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value))} style={{ width: '80px', background: '#1e293b', color: 'white', border: '1px solid #475569', fontSize: '1.05rem', padding: '0.2rem', borderRadius: '4px' }} /></td>
+                                        <td style={{ fontSize: '1.05rem' }}>{(item.qty * item.unit_price).toLocaleString()}</td>
                                         <td><button onClick={() => removeItem(idx)} style={{ color: '#ef4444' }}><Trash2 size={16} /></button></td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                                 <tr><td colSpan={8} style={{ padding: '1rem' }}><button type="button" onClick={() => setIsPickerOpen(true)} style={{ color: '#3b82f6', border: '1px dashed #3b82f6', background: 'rgba(59, 130, 246, 0.1)', width: '100%', padding: '0.5rem', cursor: 'pointer' }}><Plus size={16} /> 新增零件</button></td></tr>
                             </tbody>
                         </table>

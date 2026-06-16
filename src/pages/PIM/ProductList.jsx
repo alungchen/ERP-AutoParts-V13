@@ -15,6 +15,15 @@ import { collectCustomerSalesHistory, collectSupplierPurchaseHistory } from '../
 import ProductPriceHistoryBody from '../../components/ProductPriceHistoryBody';
 import styles from './ProductList.module.css';
 
+const normalizePartNumber = (s) => {
+    if (s == null || s === '') return '';
+    return String(s)
+        .trim()
+        .normalize('NFKC')
+        .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D\s\-_]/g, '')
+        .toLowerCase();
+};
+
 const getPrimaryPartNumber = (p) =>
     p?.part_number || p?.part_numbers?.[0]?.part_number || '';
 
@@ -83,12 +92,13 @@ const filterProductsByQuery = (sourceProducts, query) => {
     }
 
     if (query.partNumber) {
-        const pattern = query.partNumber.split('*').map(escapeRegExp).join('.*');
+        const cleanQuery = query.partNumber.replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D\s\-_]/g, '');
+        const pattern = cleanQuery.split('*').map(escapeRegExp).join('.*');
         const regex = new RegExp(pattern, 'i');
         filtered = filtered.filter(p =>
-            regex.test(p.part_number || '') ||
-            (p.part_numbers || []).some(pn => regex.test(pn.part_number || '')) ||
-            regex.test(p.p_id || '')
+            regex.test(normalizePartNumber(p.part_number)) ||
+            (p.part_numbers || []).some(pn => regex.test(normalizePartNumber(pn.part_number))) ||
+            regex.test(normalizePartNumber(p.p_id))
         );
     }
 
@@ -651,7 +661,6 @@ const ProductList = () => {
         });
     };
 
-    const getPrimaryPartNumber = (p) => p.part_number || p?.part_numbers?.[0]?.part_number || '';
 
     const toCsvCell = (value) => {
         const str = String(value ?? '');
@@ -880,12 +889,15 @@ const ProductList = () => {
                         if (!row || row.length === 0 || !row[0]) continue;
                         
                         const pid = String(row[0]).trim();
-                        const pidLower = pid.toLowerCase();
-                        // Find product matching part_number or p_id case-insensitively
-                        const product = products.find(p => 
-                            (getPrimaryPartNumber(p) || '').toLowerCase() === pidLower || 
-                            (p.p_id || '').toLowerCase() === pidLower
-                        );
+                        const pidNormalized = normalizePartNumber(pid);
+                        
+                        // Find product matching part_number, p_id, or applicable part_numbers case-insensitively and ignoring spaces/dashes
+                        const product = products.find(p => {
+                            if (normalizePartNumber(getPrimaryPartNumber(p)) === pidNormalized) return true;
+                            if (normalizePartNumber(p.p_id) === pidNormalized) return true;
+                            if ((p.part_numbers || []).some(pn => normalizePartNumber(pn.part_number) === pidNormalized)) return true;
+                            return false;
+                        });
                         
                         let content = '';
                         let applicablePartNums = '';

@@ -29,6 +29,15 @@ import {
 } from '../../utils/productPickerSync';
 import styles from './Documents.module.css';
 
+const normalizePartNumber = (s) => {
+    if (s == null || s === '') return '';
+    return String(s)
+        .trim()
+        .normalize('NFKC')
+        .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D\s\-_]/g, '')
+        .toLowerCase();
+};
+
 const getDefaultLocation = (product, activeBranch) => {
     if (product && Array.isArray(product.stock_details)) {
         const branchStocks = product.stock_details.filter(s => s.branch_id === activeBranch);
@@ -930,11 +939,11 @@ const DocumentEditorPage = () => {
         }
 
         if (pickerQuery.partNumber) {
-            const q = pickerQuery.partNumber.toLowerCase();
+            const q = normalizePartNumber(pickerQuery.partNumber);
             filtered = filtered.filter(p =>
-                (p.p_id || '').toLowerCase().includes(q) ||
-                (p.part_number || '').toLowerCase().includes(q) ||
-                (p.part_numbers || []).some(pn => (pn.part_number || '').toLowerCase().includes(q))
+                normalizePartNumber(p.p_id).includes(q) ||
+                normalizePartNumber(p.part_number).includes(q) ||
+                (p.part_numbers || []).some(pn => normalizePartNumber(pn.part_number).includes(q))
             );
         }
 

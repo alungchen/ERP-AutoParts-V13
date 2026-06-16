@@ -1,3 +1,12 @@
+export function normalizePartNumber(s) {
+    if (s == null || s === '') return '';
+    return String(s)
+        .trim()
+        .normalize('NFKC')
+        .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D\s\-_]/g, '')
+        .toLowerCase();
+}
+
 /** 與產品資料庫列表一致之主編號 */
 export function getPrimaryPartNumber(p) {
     return p?.part_number || p?.part_numbers?.[0]?.part_number || '';
@@ -65,12 +74,12 @@ export function filterProductsByPickerQuery(products, pickerQuery, brands) {
     }
 
     if (pickerQuery.partNumber) {
-        const q = pickerQuery.partNumber.toLowerCase();
+        const q = normalizePartNumber(pickerQuery.partNumber);
         filtered = filtered.filter(
             (p) =>
-                (p.p_id || '').toLowerCase().includes(q) ||
-                (p.part_number || '').toLowerCase().includes(q) ||
-                (p.part_numbers || []).some((pn) => (pn.part_number || '').toLowerCase().includes(q))
+                normalizePartNumber(p.p_id).includes(q) ||
+                normalizePartNumber(p.part_number).includes(q) ||
+                (p.part_numbers || []).some((pn) => normalizePartNumber(pn.part_number).includes(q))
         );
     }
 
