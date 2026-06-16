@@ -34,7 +34,7 @@ const normalizePartNumber = (s) => {
     return String(s)
         .trim()
         .normalize('NFKC')
-        .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D\s\-_]/g, '')
+        .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D\u00ad\u200b-\u200f\uFEFF\s\-_]/g, '')
         .toLowerCase();
 };
 
