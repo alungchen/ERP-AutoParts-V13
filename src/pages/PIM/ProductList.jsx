@@ -879,9 +879,11 @@ const ProductList = () => {
 
                     let headerRow = jsonData[0];
                     if (headerRow.indexOf('內容') === -1) headerRow.push('內容');
+                    if (headerRow.indexOf('比對零件號碼') === -1) headerRow.push('比對零件號碼');
                     if (headerRow.indexOf('適用車型料號') === -1) headerRow.push('適用車型料號');
 
                     const contentColIdx = headerRow.indexOf('內容');
+                    const matchedPartNumColIdx = headerRow.indexOf('比對零件號碼');
                     const carModelPartNumColIdx = headerRow.indexOf('適用車型料號');
 
                     for (let i = 1; i < jsonData.length; i++) {
@@ -900,10 +902,12 @@ const ProductList = () => {
                         });
                         
                         let content = '';
+                        let matchedPartNum = '';
                         let applicablePartNums = '';
                         
                         if (product) {
                             content = [product.name, product.brand, product.specifications].filter(Boolean).join(' | ');
+                            matchedPartNum = getPrimaryPartNumber(product) || product.p_id || '';
                             
                             const pns = product.part_numbers || [];
                             const cms = product.car_models || [];
@@ -921,6 +925,7 @@ const ProductList = () => {
                         }
                         
                         row[contentColIdx] = content;
+                        row[matchedPartNumColIdx] = matchedPartNum;
                         row[carModelPartNumColIdx] = applicablePartNums;
                     }
 
