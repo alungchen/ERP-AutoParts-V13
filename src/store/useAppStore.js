@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { erpPersistStorage } from '../lib/erpPersistStorage';
+import { auth, signOut } from '../firebase';
 
 export const DEFAULT_NAV_ORDER = ['/documents', '/pim', '/suppliers', '/sourcing', '/shorthand-config', '/reports', '/inventory-count', '/settlement', '/settings'];
 
@@ -53,6 +54,12 @@ export const useAppStore = create(persist((set) => ({
     displayMode: 'nightclub', // 'nightclub' | 'light' | 'warm' | 'system'
     setDisplayMode: (mode) => set({ displayMode: mode }),
 
+    /** 全站字級：normal=標準、large=大、xlarge=特大（以 html rem 基準縮放） */
+    uiScale: 'normal', // 'normal' | 'large' | 'xlarge'
+    setUiScale: (scale) => set({
+        uiScale: ['normal', 'large', 'xlarge'].includes(scale) ? scale : 'normal'
+    }),
+
     displayModeCardOrder: DEFAULT_DISPLAY_MODE_CARD_ORDER,
     setDisplayModeCardOrder: (order) => set({ displayModeCardOrder: order }),
 
@@ -88,12 +95,19 @@ export const useAppStore = create(persist((set) => ({
     setEnableLoginSystem: (enabled) => set((state) => ({
         enableLoginSystem: enabled,
         currentUserEmpId: enabled ? state.currentUserEmpId : '',
+        currentUserEmail: enabled ? state.currentUserEmail : '',
         currentUserPhotoURL: enabled ? state.currentUserPhotoURL : ''
     })),
     currentUserEmpId: '',
+    currentUserEmail: '',
     currentUserPhotoURL: '',
-    loginAsEmployee: (empId, photoURL = '') => set({ currentUserEmpId: empId, currentUserPhotoURL: photoURL }),
-    logout: () => set({ currentUserEmpId: '', currentUserPhotoURL: '' }),
+    /** empId 為員工名單中的 emp_id（白名單比對成功）；相容模式下暫存 email */
+    loginAsEmployee: (empId, photoURL = '', email = '') => set({ currentUserEmpId: empId, currentUserPhotoURL: photoURL, currentUserEmail: email }),
+    logout: () => {
+        // 同步登出 Firebase，避免殘留的驗證狀態
+        signOut(auth).catch(() => {});
+        set({ currentUserEmpId: '', currentUserEmail: '', currentUserPhotoURL: '' });
+    },
 
     // Navigation behavior mode
     operationMode: 'current', // 'current' | 'tabbed'

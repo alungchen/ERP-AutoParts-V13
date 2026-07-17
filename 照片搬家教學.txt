@@ -23,7 +23,8 @@ node scripts/scrape_legacy_photos.cjs
 ------------------------------------------------------
 等第一步執行完畢後，請在終端機接著輸入以下指令並按 Enter：
 
-node scripts/migrate_photos_to_r2.cjs
+
+
 
 (說明：這時候搬家工具會去資料庫把剛剛第一步找到的舊照片，全部下載備份到您的電腦 (output/legacy_photos_backup/)，並且自動上傳到您的 Cloudflare R2 永久保存空間，最後更新資料庫。)
 

@@ -1,3 +1,14 @@
+/**
+ * 是否具管理員權限（可進入員工管理、系統設定等管理頁）。
+ * 尚無任何員工綁定 Email（登入管理未設定）時不鎖，避免把自己鎖在門外。
+ */
+export const isAdminUser = ({ enableLoginSystem, enablePermissionRole, currentUser, employees }) => {
+    if (!enableLoginSystem || !enablePermissionRole) return true;
+    const anyBound = (employees || []).some((e) => (e.email || '').trim());
+    if (!anyBound) return true;
+    return currentUser?.permission_role === '管理員';
+};
+
 export const canEditDocType = ({ enableLoginSystem, enablePermissionRole, currentUser, docType }) => {
     if (!enableLoginSystem || !enablePermissionRole) return true;
     if (!currentUser) return false;

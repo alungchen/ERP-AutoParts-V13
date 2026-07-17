@@ -6,8 +6,29 @@ const BATCH_SIZE = 30; // 每一批的數量
 const SLEEP_BETWEEN_BATCHES = 10000; // 批次之間休息 10 秒，避免被鎖 IP
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+const dateArg = process.argv.find(a => a.startsWith('--date='))?.split('=')[1];
+const startDateArg = process.argv.find(a => a.startsWith('--start-date='))?.split('=')[1];
+const endDateArg = process.argv.find(a => a.startsWith('--end-date='))?.split('=')[1];
+
+let dateParam = '';
+let dateMsg = '';
+
+if (startDateArg && endDateArg) {
+  dateParam = ` --start-date=${startDateArg} --end-date=${endDateArg}`;
+  dateMsg = ` (限定日期區間：${startDateArg} 至 ${endDateArg})`;
+} else if (startDateArg) {
+  dateParam = ` --start-date=${startDateArg}`;
+  dateMsg = ` (限定起日：${startDateArg})`;
+} else if (endDateArg) {
+  dateParam = ` --end-date=${endDateArg}`;
+  dateMsg = ` (限定迄日：${endDateArg})`;
+} else if (dateArg) {
+  dateParam = ` --date=${dateArg}`;
+  dateMsg = ` (限定日期：${dateArg})`;
+}
+
 console.log('==================================================');
-console.log('🤖 AI 全自動「缺失單據零件」背景爬蟲任務開始執行');
+console.log(`🤖 AI 全自動「缺失單據零件」背景爬蟲任務開始執行${dateMsg}`);
 console.log('==================================================\n');
 
 (async () => {
@@ -19,7 +40,7 @@ console.log('==================================================\n');
     // 1. 執行比對，準備接下來的料號
     let prepareOutput = '';
     try {
-      prepareOutput = execSync(`node scripts/prepare_missing_batch.cjs --size=${BATCH_SIZE}`, { encoding: 'utf8' });
+      prepareOutput = execSync(`node scripts/prepare_missing_batch.cjs --size=${BATCH_SIZE}${dateParam}`, { encoding: 'utf8' });
       console.log(prepareOutput);
       
       // 如果準備程式提示「恭喜！目前雲端單據中的所有零件料號，在產品資料庫中皆已有資料！」

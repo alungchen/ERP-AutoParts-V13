@@ -4,7 +4,13 @@ import { useTranslation } from '../../i18n';
 import { pullStoresFromD1 } from '../../lib/d1Bootstrap';
 import { pushAllStoresToD1 } from '../../lib/erpPersistStorage';
 import { apiUrl } from '../../lib/apiUrl';
-import { Settings, Globe, CircleDollarSign, Database, LayoutPanelTop, ShieldCheck, LockKeyhole, Palette, CloudDownload, CloudUpload, Trash2, Layers } from 'lucide-react';
+import { Settings, Globe, CircleDollarSign, Database, LayoutPanelTop, ShieldCheck, LockKeyhole, Palette, Type, CloudDownload, CloudUpload, Trash2, Layers, History, RefreshCw } from 'lucide-react';
+
+const UI_SCALE_OPTIONS = [
+    { key: 'normal', title: '標準', desc: '全域基準（18px），多數頁面已比舊版略大。', sample: 'Aa' },
+    { key: 'large', title: '大', desc: '約再放大（20px 基準），日常閱讀更輕鬆。', sample: 'Aa' },
+    { key: 'xlarge', title: '特大', desc: '最大檔（22px 基準），長時間對單更省力。', sample: 'Aa' },
+];
 
 const DISPLAY_MODE_CARDS = {
     nightclub: {
@@ -46,6 +52,7 @@ const SystemSettings = () => {
         enableLoginSystem, setEnableLoginSystem,
         setOperationMode,
         displayMode, setDisplayMode,
+        uiScale, setUiScale,
         displayModeCardOrder, setDisplayModeCardOrder
     } = useAppStore();
     const [draggingDisplayModeIndex, setDraggingDisplayModeIndex] = useState(null);
@@ -56,6 +63,27 @@ const SystemSettings = () => {
     const [dbSyncLoading, setDbSyncLoading] = useState(null);
     const [dbSyncMessage, setDbSyncMessage] = useState(null);
     const [opModeSaved, setOpModeSaved] = useState(false);
+    const [loginLogs, setLoginLogs] = useState([]);
+    const [loginLogsLoading, setLoginLogsLoading] = useState(false);
+    const [loginLogsError, setLoginLogsError] = useState('');
+
+    const fetchLoginLogs = async () => {
+        setLoginLogsLoading(true);
+        setLoginLogsError('');
+        try {
+            const res = await fetch(apiUrl('/api/login-logs?limit=100'));
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setLoginLogs(await res.json());
+        } catch (e) {
+            setLoginLogsError(`載入失敗：${e?.message || String(e)}`);
+        } finally {
+            setLoginLogsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchLoginLogs();
+    }, []);
 
     // 僅在進入設定頁時與 store 對齊一次；若隨 store（跨分頁 rehydrate）不斷同步，會沖掉使用者尚未儲存的選項切換
     useEffect(() => {
@@ -469,6 +497,56 @@ const SystemSettings = () => {
                     </div>
                 </div>
 
+                {/* UI Scale / Font Size */}
+                <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                        <Type className="text-accent-primary" />
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 800 }}>介面字級</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem', marginBottom: '0.9rem' }}>
+                                調整全站文字大小，立即生效，並記住於此瀏覽器。
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.6rem' }}>
+                                {UI_SCALE_OPTIONS.map((opt) => {
+                                    const active = (uiScale || 'normal') === opt.key;
+                                    return (
+                                        <button
+                                            key={opt.key}
+                                            type="button"
+                                            onClick={() => setUiScale(opt.key)}
+                                            style={{
+                                                textAlign: 'left',
+                                                padding: '0.75rem 0.85rem',
+                                                borderRadius: '8px',
+                                                border: `1px solid ${active ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                                                background: active ? 'var(--accent-subtle)' : 'var(--bg-tertiary)',
+                                                color: 'var(--text-primary)',
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem' }}>
+                                                <div style={{ fontWeight: 700 }}>{opt.title}</div>
+                                                <span
+                                                    aria-hidden
+                                                    style={{
+                                                        fontWeight: 800,
+                                                        letterSpacing: '-0.02em',
+                                                        color: active ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                                                        fontSize: opt.key === 'xlarge' ? '1.45rem' : opt.key === 'large' ? '1.25rem' : '1.05rem',
+                                                    }}
+                                                >
+                                                    {opt.sample}
+                                                </span>
+                                            </div>
+                                            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{opt.desc}</div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Operation Mode */}
                 <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
@@ -620,6 +698,85 @@ const SystemSettings = () => {
                         >
                             <span style={{ ...switchThumbStyle, transform: enableLoginSystem ? 'translateX(20px)' : 'translateX(0)' }} />
                         </button>
+                    </div>
+                </div>
+
+                {/* Login Logs */}
+                <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                        <History className="text-accent-primary" style={{ flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.8rem' }}>
+                                <div>
+                                    <div style={{ fontWeight: 800 }}>使用者登入紀錄</div>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                        最近 100 筆登入嘗試（含成功、被白名單擋下、密碼錯誤）。
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={fetchLoginLogs}
+                                    disabled={loginLogsLoading}
+                                    style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                        border: '1px solid var(--border-color)', borderRadius: '8px',
+                                        padding: '0.45rem 0.8rem', fontWeight: 700,
+                                        background: 'var(--bg-tertiary)', color: 'var(--text-primary)',
+                                        cursor: loginLogsLoading ? 'not-allowed' : 'pointer',
+                                        opacity: loginLogsLoading ? 0.65 : 1, flexShrink: 0
+                                    }}
+                                >
+                                    <RefreshCw size={16} />
+                                    {loginLogsLoading ? '載入中…' : '重新整理'}
+                                </button>
+                            </div>
+                            {loginLogsError && (
+                                <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#f87171' }}>{loginLogsError}</div>
+                            )}
+                            <div style={{ marginTop: '0.9rem', maxHeight: '340px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                    <thead>
+                                        <tr style={{ position: 'sticky', top: 0, background: 'var(--bg-tertiary)', zIndex: 1 }}>
+                                            <th style={{ textAlign: 'left', padding: '0.5rem 0.7rem', whiteSpace: 'nowrap' }}>時間</th>
+                                            <th style={{ textAlign: 'left', padding: '0.5rem 0.7rem' }}>Email</th>
+                                            <th style={{ textAlign: 'left', padding: '0.5rem 0.7rem', whiteSpace: 'nowrap' }}>員工</th>
+                                            <th style={{ textAlign: 'left', padding: '0.5rem 0.7rem', whiteSpace: 'nowrap' }}>結果</th>
+                                            <th style={{ textAlign: 'left', padding: '0.5rem 0.7rem' }}>說明</th>
+                                            <th style={{ textAlign: 'left', padding: '0.5rem 0.7rem', whiteSpace: 'nowrap' }}>IP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {loginLogs.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={6} style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                                    {loginLogsLoading ? '載入中…' : '尚無登入紀錄'}
+                                                </td>
+                                            </tr>
+                                        ) : loginLogs.map((log) => {
+                                            const resultLabel = log.result === 'success' ? '✅ 成功'
+                                                : log.result === 'denied' ? '⛔ 已擋下'
+                                                : '❌ 密碼錯誤';
+                                            const resultColor = log.result === 'success' ? '#34d399'
+                                                : log.result === 'denied' ? '#f87171'
+                                                : '#fbbf24';
+                                            const localTime = log.created_at
+                                                ? new Date(`${log.created_at.replace(' ', 'T')}Z`).toLocaleString('zh-TW', { hour12: false })
+                                                : '';
+                                            return (
+                                                <tr key={log.id} style={{ borderTop: '1px solid var(--border-color)' }}>
+                                                    <td style={{ padding: '0.45rem 0.7rem', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{localTime}</td>
+                                                    <td style={{ padding: '0.45rem 0.7rem', wordBreak: 'break-all' }}>{log.email}</td>
+                                                    <td style={{ padding: '0.45rem 0.7rem', whiteSpace: 'nowrap' }}>{log.emp_name || '—'}</td>
+                                                    <td style={{ padding: '0.45rem 0.7rem', whiteSpace: 'nowrap', color: resultColor, fontWeight: 700 }}>{resultLabel}</td>
+                                                    <td style={{ padding: '0.45rem 0.7rem', color: 'var(--text-muted)' }}>{log.reason || ''}</td>
+                                                    <td style={{ padding: '0.45rem 0.7rem', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>{log.ip || ''}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

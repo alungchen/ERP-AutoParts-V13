@@ -4,9 +4,13 @@ const path = require('path');
 const { execSync, spawn } = require('child_process');
 
 const DB_NAME = 'erp-db'; // 你的 D1 資料庫名稱
-const COOKIES_FILE = path.join(__dirname, 'cookies.json');
-const PROFILE_DIR = path.join(__dirname, '.chrome-profile');
+const PRIMARY_COOKIES_FILE = path.join(__dirname, 'cookies_cck.json');
+const FALLBACK_COOKIES_FILE = path.join(__dirname, 'cookies.json');
+// 使用獨立 profile，避免與 login:uparts 佔用同一個 userDataDir
+const PROFILE_DIR = path.join(__dirname, '.chrome-profile-legacy-photos');
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
+const PARTS_QUERY_URL = 'http://cck.uparts.info/car2009/parts_query/';
+const MEDIA_IFRAME_BASE = 'http://cck.uparts.info/car2009/Iframe_MEDIA_List/';
 
 // 自動啟動防休眠程式 (在新視窗開啟)，防止重複開啟
 if (!process.env.KEEP_AWAKE_STARTED) {
@@ -24,6 +28,19 @@ if (!process.env.KEEP_AWAKE_STARTED) {
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function openWithRetry(page, url, options = {}) {
+  try {
+    await page.goto(url, options);
+    return;
+  } catch (err) {
+    if (!String(err.message || '').includes('ERR_BLOCKED_BY_CLIENT')) throw err;
+    // 某些環境會由瀏覽器擴充/代理阻擋 http 請求，嘗試升級為 https
+    const httpsUrl = url.replace(/^http:\/\//i, 'https://');
+    console.log(`  ⚠️ 偵測到 ERR_BLOCKED_BY_CLIENT，改試 HTTPS: ${httpsUrl}`);
+    await page.goto(httpsUrl, options);
+  }
+}
 
 (async () => {
   if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -90,14 +107,29 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     headless: "new",
     userDataDir: PROFILE_DIR,
     protocolTimeout: 1200000,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-extensions',
+      '--disable-component-extensions-with-background-pages',
+      '--no-proxy-server',
+      '--proxy-server=direct://',
+      '--proxy-bypass-list=*',
+      '--disable-features=HttpsFirstBalancedModeAutoEnable,HttpsUpgrades',
+    ]
   });
   const page = await browser.newPage();
   
   // 載入登入狀態
-  if (fs.existsSync(COOKIES_FILE)) {
-    const saved = JSON.parse(fs.readFileSync(COOKIES_FILE, 'utf8'));
+  const cookieFileToUse = fs.existsSync(PRIMARY_COOKIES_FILE)
+    ? PRIMARY_COOKIES_FILE
+    : FALLBACK_COOKIES_FILE;
+  if (fs.existsSync(cookieFileToUse)) {
+    const saved = JSON.parse(fs.readFileSync(cookieFileToUse, 'utf8'));
     await page.setCookie(...saved);
+    console.log(`🔐 已載入登入 Cookie: ${path.basename(cookieFileToUse)}`);
+  } else {
+    console.log('⚠️ 找不到 cookies_cck.json / cookies.json，可能需要先執行登入流程。');
   }
 
   const sqlPath = path.join(OUTPUT_DIR, 'update_legacy_photos.sql');
@@ -111,7 +143,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
     try {
       // 1. 到搜尋頁面搜尋這個料號
-      await page.goto('http://cck.uparts.info/car2009/Default/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await openWithRetry(page, PARTS_QUERY_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await sleep(1000);
       
       await page.evaluate((partNo) => {
@@ -138,9 +170,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       console.log(`  - 取得舊系統 GUID: ${legacyGuid}`);
 
       // 3. 使用 Iframe_MEDIA_List 抓取圖片
-      const url = `http://cck.uparts.info/car2009/Iframe_MEDIA_List/?KeyValue=${legacyGuid}&TableName=%E9%9B%B6%E4%BB%B6%E4%B8%BB%E6%AA%94&message=&TYPE_LABLE=&CHNAME_LABLE=`;
+      const url = `${MEDIA_IFRAME_BASE}?KeyValue=${legacyGuid}&TableName=%E9%9B%B6%E4%BB%B6%E4%B8%BB%E6%AA%94&message=&TYPE_LABLE=&CHNAME_LABLE=`;
       
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await openWithRetry(page, url, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await sleep(1000); // 確保圖片 DOM 載入
 
       const allImgUrls = await page.evaluate(() => {

@@ -24,6 +24,39 @@ if (!process.env.KEEP_AWAKE_STARTED) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+function executeRemoteSqlWithFallback(sqlPath, sqlStatements) {
+  try {
+    execSync(`npx wrangler d1 execute ${DB_NAME} --remote --file=output/migrate_r2.sql --yes`, {
+      cwd: path.join(__dirname, '..'),
+      stdio: 'inherit',
+    });
+    return { ok: true, mode: 'file' };
+  } catch (fileErr) {
+    console.log('⚠️ 檔案模式更新失敗，改用逐條 SQL 重試...');
+    let okCount = 0;
+    const failed = [];
+    for (const sql of sqlStatements) {
+      try {
+        execSync(
+          `npx wrangler d1 execute ${DB_NAME} --remote --command=${JSON.stringify(sql)} --json`,
+          { cwd: path.join(__dirname, '..'), stdio: 'pipe' }
+        );
+        okCount++;
+      } catch (lineErr) {
+        failed.push(sql);
+      }
+    }
+    if (failed.length > 0) {
+      const failedPath = path.join(__dirname, '..', 'output', 'migrate_r2_failed.sql');
+      fs.writeFileSync(failedPath, failed.join('\n'), 'utf8');
+      console.log(`❌ 逐條更新仍有 ${failed.length} 筆失敗，已輸出: ${failedPath}`);
+      return { ok: false, mode: 'line', okCount, failedCount: failed.length };
+    }
+    console.log(`✅ 逐條更新成功 (${okCount}/${sqlStatements.length})`);
+    return { ok: true, mode: 'line', okCount, failedCount: 0 };
+  }
+}
+
 (async () => {
   if (!fs.existsSync(TEMP_DIR)) {
       fs.mkdirSync(TEMP_DIR, { recursive: true });
@@ -130,7 +163,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       const sqlPath = path.join(__dirname, '..', 'output', 'migrate_r2.sql');
       fs.writeFileSync(sqlPath, sqlStatements.join('\n'), 'utf8');
       try {
-          execSync(`npx wrangler d1 execute ${DB_NAME} --remote --file=output/migrate_r2.sql --yes`, { cwd: path.join(__dirname, '..'), stdio: 'inherit' });
+          const result = executeRemoteSqlWithFallback(sqlPath, sqlStatements);
+          if (!result.ok) {
+            console.error('\n❌ 更新資料庫仍有失敗，請檢查 output/migrate_r2_failed.sql 後重試。');
+            process.exit(1);
+          }
           console.log(`\n✅ 搬移大功告成！成功將 ${totalPhotosMigrated} 張舊照片搬到您的 Cloudflare R2 空間！`);
           console.log(`💾 另外，所有的實體照片都已經備份在您的電腦資料夾中: output/legacy_photos_backup/`);
       } catch (e) {

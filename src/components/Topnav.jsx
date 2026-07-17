@@ -71,7 +71,7 @@ const Topnav = () => {
                 <button className={styles.iconBtn} aria-label="Notifications">
                     <Bell size={20} />
                 </button>
-                {enableLoginSystem && (
+                {(enableLoginSystem || currentUserEmpId) && (
                     <button className={styles.iconBtn} aria-label="Logout" title="登出" onClick={async () => {
                         try {
                             await signOut(auth);

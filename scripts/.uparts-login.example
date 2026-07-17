@@ -1,0 +1,6 @@
+# uParts SERVICE_CENTER 登入憑證（複製為 .uparts-login.local 後填入）
+# 此檔可提交 git；.uparts-login.local 已被 .gitignore 排除
+
+UPARTS_SERVICE=car00xxx
+UPARTS_USER=your_user
+UPARTS_PASSWORD=your_password

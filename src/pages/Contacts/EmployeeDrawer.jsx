@@ -36,7 +36,8 @@ const EmployeeDrawer = ({ employee, onClose }) => {
         permission_role: '一般',
         email: '',
         extension: '',
-        status: '在職'
+        status: '在職',
+        can_login: true
     };
 
     const [form, setForm] = useState(emptyForm);
@@ -171,6 +172,49 @@ const EmployeeDrawer = ({ employee, onClose }) => {
                                 <label className={drawerStyles.label}>起雇日</label>
                                 <input className={drawerStyles.input} type="date" value={form.hire_date || ''} onChange={(e) => set('hire_date', e.target.value)} />
                             </div>
+                        </div>
+                    </div>
+
+                    {/* 系統登入與權限 */}
+                    <div className={drawerStyles.section}>
+                        <div className={drawerStyles.sectionTitle}>系統登入與權限</div>
+                        <div className={drawerStyles.inputGroup}>
+                            <label className={drawerStyles.label}>系統登入帳號 Email（Google / Email 登入用）</label>
+                            <input
+                                className={drawerStyles.input}
+                                type="email"
+                                value={form.email || ''}
+                                onChange={(e) => set('email', e.target.value)}
+                                placeholder="name@gmail.com（留空 = 此員工無法登入系統）"
+                            />
+                        </div>
+                        <div className="flex gap-3">
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>權限角色{!enablePermissionRole ? '（目前權限功能未啟用）' : ''}</label>
+                                <select className={drawerStyles.input} value={form.permission_role || '一般'} onChange={(e) => set('permission_role', e.target.value)}>
+                                    {PERMISSION_ROLES.map((r) => <option key={r}>{r}</option>)}
+                                </select>
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>在職狀態</label>
+                                <select className={drawerStyles.input} value={form.status || '在職'} onChange={(e) => set('status', e.target.value)}>
+                                    {STATUSES.map((s) => <option key={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>允許登入</label>
+                                <select
+                                    className={drawerStyles.input}
+                                    value={form.can_login === false ? 'no' : 'yes'}
+                                    onChange={(e) => set('can_login', e.target.value === 'yes')}
+                                >
+                                    <option value="yes">允許</option>
+                                    <option value="no">停用</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="text-muted text-xs" style={{ marginTop: '-4px' }}>
+                            只有「在職 ＋ 允許登入 ＋ Email 相符」的員工才能登入系統。
                         </div>
                     </div>
 

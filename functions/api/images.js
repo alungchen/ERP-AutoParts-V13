@@ -32,6 +32,31 @@ export async function onRequestGet(context) {
   
   const object = await context.env.BUCKET.get(path);
   if (object === null) {
+    // 本機開發（localhost）時，若 local R2 沒有檔案則改向雲端抓取同路徑。
+    const isLocalDevHost =
+      url.hostname === 'localhost' ||
+      url.hostname === '127.0.0.1' ||
+      url.hostname === '0.0.0.0';
+
+    if (isLocalDevHost) {
+      try {
+        const fallbackBase = 'https://erp-autoparts-v13.pages.dev';
+        const fallbackUrl = `${fallbackBase}/api/images?path=${encodeURIComponent(path)}`;
+        const fallbackResp = await fetch(fallbackUrl);
+        if (fallbackResp.ok) {
+          const headers = new Headers(fallbackResp.headers);
+          headers.set('Cache-Control', 'public, max-age=31536000');
+          headers.set('x-image-source', 'remote-fallback');
+          return new Response(fallbackResp.body, {
+            status: fallbackResp.status,
+            headers,
+          });
+        }
+      } catch {
+        // Ignore fallback error and return local not found.
+      }
+    }
+
     return new Response('Object Not Found', { status: 404 });
   }
   
@@ -40,6 +65,7 @@ export async function onRequestGet(context) {
   headers.set('etag', object.httpEtag);
   // Cache headers to make images load fast
   headers.set('Cache-Control', 'public, max-age=31536000');
+  headers.set('x-image-source', 'local-r2');
   
   return new Response(object.body, { headers });
 }

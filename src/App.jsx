@@ -25,12 +25,33 @@ import LoginPage from './pages/Auth/LoginPage';
 import InventoryCountPage from './pages/InventoryCount/InventoryCountPage';
 import SettlementPage from './pages/Settlement/SettlementPage';
 import { usePriceInputSelectOnFocus } from './hooks/usePriceInputSelectOnFocus';
+import { isAdminUser } from './utils/permissions';
 // import useGlobalEnterNavigation from './hooks/useGlobalEnterNavigation';
+
+/** 僅限「管理員」角色進入的頁面守衛（登入管理未設定時不鎖，避免鎖死） */
+function RequireAdmin({ children }) {
+  const { enableLoginSystem, enablePermissionRole, currentUserEmpId } = useAppStore();
+  const { employees } = useEmployeeStore();
+  const currentUser = employees.find((e) => e.emp_id === currentUserEmpId);
+
+  if (isAdminUser({ enableLoginSystem, enablePermissionRole, currentUser, employees })) {
+    return children;
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '0.8rem', padding: '2rem', textAlign: 'center' }}>
+      <div style={{ fontSize: '2.5rem' }}>🔒</div>
+      <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>權限不足</h2>
+      <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+        此頁面僅限「管理員」角色使用。<br />如需存取請聯絡系統管理員調整您的權限角色。
+      </p>
+    </div>
+  );
+}
 
 function App() {
   usePriceInputSelectOnFocus(); // 聚焦單價/售價/定價等數字欄位時全選
   // useGlobalEnterNavigation(); // 暫時停用以排查白屏問題
-  const { enableLoginSystem, currentUserEmpId, displayMode, activeBranchId, fetchBranches } = useAppStore();
+  const { enableLoginSystem, currentUserEmpId, displayMode, uiScale, activeBranchId, fetchBranches } = useAppStore();
   const fetchProducts = useProductStore(state => state.fetchProducts);
   const fetchShorthands = useShorthandStore(state => state.fetchShorthands);
   const fetchDocuments = useDocumentStore(state => state.fetchDocuments);
@@ -86,6 +107,11 @@ function App() {
     return () => mediaQuery.removeEventListener('change', applySystemTheme);
   }, [displayMode]);
 
+  useEffect(() => {
+    const scale = ['normal', 'large', 'xlarge'].includes(uiScale) ? uiScale : 'normal';
+    document.documentElement.setAttribute('data-ui-scale', scale);
+  }, [uiScale]);
+
   // Dynamic theme colors per branch to prevent user operation errors
   useEffect(() => {
     const root = document.documentElement;
@@ -134,12 +160,12 @@ function App() {
           <Route path="import-cost/estimate" element={<Navigate to="/sourcing/estimate" replace />} />
           <Route path="suppliers" element={<ContactManager />} />
           <Route path="customers" element={<ContactManager />} />
-          <Route path="employees" element={<ContactManager />} />
+          <Route path="employees" element={<RequireAdmin><ContactManager /></RequireAdmin>} />
           <Route path="documents" element={<DocumentHub />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="inventory-count" element={<InventoryCountPage />} />
           <Route path="settlement" element={<SettlementPage />} />
-          <Route path="settings" element={<SystemSettings />} />
+          <Route path="settings" element={<RequireAdmin><SystemSettings /></RequireAdmin>} />
           <Route path="shorthand-config" element={<ShorthandConfig />} />
         </Route>
         <Route path="/document-editor" element={<DocumentEditorPage />} />

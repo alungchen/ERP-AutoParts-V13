@@ -114,8 +114,22 @@
   padding: 0;
 }
 
+/* 全站字級（系統設定可調；以 rem 為基準，多數元件會跟著放大） */
+html {
+  font-size: 18px; /* 全域基準（原 16px） */
+}
+
+html[data-ui-scale='large'] {
+  font-size: 20px;
+}
+
+html[data-ui-scale='xlarge'] {
+  font-size: 22px;
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.5;

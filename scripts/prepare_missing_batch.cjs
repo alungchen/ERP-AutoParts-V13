@@ -8,14 +8,35 @@ const KEYWORDS_FILE = path.join(__dirname, '..', 'keywords.txt');
 const sizeArg = process.argv.find(a => a.startsWith('--size='))?.split('=')[1];
 const limit = parseInt(sizeArg || '30'); // 預設每批 30 筆，避免對方伺服器負荷過大
 
+const dateArg = process.argv.find(a => a.startsWith('--date='))?.split('=')[1];
+const startDateArg = process.argv.find(a => a.startsWith('--start-date='))?.split('=')[1];
+const endDateArg = process.argv.find(a => a.startsWith('--end-date='))?.split('=')[1];
+
+let dateFilter = '';
+let dateMsg = '';
+
+if (startDateArg && endDateArg) {
+  dateFilter = ` AND date >= '${startDateArg}' AND date <= '${endDateArg}'`;
+  dateMsg = ` (限定日期區間：${startDateArg} 至 ${endDateArg})`;
+} else if (startDateArg) {
+  dateFilter = ` AND date >= '${startDateArg}'`;
+  dateMsg = ` (限定起日：${startDateArg})`;
+} else if (endDateArg) {
+  dateFilter = ` AND date <= '${endDateArg}'`;
+  dateMsg = ` (限定迄日：${endDateArg})`;
+} else if (dateArg) {
+  dateFilter = ` AND date = '${dateArg}'`;
+  dateMsg = ` (限定日期：${dateArg})`;
+}
+
 console.log('==================================================');
-console.log('🔍 正在從雲端 D1 資料庫尋找單據中缺失的零件料號...');
+console.log(`🔍 正在從雲端 D1 資料庫尋找單據中缺失的零件料號${dateMsg}...`);
 console.log('==================================================\n');
 
 try {
   // 查詢雲端 D1 中，存在於「銷貨單」明細但不存在於產品資料庫的零件號碼
-  const query = `SELECT DISTINCT p_id FROM document_items WHERE doc_id IN (SELECT doc_id FROM documents WHERE type = 'sales') AND p_id NOT IN (SELECT p_id FROM products) ORDER BY p_id LIMIT ${limit};`;
-  const totalQuery = `SELECT COUNT(DISTINCT p_id) as count FROM document_items WHERE doc_id IN (SELECT doc_id FROM documents WHERE type = 'sales') AND p_id NOT IN (SELECT p_id FROM products);`;
+  const query = `SELECT DISTINCT p_id FROM document_items WHERE doc_id IN (SELECT doc_id FROM documents WHERE type = 'sales'${dateFilter}) AND p_id NOT IN (SELECT p_id FROM products) ORDER BY p_id LIMIT ${limit};`;
+  const totalQuery = `SELECT COUNT(DISTINCT p_id) as count FROM document_items WHERE doc_id IN (SELECT doc_id FROM documents WHERE type = 'sales'${dateFilter}) AND p_id NOT IN (SELECT p_id FROM products);`;
   
   // 取得總缺失數量
   const totalResult = execSync(`npx wrangler d1 execute erp-db --remote --command="${totalQuery}" --json`, { encoding: 'utf8' });
