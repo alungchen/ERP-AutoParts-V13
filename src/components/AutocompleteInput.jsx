@@ -177,7 +177,9 @@ const AutocompleteInput = ({ value, onChange, placeholder, data, filterKey, labe
                 background: 'var(--bg-tertiary)',
                 border: `1px solid ${isFocused ? 'var(--accent-primary)' : 'var(--border-color)'}`,
                 borderRadius: '8px',
-                padding: compact ? '0 8px' : '0 12px',
+                padding: '0 12px',
+                minHeight: compact ? '36px' : undefined,
+                boxSizing: 'border-box',
                 opacity: disabled ? 0.6 : 1,
                 boxShadow: isFocused ? '0 0 0 3px var(--accent-subtle)' : 'none',
                 transition: 'border-color 0.15s ease, box-shadow 0.15s ease'
@@ -208,12 +210,14 @@ const AutocompleteInput = ({ value, onChange, placeholder, data, filterKey, labe
                     disabled={disabled}
                     style={{
                         width: '100%',
-                        padding: compact ? '6px 0' : '10px 0',
+                        padding: compact ? '8px 0' : '10px 0',
                         border: 'none',
                         background: 'transparent',
                         color: 'var(--text-primary)',
                         outline: 'none',
-                        fontSize: compact ? '13px' : '14px',
+                        fontSize: compact ? '0.85rem' : '14px',
+                        lineHeight: 1.25,
+                        boxSizing: 'border-box',
                         cursor: disabled ? 'not-allowed' : 'text'
                     }}
                 />

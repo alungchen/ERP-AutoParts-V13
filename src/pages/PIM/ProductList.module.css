@@ -276,6 +276,8 @@
 
 .searchInput {
     outline: none;
+    box-sizing: border-box;
+    height: 36px;
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
