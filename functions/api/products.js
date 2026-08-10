@@ -69,9 +69,14 @@ export async function onRequestGet(context) {
       `SELECT ${cols} FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?`
     ).bind(limit, offset).all();
 
-    const { results: stockDetails } = await context.env.DB.prepare(
-      'SELECT p_id, branch_id, location_code, qty FROM product_stock'
-    ).all();
+    // 只取當頁產品的庫存，避免每次全表掃描 product_stock
+    const { results: stockDetails } = await context.env.DB.prepare(`
+      SELECT ps.p_id, ps.branch_id, ps.location_code, ps.qty
+      FROM product_stock ps
+      WHERE ps.p_id IN (
+        SELECT p_id FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?
+      )
+    `).bind(limit, offset).all();
 
     const stockMap = new Map();
     for (const row of stockDetails || []) {

@@ -14,7 +14,7 @@ export const useProductStore = create((set, get) => ({
   fetchProducts: async () => {
     set({ isLoading: true });
     try {
-      const pageSize = 1500;
+      const pageSize = 800;
       let offset = 0;
       let total = Infinity;
       const all = [];

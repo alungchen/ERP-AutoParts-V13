@@ -183,9 +183,13 @@ export default {
                     `SELECT ${cols} FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?`
                 ).bind(limit, offset).all();
 
-                const { results: stockDetails } = await env.DB.prepare(
-                    'SELECT p_id, branch_id, location_code, qty FROM product_stock'
-                ).all();
+                const { results: stockDetails } = await env.DB.prepare(`
+                    SELECT ps.p_id, ps.branch_id, ps.location_code, ps.qty
+                    FROM product_stock ps
+                    WHERE ps.p_id IN (
+                        SELECT p_id FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?
+                    )
+                `).bind(limit, offset).all();
 
                 const stockMap = new Map();
                 for (const row of stockDetails || []) {
