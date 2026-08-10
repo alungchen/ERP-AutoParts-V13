@@ -16,6 +16,20 @@ VW-001
 
 > **提示**：系統會按照您填寫的順序，自動一個接一個幫您搜尋並抓取資料。建議一次不要填寫太多（例如控制在 5~10 個以內），以免對方的伺服器承受不住而當機。
 
+## 🖥️ 單獨開啟 cck2 操作視窗（免申請裝置授權）
+
+若您只是想**自己登入 cck2 操作舊系統**（查資料、開單等），不需要跑爬蟲，執行：
+
+```bash
+npm run open:cck2
+```
+
+- 會沿用這台電腦**已授權的 MachineId** 與既有 Session，直接開一個獨立 Chrome 視窗進入系統，**不必再請管理員核准新裝置**。
+- 若既有 Session 剛好過期，視窗會停在登入頁：直接輸入您自己的服務編號/帳號/密碼即可（裝置檢查會通過，不會跳「尚未授權」）。
+- 登入成功後會把您的 Session 存到 `scripts/cookies_cck2_user.json`（已 gitignore），下次執行同一指令就直接進系統。
+- 這個視窗用獨立的瀏覽器 Profile，不會干擾爬蟲或單據同步程式。
+- 指定 Cookie 來源：`node scripts/launch_cck2.cjs --from=xizhi` 或 `--from=songshan`。
+
 ## 🔐 登入 uParts / 刷新 Cookie
 
 爬蟲需要 uParts 登入狀態。若 Session 過期或被導向 SERVICE_CENTER，請先執行登入腳本。

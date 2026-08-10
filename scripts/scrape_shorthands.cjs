@@ -1,351 +1,210 @@
+/**
+ * scrape_shorthands.cjs — 抓取舊系統（cck2）片語資料
+ *
+ * 目標頁面：
+ *   車型片語  /car2009/Type_Query2/
+ *   品名片語  /car2009/Chname_Query2/
+ *   品牌片語  /car2009/Brand_Query2/
+ *
+ * 流程：注入既有 Session → 開頁 → 調大每頁筆數 → 按「查詢」→ 逐頁抓取 → 輸出 CSV
+ *
+ * 用法:
+ *   node scripts/scrape_shorthands.cjs              # 三種全抓
+ *   node scripts/scrape_shorthands.cjs --only=model # 只抓車型（model|part|brand）
+ *   node scripts/scrape_shorthands.cjs --headless   # 無頭模式（預設就是無頭）
+ *
+ * 輸出:
+ *   output/shorthand_model.csv
+ *   output/shorthand_part.csv
+ *   output/shorthand_brand.csv
+ */
+
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const PROFILE_DIR = path.join(__dirname, '.chrome-profile-shorthand');
+const HOST = 'cck2.uparts.info';
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
-const BASE_URL = 'http://cck.uparts.info/car2009';
+const PAGE_SIZE = 200;
+
+const COOKIE_CANDIDATES = [
+  path.join(__dirname, 'cookies_cck2_user.json'),
+  path.join(__dirname, 'cookies_xizhi.json'),
+  path.join(__dirname, 'cookies_songshan.json'),
+];
+
+const TARGETS = [
+  { key: 'model', label: '車型片語', url: `http://${HOST}/car2009/Type_Query2/` },
+  { key: 'part',  label: '品名片語', url: `http://${HOST}/car2009/Chname_Query2/` },
+  { key: 'brand', label: '品牌片語', url: `http://${HOST}/car2009/Brand_Query2/` },
+];
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+function parseArg(name) {
+  const prefix = `--${name}=`;
+  const hit = process.argv.find(a => a.startsWith(prefix));
+  return hit ? hit.slice(prefix.length) : null;
+}
+
+function escapeCSV(val) {
+  const s = String(val ?? '').trim();
+  return (s.includes(',') || s.includes('"') || s.includes('\n'))
+    ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
 function writeCSV(filePath, headers, rows) {
-    const escapeCSV = val => {
-        const s = String(val ?? '').trim();
-        return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g, '""') + '"' : s;
-    };
-    const lines = [headers.join(','), ...rows.map(r => r.map(escapeCSV).join(','))];
-    fs.writeFileSync(filePath, '\uFEFF' + lines.join('\n'), 'utf8');
-    console.log(`  ✓ 成功匯出 ${rows.length} 筆資料至 ${path.basename(filePath)}`);
+  const lines = [headers.join(','), ...rows.map(r => r.map(escapeCSV).join(','))];
+  fs.writeFileSync(filePath, '\uFEFF' + lines.join('\n'), 'utf8');
+  console.log(`  💾 ${rows.length} 筆 → ${path.basename(filePath)}`);
 }
 
-// 從目前頁面讀取所有資料列（透過 input value 方式讀取）
-async function readCurrentPageRows(page, colConfig) {
-    return await page.evaluate((colConfig) => {
-        const results = [];
-        // 嘗試使用 ele_detail_{row}_{field} 模式讀取
-        let row = 1;
-        while (true) {
-            const codeEl = document.querySelector(`[id*="detail_${row}_"]`) ||
-                           document.querySelector(`[name*="detail_${row}_"]`);
-            if (!codeEl) break;
-
-            const rowData = {};
-            colConfig.forEach(col => {
-                const el = document.querySelector(`#ele_detail_${row}_${col.field}`) ||
-                           document.querySelector(`[name="ele_detail_${row}_${col.field}"]`) ||
-                           document.querySelector(`input[id$="_${row}_${col.field}"]`);
-                rowData[col.key] = el ? (el.value || el.innerText || '').trim() : '';
-            });
-            results.push(rowData);
-            row++;
-        }
-
-        // 如果上方方式找不到，改用 tr 表格方式讀取
-        if (results.length === 0) {
-            const trs = Array.from(document.querySelectorAll('table tr'));
-            for (const tr of trs) {
-                const tds = Array.from(tr.querySelectorAll('td'));
-                if (tds.length < 3) continue;
-
-                // 嘗試從 td 內的 input 讀取值
-                const vals = tds.map(td => {
-                    const inp = td.querySelector('input[type="text"], input:not([type="checkbox"]):not([type="button"])');
-                    return inp ? inp.value.trim() : td.innerText.trim();
-                });
-
-                // 過濾掉明顯是標頭的列
-                if (vals[0] && /^\d+$/.test(vals[0])) {
-                    results.push({ _raw: vals });
-                } else if (vals.length >= 3 && vals[1] && vals[1].length > 0 && vals[1] !== '代碼' && vals[1] !== 'Shorthand') {
-                    results.push({ _raw: vals });
-                }
-            }
-        }
-
-        return results;
-    }, colConfig);
-}
-
-async function scrapeShorthands(page, url, name, config) {
-    console.log(`\n▶️  開始抓取 [${name}] 片語表...`);
-    
-    try {
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
-    } catch (e) {
-        console.log(`  ⚠ 頁面載入超時，嘗試繼續...`);
+async function extractGrid(page) {
+  return page.evaluate(() => {
+    const container = document.querySelector('#DataGridDetail') || document.body;
+    // 表頭：DataGridDetail 內第一個「沒有 row 屬性、且含『代碼』字樣」的列
+    let headers = [];
+    for (const tr of container.querySelectorAll('tr')) {
+      if (tr.hasAttribute('row')) continue;
+      const texts = Array.from(tr.cells || []).map(c => c.innerText.trim().replace(/\s+/g, ''));
+      if (texts.length >= 3 && texts.includes('代碼')) {
+        headers = texts.map((t, i) => t || `col${i}`);
+        break;
+      }
     }
-    await sleep(2000);
-
-    // 確認是否還在登入狀態（檢查是否被導向登入頁）
-    const currentUrl = page.url();
-    if (currentUrl.includes('Login') || currentUrl.includes('login')) {
-        console.log(`  ❌ 登入 session 已過期，無法繼續。請重新登入後再執行此腳本。`);
-        return;
-    }
-
-    // 確認頁面標題含片語關鍵字
-    const pageTitle = await page.title().catch(() => '');
-    console.log(`  📄 頁面標題: ${pageTitle} (URL: ${page.url()})`);
-
-    const allData = [];
-    const seenCodes = new Set();
-    
-    // 先試用空值查詢一次（某些系統可以空值查全部）
-    const searchChars = ['', '%', ...'0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\u4e00\u4e8c\u4e09\u56db\u4e94\u767c\u8f2a\u5236\u8a66\u78ba\u53c3\u6d3e\u5e94\u8eca\u5439\u52a0\u7afc\u706b\u5c01\u6cb9\u9580\u5b89\u5168\u8f49\u5411\u7b2c\u524d\u5f8c\u5de6\u53f3\u4e0a\u4e0b\u5916\u5167\u90e8\u6a21\u5200\u6c34\u9ad8\u5c0f\u9762\u9762\u7b2c\u7814'.split('')];
-    
-    for (const char of searchChars) {
-        const label = char === '' ? '(空值)' : `'${char}'`;
-        process.stdout.write(`  [${name}] 搜尋 ${label} ... `);
-
-        // 找到搜尋欄位並輸入
-        await page.evaluate((c) => {
-            // 嘗試多種方式找到查詢輸入框
-            const inp = document.querySelector('input#ele_search_code') ||
-                        document.querySelector('input[name="ele_search_code"]') ||
-                        document.querySelector('input[id*="search"][type="text"]') ||
-                        document.querySelector('td.search_td input[type="text"]') ||
-                        document.querySelector('input[type="text"]');
-            if (inp) {
-                inp.value = c;
-                inp.dispatchEvent(new Event('input', { bubbles: true }));
-                inp.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }, char);
-
-        // 按查詢按鈕
-        await page.evaluate(() => {
-            const btn = document.querySelector('input[value="查詢"]') ||
-                        document.querySelector('button[onclick*="query"]') ||
-                        Array.from(document.querySelectorAll('input[type="button"]')).find(b => b.value === '查詢') ||
-                        Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === '查詢');
-            if (btn) btn.click();
-        });
-
-        await sleep(3000); // 等待搜尋結果
-
-        // 取得筆數與總頁數
-        const { totalRows, totalPages, rowsPerPage } = await page.evaluate(() => {
-            const text = document.body.innerText || '';
-            // 嘗試匹配「共 XX 筆」「共XX頁」等格式
-            const rowMatch = text.match(/共\s*(\d+)\s*筆/);
-            const pageMatch = text.match(/共\s*(\d+)\s*頁/);
-            const perPageEl = document.querySelector('#ele_PageControl_PageRows') ||
-                              document.querySelector('select[name*="page"]');
-            const perPage = perPageEl ? parseInt(perPageEl.value) || 10 : 10;
-            return {
-                totalRows: rowMatch ? parseInt(rowMatch[1]) : 0,
-                totalPages: pageMatch ? parseInt(pageMatch[1]) : 1,
-                rowsPerPage: perPage
-            };
-        });
-
-        if (totalRows === 0 && char !== '') {
-            console.log(`0 筆`);
-            continue;
-        }
-
-        let charAdded = 0;
-
-        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-            if (pageNum > 1) {
-                process.stdout.write(`    [${name}] 翻頁到第 ${pageNum}/${totalPages} 頁 ... `);
-            }
-
-            // 讀取當前頁所有資料列（使用更通用的方式）
-            const rows = await page.evaluate((colFields) => {
-                const results = [];
-                
-                // 方法 1: 嘗試讀取 input 欄位（CCK 系統常用此方式）
-                let rowIdx = 1;
-                let found = false;
-                while (rowIdx <= 200) {
-                    // 尋找該列的代碼欄
-                    const codeField = colFields[0]; // 第一個欄位通常是代碼
-                    const codeEl = document.querySelector(`#ele_detail_${rowIdx}_${codeField}`) ||
-                                   document.querySelector(`[id="ele_detail_${rowIdx}_${codeField}"]`);
-                    if (!codeEl) {
-                        if (rowIdx > 3 && !found) break; // 前幾列都找不到才停
-                        rowIdx++;
-                        continue;
-                    }
-                    found = true;
-                    const rowData = colFields.map(field => {
-                        const el = document.querySelector(`#ele_detail_${rowIdx}_${field}`) ||
-                                   document.querySelector(`[id="ele_detail_${rowIdx}_${field}"]`);
-                        return el ? (el.value || el.innerText || '').trim() : '';
-                    });
-                    results.push(rowData);
-                    rowIdx++;
-                }
-
-                // 方法 2: 如果方法1找不到，改用 table row 方式
-                if (results.length === 0) {
-                    const trs = Array.from(document.querySelectorAll('tbody tr, table tr'));
-                    for (const tr of trs) {
-                        const tds = Array.from(tr.querySelectorAll('td'));
-                        if (tds.length < 2) continue;
-                        const vals = tds.map(td => {
-                            const inp = td.querySelector('input[type="text"]');
-                            if (inp) return inp.value.trim();
-                            // 排除 checkbox 和 button
-                            const checkOrBtn = td.querySelector('input[type="checkbox"], input[type="button"], button');
-                            if (checkOrBtn && tds.indexOf(td) === 0) return '_checkbox_'; 
-                            return td.innerText.replace(/\n/g, ' ').trim();
-                        });
-                        // 過濾掉標頭和空列
-                        if (vals.filter(v => v && v !== '_checkbox_').length >= 2) {
-                            const firstVal = vals.find(v => v && v !== '_checkbox_');
-                            // 跳過標頭列（通常是中文標題）
-                            if (firstVal && !/^(代碼|Shorthand|序號|項次|品名|車型|品牌)$/.test(firstVal)) {
-                                results.push(vals);
-                            }
-                        }
-                    }
-                }
-
-                return results;
-            }, config.colFields);
-
-            for (const cols of rows) {
-                let code, display, third;
-                
-                if (config.useColFields) {
-                    // 使用 colFields 讀取時，順序固定
-                    [code, display, third] = [cols[0], cols[1], cols[2] || ''];
-                } else {
-                    // 使用 table row 讀取時，找到有效欄位
-                    const validCols = cols.filter(c => c && c !== '_checkbox_');
-                    if (validCols.length < 2) continue;
-                    // 序號通常是第1欄，代碼是第2欄，顯示名是第4欄（根據截圖）
-                    const nonNumCols = validCols.filter(c => !/^\d+$/.test(c));
-                    code = nonNumCols[0] || '';
-                    display = nonNumCols[1] || '';
-                    third = nonNumCols[2] || '';
-                }
-
-                if (code && display && !seenCodes.has(code.toLowerCase())) {
-                    seenCodes.add(code.toLowerCase());
-                    allData.push([code, display, third]);
-                    charAdded++;
-                }
-            }
-
-            if (pageNum > 1) console.log(`找到 ${rows.length} 列`);
-
-            // 翻到下一頁
-            if (pageNum < totalPages) {
-                await page.evaluate(() => {
-                    const nextBtn = document.querySelector('#btn_PageControl_PageNext') ||
-                                   document.querySelector('[id*="PageNext"]') ||
-                                   document.querySelector('input[value="下頁"], input[value="下一頁"]');
-                    if (nextBtn) nextBtn.click();
-                });
-                await sleep(2500);
-            }
-        }
-
-        console.log(`找到 ${charAdded} 筆新資料 (累計 ${allData.length} 筆)`);
-
-        // 如果空值查詢就找到大量資料，代表空值可以查全部，直接結束搜尋
-        if (char === '' && charAdded > 5) {
-            console.log(`  💡 空值查詢有效，已取得完整資料，略過其餘字元搜尋。`);
-            break;
-        }
-        // 如果 % 查詢有效
-        if (char === '%' && charAdded > 5) {
-            console.log(`  💡 萬用字元 % 查詢有效，已取得完整資料，略過其餘字元搜尋。`);
-            break;
-        }
-    }
-    
-    console.log(`✅ [${name}] 共計抓取 ${allData.length} 筆不重複資料。`);
-    
-    // 輸出 CSV
-    const csvPath = path.join(OUTPUT_DIR, config.filename);
-    writeCSV(csvPath, config.headers, allData);
+    // 資料列（tr 具有 row 屬性）
+    const rows = Array.from(container.querySelectorAll('tr'))
+      .filter(tr => tr.hasAttribute('row') && tr.querySelectorAll('td').length >= 3)
+      .map(tr => Array.from(tr.cells).map(td => {
+        const inp = td.querySelector('input[type=text], input[type=number], input:not([type]), textarea');
+        return (inp ? inp.value : td.innerText).trim().replace(/\s+/g, ' ');
+      }));
+    return { headers, rows };
+  });
 }
 
 (async () => {
-    if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    
-    console.log('==================================================');
-    console.log('🤖 AI 自動化任務：擷取片語資料 (Shorthands) v2');
-    console.log('==================================================\n');
+  if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+  const only = parseArg('only');
 
-    if (!fs.existsSync(PROFILE_DIR)) fs.mkdirSync(PROFILE_DIR, { recursive: true });
+  const chromePaths = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    `C:\\Users\\${os.userInfo().username}\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe`,
+  ];
+  const executablePath = chromePaths.find(p => fs.existsSync(p));
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    defaultViewport: { width: 1440, height: 900 },
+    ...(executablePath ? { executablePath } : {}),
+    protocolTimeout: 1200000,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--no-proxy-server', '--ignore-certificate-errors'],
+  });
+  const page = await browser.newPage();
+  page.setDefaultNavigationTimeout(60000);
+  page.on('dialog', async d => { console.log(`  ⚠️ 對話框: ${d.message()}`); await d.accept().catch(() => {}); });
 
-    const browser = await puppeteer.launch({
-        headless: false,
-        defaultViewport: { width: 1280, height: 900 },
-        userDataDir: PROFILE_DIR,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-web-security']
-    });
-
-    const page = await browser.newPage();
-    page.setDefaultNavigationTimeout(60000);
-
-    try {
-        // 先訪問登入頁面，讓使用者確認登入狀態
-        console.log('🔑 正在確認登入狀態...');
-        await page.goto(`${BASE_URL}/Default/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await sleep(2000);
-
-        const isLoggedIn = await page.evaluate(() => {
-            return !document.body.innerText.includes('登入') && 
-                   !document.body.innerText.includes('Login') &&
-                   (document.querySelector('a[href*="Logout"]') !== null || 
-                    document.body.innerText.includes('系統登出'));
-        });
-
-        if (!isLoggedIn) {
-            console.log('\n⚠️  您尚未登入！請在彈出的瀏覽器視窗中登入，完成後請按 Enter 繼續...');
-            await page.goto(`${BASE_URL}/Default/`, { waitUntil: 'domcontentloaded' });
-            // 等待使用者手動登入
-            await new Promise(resolve => {
-                process.stdin.once('data', resolve);
-                console.log('登入完成後按 Enter...');
-            });
-        } else {
-            console.log('✅ 已確認登入狀態！\n');
-        }
-
-        // A. 車型片語表
-        await scrapeShorthands(page, `${BASE_URL}/Type_Query2/`, '車型片語', {
-            filename: 'shorthand_models.csv',
-            headers: ['代碼', '顯示名', '廠牌'],
-            colFields: ['code', 'fullname', 'brand'],
-            useColFields: false
-        });
-
-        // B. 品名片語表（正確 URL 是 Chname_Query2）
-        await scrapeShorthands(page, `${BASE_URL}/Chname_Query2/`, '品名片語', {
-            filename: 'shorthand_parts.csv',
-            headers: ['代碼', '顯示名', '分類'],
-            colFields: ['code', 'fullname', 'category'],
-            useColFields: false
-        });
-
-        // C. 品牌片語表
-        await scrapeShorthands(page, `${BASE_URL}/Brand_Query2/`, '品牌片語', {
-            filename: 'shorthand_brands.csv',
-            headers: ['代碼', '顯示名', '備註'],
-            colFields: ['code', 'fullname', 'remark'],
-            useColFields: false
-        });
-
-    } catch (err) {
-        console.error('\n❌ 抓取過程中發生錯誤：', err.message);
-        console.error(err.stack);
-    } finally {
-        await browser.close();
-        console.log('\n==================================================');
-        console.log('🎉 所有片語資料擷取完畢！');
-        console.log('👉 請到「系統片語設定」頁面，點擊【匯入表格】按鈕');
-        console.log('👉 分別匯入 output 資料夾中的：');
-        console.log('   - shorthand_models.csv  (車型片語)');
-        console.log('   - shorthand_parts.csv   (品名片語)');
-        console.log('   - shorthand_brands.csv  (品牌片語)');
-        console.log('==================================================');
+  // ── 登入：依序嘗試各 Cookie 來源 ──────────────────────────────────
+  let loggedIn = false;
+  for (const cookieFile of COOKIE_CANDIDATES) {
+    if (!fs.existsSync(cookieFile)) continue;
+    try { await page.goto(`http://${HOST}/`, { waitUntil: 'domcontentloaded' }); } catch {}
+    const saved = JSON.parse(fs.readFileSync(cookieFile, 'utf8')).map(c => ({ ...c, domain: HOST }));
+    try { await page.setCookie(...saved); } catch { continue; }
+    try { await page.goto(`http://${HOST}/car2009/Default/`, { waitUntil: 'domcontentloaded' }); } catch {}
+    await sleep(2000);
+    const ok = await page.evaluate(() =>
+      !Array.from(document.querySelectorAll('input')).some(i => i.type === 'password') &&
+      (document.body?.innerText || '').includes('系統登出')
+    ).catch(() => false);
+    if (ok) {
+      console.log(`🔐 已使用 ${path.basename(cookieFile)} 的登入狀態`);
+      loggedIn = true;
+      break;
     }
-})();
+  }
+  if (!loggedIn) {
+    console.error('❌ 所有 Cookie 的登入狀態都已失效，請先執行 npm run open:cck2 登入一次。');
+    await browser.close();
+    process.exit(2);
+  }
+
+  // ── 逐一抓取三種片語 ──────────────────────────────────────────────
+  const summary = [];
+  for (const target of TARGETS) {
+    if (only && only !== target.key) continue;
+    console.log(`\n${'═'.repeat(50)}`);
+    console.log(`📋 ${target.label} (${target.url})`);
+
+    try { await page.goto(target.url, { waitUntil: 'domcontentloaded' }); } catch {}
+    await sleep(2000);
+
+    // 調大每頁筆數 → 按查詢
+    await page.evaluate((size) => {
+      const el = document.querySelector('#ele_PageControl_PageSize');
+      if (el) { el.value = String(size); el.dispatchEvent(new Event('change', { bubbles: true })); }
+    }, PAGE_SIZE).catch(() => {});
+    await sleep(300);
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
+      page.evaluate(() => document.querySelector('#btn_search')?.click()),
+    ]);
+    await sleep(2500);
+
+    // 頁面沒有「共N頁」資訊 → 逐頁翻到沒有新資料為止
+    let headers = [];
+    const allRows = [];
+    const seen = new Set();
+    const MAX_PAGES = 500;
+
+    for (let pageNum = 1; pageNum <= MAX_PAGES; pageNum++) {
+      const { headers: h, rows } = await extractGrid(page);
+      if (h.length > 0 && headers.length === 0) headers = h;
+
+      let added = 0;
+      for (const cells of rows) {
+        const key = cells.join('|');
+        if (seen.has(key)) continue;
+        // 跳過整列空白（新增列佔位）
+        if (cells.every(c => c === '' || /^\d+$/.test(c))) continue;
+        seen.add(key);
+        allRows.push(cells);
+        added++;
+      }
+      console.log(`  第 ${pageNum} 頁：DOM ${rows.length} 列，新增 ${added} 筆（累計 ${allRows.length}）`);
+
+      // 本頁沒有任何新資料 → 已到最後一頁
+      if (added === 0 && pageNum > 1) break;
+
+      const before = await page.evaluate(() =>
+        document.querySelector('#ele_PageControl_PageNum')?.value || '').catch(() => '');
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
+        page.evaluate(() => document.querySelector('#btn_PageControl_PageNext')?.click()),
+      ]);
+      await sleep(1800);
+      const after = await page.evaluate(() =>
+        document.querySelector('#ele_PageControl_PageNum')?.value || '').catch(() => '');
+      if (before && after && before === after) {
+        // 頁碼沒有前進 → 已到最後一頁
+        break;
+      }
+    }
+
+    if (headers.length === 0 && allRows.length > 0) {
+      headers = allRows[0].map((_, i) => `col${i}`);
+    }
+    const outFile = path.join(OUTPUT_DIR, `shorthand_${target.key}.csv`);
+    writeCSV(outFile, headers, allRows);
+    summary.push({ label: target.label, count: allRows.length, headers: headers.join(' | ') });
+    await sleep(1000);
+  }
+
+  await browser.close();
+
+  console.log(`\n${'═'.repeat(50)}`);
+  console.log('✅ 全部完成！');
+  for (const s of summary) {
+    console.log(`  ${s.label}: ${s.count} 筆（欄位: ${s.headers}）`);
+  }
+})().catch(err => { console.error('\n❌ 失敗:', err.message); process.exit(1); });

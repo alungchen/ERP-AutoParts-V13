@@ -487,6 +487,7 @@ const ProductDrawer = () => {
                                 data={models}
                                 filterKey="shorthand"
                                 labelKey="fullname"
+                                extraFilterKeys={['name']}
                                 required={false}
                                 compact={true}
                                 disabled={!isEditing}
@@ -501,6 +502,7 @@ const ProductDrawer = () => {
                                 data={parts}
                                 filterKey="shorthand"
                                 labelKey="fullname"
+                                extraFilterKeys={['name']}
                                 required={true}
                                 compact={true}
                                 disabled={!isEditing}
@@ -529,6 +531,7 @@ const ProductDrawer = () => {
                                 data={brands}
                                 filterKey="shorthand"
                                 labelKey="fullname"
+                                extraFilterKeys={['name']}
                                 required={false}
                                 compact={true}
                                 disabled={!isEditing}

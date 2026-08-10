@@ -35,6 +35,7 @@ local-backup.sql
 # Puppeteer / Scraper artifacts
 scripts/.chrome-profile*/
 scripts/cookies_cck2.json
+scripts/cookies_cck2_user.json
 scripts/cookies_cck.json
 output/
 temp.js

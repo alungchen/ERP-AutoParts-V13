@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 
-const AutocompleteInput = ({ value, onChange, placeholder, data, filterKey, labelKey, displayKey, required, width, onKeyDown, compact, disabled }) => {
+const AutocompleteInput = ({ value, onChange, placeholder, data, filterKey, labelKey, extraFilterKeys = [], displayKey, required, width, onKeyDown, compact, disabled }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [filteredData, setFilteredData] = useState([]);
     const [activeIndex, setActiveIndex] = useState(-1);
@@ -36,6 +36,11 @@ const AutocompleteInput = ({ value, onChange, placeholder, data, filterKey, labe
 
     const normalize = (v) => String(v ?? '').toLowerCase();
 
+    // 比對範圍：代碼（filterKey）、顯示名（labelKey）與額外欄位（如片語的「名稱」）
+    const matchKeys = [filterKey, labelKey, ...extraFilterKeys];
+    const itemIncludes = (item, val) => matchKeys.some(k => normalize(item?.[k]).includes(val));
+    const itemEquals = (item, val) => matchKeys.some(k => normalize(item?.[k]) === val);
+
     const moveFocusWithinScope = (currentEl, goPrev = false) => {
         if (!currentEl || typeof currentEl.closest !== 'function') return;
         const scope = currentEl.closest('[role="dialog"], [class*="modal"], [class*="drawer"], [class*="overlay"]') || document.body;
@@ -59,10 +64,8 @@ const AutocompleteInput = ({ value, onChange, placeholder, data, filterKey, labe
         const val = e.target.value;
         onChange(val);
         if (val) {
-            const matches = data.filter(item =>
-                normalize(item?.[filterKey]).includes(normalize(val)) ||
-                normalize(item?.[labelKey]).includes(normalize(val))
-            );
+            const q = normalize(val);
+            const matches = data.filter(item => itemIncludes(item, q));
             setFilteredData(matches);
             setIsOpen(true);
             setActiveIndex(-1);
@@ -82,10 +85,7 @@ const AutocompleteInput = ({ value, onChange, placeholder, data, filterKey, labe
         let consumed = false;
         if (!isOpen) {
             if (e.key === 'Tab' || e.key === 'Enter') {
-                const directMatch = data.find(item =>
-                    normalize(item?.[filterKey]) === normalize(value) ||
-                    normalize(item?.[labelKey]) === normalize(value)
-                );
+                const directMatch = data.find(item => itemEquals(item, normalize(value)));
                 if (directMatch) {
                     e.preventDefault();
                     onChange(directMatch?.[labelKey] ?? '');
@@ -112,10 +112,7 @@ const AutocompleteInput = ({ value, onChange, placeholder, data, filterKey, labe
                 if (activeIndex >= 0 && activeIndex < filteredData.length) {
                     handleSelect(filteredData[activeIndex]);
                 } else {
-                    const exactMatch = filteredData.find(item =>
-                        normalize(item?.[filterKey]) === normalize(value) ||
-                        normalize(item?.[labelKey]) === normalize(value)
-                    );
+                    const exactMatch = filteredData.find(item => itemEquals(item, normalize(value)));
                     if (exactMatch) handleSelect(exactMatch);
                     else if (filteredData.length > 0) handleSelect(filteredData[0]);
                 }
@@ -160,7 +157,13 @@ const AutocompleteInput = ({ value, onChange, placeholder, data, filterKey, labe
                             color: activeIndex === idx ? 'var(--accent-hover)' : 'inherit',
                         }}
                     >
-                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item[labelKey]}</span>
+                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item[labelKey]}
+                            {(() => {
+                                const extras = extraFilterKeys.map(k => item?.[k]).filter(v => v && v !== item[labelKey]);
+                                return extras.length ? <span style={{ opacity: 0.55, marginLeft: '6px', fontSize: '0.85em' }}>{extras.join(' / ')}</span> : null;
+                            })()}
+                        </span>
                         <span style={{ fontSize: '12px', opacity: 0.6, background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>{item[filterKey]}</span>
                     </li>
                 ))}
@@ -195,10 +198,7 @@ const AutocompleteInput = ({ value, onChange, placeholder, data, filterKey, labe
                         // Delay so onMouseDown select fires first before blur closes dropdown
                         setTimeout(() => setIsOpen(false), 150);
                         if (disabled) return;
-                        const directMatch = data.find(item =>
-                            normalize(item?.[filterKey]) === normalize(value) ||
-                            normalize(item?.[labelKey]) === normalize(value)
-                        );
+                        const directMatch = data.find(item => itemEquals(item, normalize(value)));
                         if (directMatch) onChange(directMatch?.[labelKey] ?? '');
                     }}
                     onFocus={() => {

@@ -1338,6 +1338,7 @@ const ProductList = () => {
                             data={models}
                             filterKey="shorthand"
                             labelKey="fullname"
+                            extraFilterKeys={['name']}
                             required={false}
                             compact={true}
                         />
@@ -1352,6 +1353,7 @@ const ProductList = () => {
                             data={parts}
                             filterKey="shorthand"
                             labelKey="fullname"
+                            extraFilterKeys={['name']}
                             required={false}
                             compact={true}
                         />
@@ -1390,6 +1392,7 @@ const ProductList = () => {
                             data={brands}
                             filterKey="shorthand"
                             labelKey="fullname"
+                            extraFilterKeys={['name']}
                             required={false}
                             compact={true}
                         />

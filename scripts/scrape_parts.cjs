@@ -10,8 +10,16 @@ const path = require('path');
 const os   = require('os');
 const { execSync } = require('child_process');
 
-const BASE_URL     = 'http://cck.uparts.info/car2009/Default/';
-const PARTS_URL    = 'http://cck.uparts.info/car2009/parts_query/';
+// 依序嘗試的主機與 Cookie 來源：cck 裝置授權若被撤銷，
+// 會自動改用 cck2 上仍存活的 Session（單據同步程式持續在用，通常有效）
+const HOST_CANDIDATES = [
+  { host: 'cck.uparts.info',  cookieFile: path.join(__dirname, 'cookies.json') },
+  { host: 'cck2.uparts.info', cookieFile: path.join(__dirname, 'cookies_xizhi.json') },
+  { host: 'cck2.uparts.info', cookieFile: path.join(__dirname, 'cookies_songshan.json') },
+];
+let ACTIVE_HOST = 'cck.uparts.info';
+const baseUrl  = () => `http://${ACTIVE_HOST}/car2009/Default/`;
+const partsUrl = () => `http://${ACTIVE_HOST}/car2009/parts_query/`;
 const OUTPUT_DIR   = path.join(__dirname, '..', 'output');
 const KEYWORDS_FILE = path.join(__dirname, '..', 'keywords.txt');
 
@@ -39,8 +47,30 @@ function escapeCSV(val) {
     ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
+// 頁面可能正在 JS 轉址，evaluate 會拋出 "Execution context was destroyed"，
+// 此時等待轉址完成後重試，而不是讓整個流程中斷
+function isNavigationError(err) {
+  return /Execution context was destroyed|Cannot find context|Target closed|detached/i.test(err?.message || '');
+}
+
+async function safeEvaluate(page, fn, ...args) {
+  let lastErr;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      return await page.evaluate(fn, ...args);
+    } catch (err) {
+      if (!isNavigationError(err)) throw err;
+      lastErr = err;
+      // 等待這波導航結束後再試
+      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => {});
+      await sleep(1500);
+    }
+  }
+  throw lastErr;
+}
+
 async function ensurePageReady(page) {
-  const isError = await page.evaluate(() => {
+  const isError = await safeEvaluate(page, () => {
     const t = document.body?.innerText || '';
     return t.includes('502 Bad Gateway') || t.includes('Server Error') || t.includes('could not complete your request');
   });
@@ -80,31 +110,56 @@ function writeCSV(filePath, headers, rows) {
   page.setDefaultNavigationTimeout(60000);
   page.setDefaultTimeout(20000);
 
-  // ── [1] 登入 ──────────────────────────────────────────────────────
-  console.log('\n[1] Opening page...');
-  try { await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' }); } catch {}
-  await ensurePageReady(page);
-  await sleep(2000);
+  // 自動接掉 alert/confirm（例如「這個裝置尚未授權!!!」），否則會卡住所有 evaluate
+  let lastDialog = null;
+  page.on('dialog', async d => {
+    lastDialog = d.message();
+    console.log(`  ⚠️ 網頁對話框: ${lastDialog}`);
+    await d.accept().catch(() => {});
+  });
 
-  if (fs.existsSync(COOKIES_FILE)) {
-    const saved = JSON.parse(fs.readFileSync(COOKIES_FILE, 'utf8'));
-    await page.setCookie(...saved);
-    try { await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' }); } catch {}
-    await ensurePageReady(page);
-    await sleep(2000);
-  }
-
-  const needLogin = () => page.evaluate(() =>
+  const needLogin = () => safeEvaluate(page, () =>
     Array.from(document.querySelectorAll('input')).some(i => i.type === 'password') &&
     !document.querySelector('#btn_search')
   ).catch(() => true);
 
-  if (await needLogin()) {
+  // ── [1] 登入：依序嘗試各主機的既有 Session ─────────────────────────
+  console.log('\n[1] Opening page...');
+  let loggedIn = false;
+  for (const { host, cookieFile } of HOST_CANDIDATES) {
+    if (!fs.existsSync(cookieFile)) continue;
+    console.log(`  嘗試 ${host} + ${path.basename(cookieFile)} ...`);
+    ACTIVE_HOST = host;
+    try {
+      await page.goto(`http://${host}/`, { waitUntil: 'domcontentloaded' });
+    } catch {}
+    const saved = JSON.parse(fs.readFileSync(cookieFile, 'utf8'))
+      .map(c => ({ ...c, domain: host }));
+    try { await page.setCookie(...saved); } catch (e) {
+      console.log(`  ⚠️ Cookie 注入失敗: ${e.message}`);
+      continue;
+    }
+    try { await page.goto(baseUrl(), { waitUntil: 'domcontentloaded' }); } catch {}
+    await ensurePageReady(page);
+    await sleep(2000);
+    if (!(await needLogin())) {
+      console.log(`  ✅ 使用 ${host} 的既有登入狀態`);
+      loggedIn = true;
+      break;
+    }
+    console.log(`  ✗ ${host} 的 Session 已失效`);
+  }
+
+  if (!loggedIn) {
     if (headlessArg) {
       console.error('\n❌ [Error] 登入狀態已失效 (Session Cookie expired)！無法在無頭模式下進行手動登入。');
       console.error('👉 請您在本機手動執行一次以下指令重新登入以刷新 Cookie：\n  node scripts/run_all.cjs\n');
       process.exit(2);
     }
+    // 全部既有 Session 都失效 → 回到 cck 讓使用者手動登入
+    ACTIVE_HOST = 'cck.uparts.info';
+    try { await page.goto(baseUrl(), { waitUntil: 'domcontentloaded' }); } catch {}
+    await sleep(1500);
     await page.evaluate(() => {
       document.title = '🔴 請在此視窗登入！';
       const b = document.createElement('div');
@@ -116,11 +171,22 @@ function writeCSV(filePath, headers, rows) {
     for (let w = 0; w < LOGIN_WAIT; w += 3) {
       await sleep(3000);
       if (!(await needLogin())) { console.log(`✅ 登入成功 (${w+3}s)`); break; }
+      if ((lastDialog || '').includes('尚未授權')) {
+        console.log('  ❌ 系統回報「這個裝置尚未授權」→ 此電腦的 MachineId 未被 uParts 後台核准。');
+        console.log('     請先請管理員在 uParts 後台核准裝置，或執行：');
+        console.log('     npm run login:uparts -- --host=cck.uparts.info --from=xizhi --direct');
+        lastDialog = null;
+      }
       if ((w+3) % 30 === 0) console.log(`  等待... (${w+3}s)`);
     }
     await sleep(2000);
+    if (await needLogin()) {
+      console.error('\n❌ 登入未完成（裝置未授權或逾時），流程中止。');
+      await browser.close();
+      process.exit(2);
+    }
     fs.writeFileSync(COOKIES_FILE, JSON.stringify(await page.cookies(), null, 2));
-    try { await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+    try { await page.goto(baseUrl(), { waitUntil: 'domcontentloaded' }); } catch {}
     await ensurePageReady(page);
     await sleep(2000);
   } else {
@@ -134,13 +200,13 @@ function writeCSV(filePath, headers, rows) {
   try {
     for (const SEARCH_TERM of searchTerms) {
       let keywordResolved = false;
-      try { await page.goto(PARTS_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+      try { await page.goto(partsUrl(), { waitUntil: 'domcontentloaded' }); } catch {}
       await ensurePageReady(page);
     await sleep(1500);
 
     const cleanSearchTerm = SEARCH_TERM.replace(/\s+/g, '');
     console.log(`\n[2] Searching: "${SEARCH_TERM}" (clean: "${cleanSearchTerm}")`);
-  await page.evaluate(term => {
+  await safeEvaluate(page, term => {
     const inp = Array.from(document.querySelectorAll('input[type="text"]'))
       .find(i => (i.id || '').startsWith('ele_search_'));
     if (inp) { inp.focus(); inp.value = term; inp.dispatchEvent(new Event('change',{bubbles:true})); }
@@ -154,11 +220,11 @@ function writeCSV(filePath, headers, rows) {
   await ensurePageReady(page);
 
   // ── [3] 頁數 ──────────────────────────────────────────────────────
-  const totalPages = await page.evaluate(() => {
+  const totalPages = await safeEvaluate(page, () => {
     const m = (document.body.innerText || '').match(/共\s*(\d+)\s*頁/);
     return m ? parseInt(m[1]) : 1;
   });
-  const totalRecs = await page.evaluate(() => {
+  const totalRecs = await safeEvaluate(page, () => {
     const m = (document.body.innerText || '').match(/共\s*(\d+)\s*筆/);
     return m ? parseInt(m[1]) : '?';
   });
@@ -171,7 +237,7 @@ function writeCSV(filePath, headers, rows) {
     console.log(`  Page ${pageNum} / ${totalPages}`);
 
     // 讀取列資料，同時抓 tr 的 row 屬性
-    const gridRows = await page.evaluate(() => {
+    const gridRows = await safeEvaluate(page, () => {
       const container = document.querySelector('#display_DataGrid') || document.body;
       return Array.from(container.querySelectorAll('tr'))
         .filter(tr => tr.hasAttribute('row') && tr.querySelectorAll('td').length >= 4)
