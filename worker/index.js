@@ -183,10 +183,8 @@ export default {
                     return Response.json({ stock: stockObj }, { headers: corsHeaders });
                 }
 
-                const limitRaw = parseInt(url.searchParams.get('limit') || '500', 10);
-                const offsetRaw = parseInt(url.searchParams.get('offset') || '0', 10);
-                const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 500, 1), 1500);
-                const offset = Math.max(Number.isFinite(offsetRaw) ? offsetRaw : 0, 0);
+                const limitRaw = parseInt(url.searchParams.get('limit') || '2000', 10);
+                const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 2000, 1), 3000);
 
                 const countRow = await env.DB.prepare('SELECT COUNT(*) AS total FROM products').first();
                 const total = Number(countRow?.total) || 0;
@@ -195,11 +193,35 @@ export default {
                     ? 'p_id, name, car_models, category, images, part_numbers, brand, specifications, safety_stock, base_cost, updated_at'
                     : 'p_id, name, car_models, category, part_numbers, brand, specifications, safety_stock, base_cost, updated_at';
 
+                const emptyStock = new Map();
+
+                // rowid 游標分頁：深頁不需 OFFSET 掃描
+                const cursorRaw = url.searchParams.get('cursor');
+                if (cursorRaw !== null) {
+                    const cursor = Number(cursorRaw) || 0;
+                    const { results: products } = await env.DB.prepare(
+                        `SELECT rowid AS _rid, ${cols} FROM products WHERE rowid > ? ORDER BY rowid LIMIT ?`
+                    ).bind(cursor, limit).all();
+
+                    const rows = products || [];
+                    const items = rows.map((p) => mapProductRow(p, emptyStock, includeImages));
+                    return Response.json({
+                        items,
+                        total,
+                        limit,
+                        nextCursor: rows.length ? rows[rows.length - 1]._rid : null,
+                        hasMore: rows.length === limit,
+                    }, { headers: corsHeaders });
+                }
+
+                // 相容舊版 offset 分頁
+                const offsetRaw = parseInt(url.searchParams.get('offset') || '0', 10);
+                const offset = Math.max(Number.isFinite(offsetRaw) ? offsetRaw : 0, 0);
+
                 const { results: products } = await env.DB.prepare(
                     `SELECT ${cols} FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?`
                 ).bind(limit, offset).all();
 
-                const emptyStock = new Map();
                 const items = (products || []).map((p) => mapProductRow(p, emptyStock, includeImages));
                 return Response.json({
                     items,

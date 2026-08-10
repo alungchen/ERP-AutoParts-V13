@@ -10,36 +10,34 @@ export const useProductStore = create((set, get) => ({
   selectedProduct: null,
   setSelectedProduct: (product) => set({ selectedProduct: product }),
 
-  // 從 API 分頁載入全部產品（避免一次 2 萬筆造成 Worker 逾時）
+  // 從 API 以 rowid 游標分頁載入全部產品（深頁不需 OFFSET 掃描，速度穩定）
   fetchProducts: async () => {
     set({ isLoading: true });
     try {
-      const pageSize = 500;
-      let offset = 0;
-      let total = Infinity;
+      const pageSize = 2000;
+      let cursor = 0;
       const all = [];
 
-      // 庫存另一次請求，與第一頁產品平行載入
+      // 庫存另一次請求，與產品分頁平行載入
       const stockPromise = fetch('/api/products?stockOnly=1')
         .then(async (res) => (res.ok ? res.json() : { stock: {} }))
         .catch(() => ({ stock: {} }));
 
-      while (offset < total) {
-        const res = await fetch(`/api/products?limit=${pageSize}&offset=${offset}`);
+      while (true) {
+        const res = await fetch(`/api/products?cursor=${cursor}&limit=${pageSize}`);
         if (!res.ok) throw new Error(`Failed to fetch products (${res.status})`);
         const data = await res.json();
 
         // 相容舊版直接回傳陣列的 API
         const items = Array.isArray(data) ? data : (data.items || []);
-        total = Array.isArray(data) ? items.length : (Number(data.total) || items.length);
         all.push(...items);
 
         // 先顯示已載入的部分，避免畫面一直空白
         set({ products: [...all], isLoading: true });
 
         if (Array.isArray(data)) break;
-        if (!data.hasMore || items.length === 0) break;
-        offset += items.length;
+        if (!data.hasMore || items.length === 0 || data.nextCursor == null) break;
+        cursor = data.nextCursor;
       }
 
       const stockPayload = await stockPromise;
@@ -49,6 +47,8 @@ export const useProductStore = create((set, get) => ({
         const totalStock = details.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
         return { ...p, stock_details: details, stock: totalStock };
       });
+      // 游標依 rowid 排序，載入完成後恢復依更新時間排序的顯示順序
+      withStock.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
 
       set({ products: withStock, isLoading: false });
     } catch (err) {
