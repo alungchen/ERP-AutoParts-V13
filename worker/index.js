@@ -167,9 +167,25 @@ export default {
                     return Response.json(mapProductRow(p, stockMap, true), { headers: corsHeaders });
                 }
 
-                const limitRaw = parseInt(url.searchParams.get('limit') || '1500', 10);
+                if (url.searchParams.get('stockOnly') === '1') {
+                    const { results: stockDetails } = await env.DB.prepare(
+                        'SELECT p_id, branch_id, location_code, qty FROM product_stock'
+                    ).all();
+                    const stockObj = {};
+                    for (const row of stockDetails || []) {
+                        if (!stockObj[row.p_id]) stockObj[row.p_id] = [];
+                        stockObj[row.p_id].push({
+                            branch_id: row.branch_id,
+                            location_code: row.location_code,
+                            qty: row.qty,
+                        });
+                    }
+                    return Response.json({ stock: stockObj }, { headers: corsHeaders });
+                }
+
+                const limitRaw = parseInt(url.searchParams.get('limit') || '500', 10);
                 const offsetRaw = parseInt(url.searchParams.get('offset') || '0', 10);
-                const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 1500, 1), 3000);
+                const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 500, 1), 1500);
                 const offset = Math.max(Number.isFinite(offsetRaw) ? offsetRaw : 0, 0);
 
                 const countRow = await env.DB.prepare('SELECT COUNT(*) AS total FROM products').first();
@@ -183,25 +199,8 @@ export default {
                     `SELECT ${cols} FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?`
                 ).bind(limit, offset).all();
 
-                const { results: stockDetails } = await env.DB.prepare(`
-                    SELECT ps.p_id, ps.branch_id, ps.location_code, ps.qty
-                    FROM product_stock ps
-                    WHERE ps.p_id IN (
-                        SELECT p_id FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?
-                    )
-                `).bind(limit, offset).all();
-
-                const stockMap = new Map();
-                for (const row of stockDetails || []) {
-                    if (!stockMap.has(row.p_id)) stockMap.set(row.p_id, []);
-                    stockMap.get(row.p_id).push({
-                        branch_id: row.branch_id,
-                        location_code: row.location_code,
-                        qty: row.qty,
-                    });
-                }
-
-                const items = (products || []).map((p) => mapProductRow(p, stockMap, includeImages));
+                const emptyStock = new Map();
+                const items = (products || []).map((p) => mapProductRow(p, emptyStock, includeImages));
                 return Response.json({
                     items,
                     total,

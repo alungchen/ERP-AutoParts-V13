@@ -52,10 +52,27 @@ export async function onRequestGet(context) {
       return Response.json(mapProductRow(p, stockMap, true));
     }
 
-    // 分頁列表（預設每頁 1500，避免 Cloudflare Worker CPU / 回應逾時）
-    const limitRaw = parseInt(url.searchParams.get('limit') || '1500', 10);
+    // 僅回傳庫存表（前端另一次請求後合併，避免每頁重複掃描）
+    if (url.searchParams.get('stockOnly') === '1') {
+      const { results: stockDetails } = await context.env.DB.prepare(
+        'SELECT p_id, branch_id, location_code, qty FROM product_stock'
+      ).all();
+      const stockMap = {};
+      for (const row of stockDetails || []) {
+        if (!stockMap[row.p_id]) stockMap[row.p_id] = [];
+        stockMap[row.p_id].push({
+          branch_id: row.branch_id,
+          location_code: row.location_code,
+          qty: row.qty,
+        });
+      }
+      return Response.json({ stock: stockMap });
+    }
+
+    // 分頁列表（預設每頁 500；列表不帶庫存，由 stockOnly 合併）
+    const limitRaw = parseInt(url.searchParams.get('limit') || '500', 10);
     const offsetRaw = parseInt(url.searchParams.get('offset') || '0', 10);
-    const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 1500, 1), 3000);
+    const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 500, 1), 1500);
     const offset = Math.max(Number.isFinite(offsetRaw) ? offsetRaw : 0, 0);
 
     const countRow = await context.env.DB.prepare('SELECT COUNT(*) AS total FROM products').first();
@@ -69,26 +86,8 @@ export async function onRequestGet(context) {
       `SELECT ${cols} FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?`
     ).bind(limit, offset).all();
 
-    // 只取當頁產品的庫存，避免每次全表掃描 product_stock
-    const { results: stockDetails } = await context.env.DB.prepare(`
-      SELECT ps.p_id, ps.branch_id, ps.location_code, ps.qty
-      FROM product_stock ps
-      WHERE ps.p_id IN (
-        SELECT p_id FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?
-      )
-    `).bind(limit, offset).all();
-
-    const stockMap = new Map();
-    for (const row of stockDetails || []) {
-      if (!stockMap.has(row.p_id)) stockMap.set(row.p_id, []);
-      stockMap.get(row.p_id).push({
-        branch_id: row.branch_id,
-        location_code: row.location_code,
-        qty: row.qty,
-      });
-    }
-
-    const items = (products || []).map((p) => mapProductRow(p, stockMap, includeImages));
+    const emptyStock = new Map();
+    const items = (products || []).map((p) => mapProductRow(p, emptyStock, includeImages));
     return Response.json({
       items,
       total,

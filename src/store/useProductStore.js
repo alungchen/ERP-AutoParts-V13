@@ -14,10 +14,15 @@ export const useProductStore = create((set, get) => ({
   fetchProducts: async () => {
     set({ isLoading: true });
     try {
-      const pageSize = 800;
+      const pageSize = 500;
       let offset = 0;
       let total = Infinity;
       const all = [];
+
+      // 庫存另一次請求，與第一頁產品平行載入
+      const stockPromise = fetch('/api/products?stockOnly=1')
+        .then(async (res) => (res.ok ? res.json() : { stock: {} }))
+        .catch(() => ({ stock: {} }));
 
       while (offset < total) {
         const res = await fetch(`/api/products?limit=${pageSize}&offset=${offset}`);
@@ -29,12 +34,23 @@ export const useProductStore = create((set, get) => ({
         total = Array.isArray(data) ? items.length : (Number(data.total) || items.length);
         all.push(...items);
 
+        // 先顯示已載入的部分，避免畫面一直空白
+        set({ products: [...all], isLoading: true });
+
         if (Array.isArray(data)) break;
         if (!data.hasMore || items.length === 0) break;
         offset += items.length;
       }
 
-      set({ products: all, isLoading: false });
+      const stockPayload = await stockPromise;
+      const stockMap = stockPayload?.stock || {};
+      const withStock = all.map((p) => {
+        const details = stockMap[p.p_id] || [];
+        const totalStock = details.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+        return { ...p, stock_details: details, stock: totalStock };
+      });
+
+      set({ products: withStock, isLoading: false });
     } catch (err) {
       console.error("Failed to fetch products:", err);
       set({ isLoading: false });
