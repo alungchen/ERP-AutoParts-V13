@@ -1,40 +1,96 @@
+const safeParseJson = (value, fallback) => {
+  if (value == null || value === '') return fallback;
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const mapProductRow = (p, stockMap, includeImages) => {
+  const details = stockMap.get(p.p_id) || [];
+  const totalStock = details.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  return {
+    p_id: p.p_id,
+    name: p.name,
+    category: p.category || '',
+    brand: p.brand || '',
+    specifications: p.specifications || '',
+    safety_stock: p.safety_stock || 0,
+    base_cost: p.base_cost || 0,
+    updated_at: p.updated_at,
+    car_models: safeParseJson(p.car_models, []),
+    part_numbers: safeParseJson(p.part_numbers, []),
+    images: includeImages ? safeParseJson(p.images, []) : [],
+    stock: totalStock,
+    stock_details: details,
+  };
+};
+
 export async function onRequestGet(context) {
   try {
-    // 1. 查詢所有產品主檔
-    const { results: products } = await context.env.DB.prepare("SELECT * FROM products ORDER BY updated_at DESC").all();
-    
-    // 2. 查詢所有產品的庫存明細
-    const { results: stockDetails } = await context.env.DB.prepare("SELECT * FROM product_stock").all();
-    
-    // 將庫存明細按 p_id 分組
+    const url = new URL(context.request.url);
+    const id = url.searchParams.get('id');
+    const includeImages = url.searchParams.get('includeImages') === '1' || Boolean(id);
+
+    // 單筆查詢（含照片，供抽屜用）
+    if (id) {
+      const p = await context.env.DB.prepare(
+        'SELECT p_id, name, car_models, category, images, part_numbers, brand, specifications, safety_stock, base_cost, updated_at FROM products WHERE p_id = ?'
+      ).bind(id).first();
+      if (!p) return new Response('Not found', { status: 404 });
+
+      const { results: stockDetails } = await context.env.DB.prepare(
+        'SELECT branch_id, location_code, qty FROM product_stock WHERE p_id = ?'
+      ).bind(id).all();
+      const stockMap = new Map([[id, (stockDetails || []).map((row) => ({
+        branch_id: row.branch_id,
+        location_code: row.location_code,
+        qty: row.qty,
+      }))]]);
+      return Response.json(mapProductRow(p, stockMap, true));
+    }
+
+    // 分頁列表（預設每頁 1500，避免 Cloudflare Worker CPU / 回應逾時）
+    const limitRaw = parseInt(url.searchParams.get('limit') || '1500', 10);
+    const offsetRaw = parseInt(url.searchParams.get('offset') || '0', 10);
+    const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 1500, 1), 3000);
+    const offset = Math.max(Number.isFinite(offsetRaw) ? offsetRaw : 0, 0);
+
+    const countRow = await context.env.DB.prepare('SELECT COUNT(*) AS total FROM products').first();
+    const total = Number(countRow?.total) || 0;
+
+    const cols = includeImages
+      ? 'p_id, name, car_models, category, images, part_numbers, brand, specifications, safety_stock, base_cost, updated_at'
+      : 'p_id, name, car_models, category, part_numbers, brand, specifications, safety_stock, base_cost, updated_at';
+
+    const { results: products } = await context.env.DB.prepare(
+      `SELECT ${cols} FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?`
+    ).bind(limit, offset).all();
+
+    const { results: stockDetails } = await context.env.DB.prepare(
+      'SELECT p_id, branch_id, location_code, qty FROM product_stock'
+    ).all();
+
     const stockMap = new Map();
-    for (const row of stockDetails) {
-      if (!stockMap.has(row.p_id)) {
-        stockMap.set(row.p_id, []);
-      }
+    for (const row of stockDetails || []) {
+      if (!stockMap.has(row.p_id)) stockMap.set(row.p_id, []);
       stockMap.get(row.p_id).push({
         branch_id: row.branch_id,
         location_code: row.location_code,
-        qty: row.qty
+        qty: row.qty,
       });
     }
 
-    // 將儲存的 JSON 字串與庫存明細整合回物件結構
-    const productsWithStock = products.map(p => {
-      const details = stockMap.get(p.p_id) || [];
-      const totalStock = details.reduce((sum, item) => sum + item.qty, 0);
-      
-      return {
-        ...p,
-        car_models: p.car_models ? JSON.parse(p.car_models) : [],
-        images: p.images ? JSON.parse(p.images) : [],
-        part_numbers: p.part_numbers ? JSON.parse(p.part_numbers) : [],
-        stock: totalStock, // 保留原欄位以向下相容舊介面
-        stock_details: details // 新增的多分店、多庫位明細欄位
-      };
+    const items = (products || []).map((p) => mapProductRow(p, stockMap, includeImages));
+    return Response.json({
+      items,
+      total,
+      limit,
+      offset,
+      hasMore: offset + items.length < total,
     });
-
-    return Response.json(productsWithStock);
   } catch (err) {
     return new Response(err.message, { status: 500 });
   }
