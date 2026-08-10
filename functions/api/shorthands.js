@@ -17,16 +17,14 @@ export async function onRequestPost(context) {
       // but for shorthands it's small enough. We will run them in a batch.
       const stmts = data.map(item => 
         context.env.DB.prepare(`
-          INSERT INTO shorthands (s_id, type, shorthand, fullname, meta_category, name, note)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO shorthands (s_id, type, shorthand, fullname, meta_category)
+          VALUES (?, ?, ?, ?, ?)
         `).bind(
           item.s_id,
           item.type,
           item.shorthand,
           item.fullname,
-          item.meta_category || '',
-          item.name || '',
-          item.note || ''
+          item.meta_category || ''
         )
       );
       
@@ -34,16 +32,14 @@ export async function onRequestPost(context) {
       return Response.json({ success: true, count: data.length });
     } else {
       const stmt = context.env.DB.prepare(`
-        INSERT INTO shorthands (s_id, type, shorthand, fullname, meta_category, name, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO shorthands (s_id, type, shorthand, fullname, meta_category)
+        VALUES (?, ?, ?, ?, ?)
       `).bind(
         data.s_id,
         data.type,
         data.shorthand,
         data.fullname,
-        data.meta_category || '',
-        data.name || '',
-        data.note || ''
+        data.meta_category || ''
       );
       
       await stmt.run();
@@ -61,15 +57,13 @@ export async function onRequestPut(context) {
 
     const stmt = context.env.DB.prepare(`
       UPDATE shorthands SET 
-        type = ?, shorthand = ?, fullname = ?, meta_category = ?, name = ?, note = ?, updated_at = CURRENT_TIMESTAMP
+        type = ?, shorthand = ?, fullname = ?, meta_category = ?, updated_at = CURRENT_TIMESTAMP
       WHERE s_id = ?
     `).bind(
       data.type,
       data.shorthand,
       data.fullname,
       data.meta_category || '',
-      data.name || '',
-      data.note || '',
       data.s_id
     );
     

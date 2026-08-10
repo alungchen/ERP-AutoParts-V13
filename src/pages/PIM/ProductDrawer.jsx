@@ -10,7 +10,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import styles from './ProductDrawer.module.css';
 
 const ProductDrawer = () => {
-    const { selectedProduct, setSelectedProduct, duplicateProduct, deleteProduct, updateProduct, fetchProductById } = useProductStore();
+    const { selectedProduct, setSelectedProduct, duplicateProduct, deleteProduct, updateProduct } = useProductStore();
     const { models, parts, brands } = useShorthandStore();
     const { t } = useTranslation();
     const { branches } = useAppStore();
@@ -37,7 +37,6 @@ const ProductDrawer = () => {
     const closeBtnRef = useRef(null);
     const partNumberInputRef = useRef(null);
     const drawerRef = useRef(null);
-    const fetchedDetailIdRef = useRef(null);
     const [confirmModalState, setConfirmModalState] = useState({ open: false, title: '', message: '', onConfirm: null });
 
     const handleImageUpload = async (e) => {
@@ -113,17 +112,10 @@ const ProductDrawer = () => {
 
             setFormData(data);
             setIsEditing(!!selectedProduct.isNew);
-
-            // 列表預設不帶 images；開啟既有產品時補抓完整資料（每筆只抓一次）
-            if (!selectedProduct.isNew && selectedProduct.p_id && fetchedDetailIdRef.current !== selectedProduct.p_id) {
-                fetchedDetailIdRef.current = selectedProduct.p_id;
-                void fetchProductById(selectedProduct.p_id);
-            }
         } else {
-            fetchedDetailIdRef.current = null;
             setFormData(null);
         }
-    }, [selectedProduct, fetchProductById]);
+    }, [selectedProduct]);
 
     useEffect(() => {
         // 開啟預覽模式後，自動聚焦「編輯產品」按鈕（非新增且非編輯中）
@@ -495,7 +487,6 @@ const ProductDrawer = () => {
                                 data={models}
                                 filterKey="shorthand"
                                 labelKey="fullname"
-                                extraFilterKeys={['name']}
                                 required={false}
                                 compact={true}
                                 disabled={!isEditing}
@@ -510,7 +501,6 @@ const ProductDrawer = () => {
                                 data={parts}
                                 filterKey="shorthand"
                                 labelKey="fullname"
-                                extraFilterKeys={['name']}
                                 required={true}
                                 compact={true}
                                 disabled={!isEditing}
@@ -539,7 +529,6 @@ const ProductDrawer = () => {
                                 data={brands}
                                 filterKey="shorthand"
                                 labelKey="fullname"
-                                extraFilterKeys={['name']}
                                 required={false}
                                 compact={true}
                                 disabled={!isEditing}

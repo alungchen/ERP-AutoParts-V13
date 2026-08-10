@@ -234,7 +234,6 @@ const ProductQuery = () => {
                             data={models}
                             filterKey="shorthand"
                             labelKey="fullname"
-                            extraFilterKeys={['name']}
                             required={false}
                             compact={true}
                             onKeyDown={handleJumpToSearch}
@@ -252,7 +251,6 @@ const ProductQuery = () => {
                             data={parts}
                             filterKey="shorthand"
                             labelKey="fullname"
-                            extraFilterKeys={['name']}
                             required={false}
                             compact={true}
                             onKeyDown={handleJumpToSearch}
@@ -296,7 +294,6 @@ const ProductQuery = () => {
                             data={brands}
                             filterKey="shorthand"
                             labelKey="fullname"
-                            extraFilterKeys={['name']}
                             required={false}
                             compact={true}
                             onKeyDown={handleJumpToSearch}

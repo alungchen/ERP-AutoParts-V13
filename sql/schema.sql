@@ -11,7 +11,5 @@ CREATE TABLE IF NOT EXISTS shorthands (
   shorthand TEXT NOT NULL,
   fullname TEXT NOT NULL,
   meta_category TEXT,
-  name TEXT DEFAULT '',
-  note TEXT DEFAULT '',
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

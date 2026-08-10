@@ -10,71 +10,18 @@ export const useProductStore = create((set, get) => ({
   selectedProduct: null,
   setSelectedProduct: (product) => set({ selectedProduct: product }),
 
-  // 從 API 以 rowid 游標分頁載入全部產品（深頁不需 OFFSET 掃描，速度穩定）
+  // 從 API 載入所有產品 (取代 localStorage 初始載入)
   fetchProducts: async () => {
     set({ isLoading: true });
     try {
-      const pageSize = 2000;
-      let cursor = 0;
-      const all = [];
-
-      // 庫存另一次請求，與產品分頁平行載入
-      const stockPromise = fetch('/api/products?stockOnly=1')
-        .then(async (res) => (res.ok ? res.json() : { stock: {} }))
-        .catch(() => ({ stock: {} }));
-
-      while (true) {
-        const res = await fetch(`/api/products?cursor=${cursor}&limit=${pageSize}`);
-        if (!res.ok) throw new Error(`Failed to fetch products (${res.status})`);
+      const res = await fetch('/api/products');
+      if (res.ok) {
         const data = await res.json();
-
-        // 相容舊版直接回傳陣列的 API
-        const items = Array.isArray(data) ? data : (data.items || []);
-        all.push(...items);
-
-        // 先顯示已載入的部分，避免畫面一直空白
-        set({ products: [...all], isLoading: true });
-
-        if (Array.isArray(data)) break;
-        if (!data.hasMore || items.length === 0 || data.nextCursor == null) break;
-        cursor = data.nextCursor;
+        set({ products: data, isLoading: false });
       }
-
-      const stockPayload = await stockPromise;
-      const stockMap = stockPayload?.stock || {};
-      const withStock = all.map((p) => {
-        const details = stockMap[p.p_id] || [];
-        const totalStock = details.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
-        return { ...p, stock_details: details, stock: totalStock };
-      });
-      // 游標依 rowid 排序，載入完成後恢復依更新時間排序的顯示順序
-      withStock.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
-
-      set({ products: withStock, isLoading: false });
     } catch (err) {
       console.error("Failed to fetch products:", err);
       set({ isLoading: false });
-    }
-  },
-
-  // 單筆補齊照片等完整欄位（列表預設不帶 images）
-  fetchProductById: async (pId) => {
-    if (!pId) return null;
-    try {
-      const res = await fetch(`/api/products?id=${encodeURIComponent(pId)}`);
-      if (!res.ok) return null;
-      const product = await res.json();
-      set((state) => ({
-        products: state.products.map((p) => (p.p_id === product.p_id ? { ...p, ...product } : p)),
-        selectedProduct:
-          state.selectedProduct?.p_id === product.p_id
-            ? { ...state.selectedProduct, ...product }
-            : state.selectedProduct,
-      }));
-      return product;
-    } catch (err) {
-      console.error('Failed to fetch product by id:', err);
-      return null;
     }
   },
 

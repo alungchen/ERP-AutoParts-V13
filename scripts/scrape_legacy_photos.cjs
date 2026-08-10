@@ -4,19 +4,13 @@ const path = require('path');
 const { execSync, spawn } = require('child_process');
 
 const DB_NAME = 'erp-db'; // 你的 D1 資料庫名稱
-// 依序嘗試的主機與 Cookie 來源：cck 授權失效時自動改用 cck2 的既有 Session
-const HOST_CANDIDATES = [
-  { host: 'cck.uparts.info',  cookieFile: path.join(__dirname, 'cookies_cck.json') },
-  { host: 'cck.uparts.info',  cookieFile: path.join(__dirname, 'cookies.json') },
-  { host: 'cck2.uparts.info', cookieFile: path.join(__dirname, 'cookies_xizhi.json') },
-  { host: 'cck2.uparts.info', cookieFile: path.join(__dirname, 'cookies_songshan.json') },
-];
-let ACTIVE_HOST = 'cck.uparts.info';
-const partsQueryUrl = () => `http://${ACTIVE_HOST}/car2009/parts_query/`;
-const mediaIframeBase = () => `http://${ACTIVE_HOST}/car2009/Iframe_MEDIA_List/`;
+const PRIMARY_COOKIES_FILE = path.join(__dirname, 'cookies_cck.json');
+const FALLBACK_COOKIES_FILE = path.join(__dirname, 'cookies.json');
 // 使用獨立 profile，避免與 login:uparts 佔用同一個 userDataDir
 const PROFILE_DIR = path.join(__dirname, '.chrome-profile-legacy-photos');
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
+const PARTS_QUERY_URL = 'http://cck.uparts.info/car2009/parts_query/';
+const MEDIA_IFRAME_BASE = 'http://cck.uparts.info/car2009/Iframe_MEDIA_List/';
 
 // 自動啟動防休眠程式 (在新視窗開啟)，防止重複開啟
 if (!process.env.KEEP_AWAKE_STARTED) {
@@ -125,34 +119,17 @@ async function openWithRetry(page, url, options = {}) {
     ]
   });
   const page = await browser.newPage();
-  page.on('dialog', async d => { console.log(`  ⚠️ 網頁對話框: ${d.message()}`); await d.accept().catch(() => {}); });
-
-  // 載入登入狀態：依序嘗試各主機的既有 Session，找到能用的為止
-  let sessionOk = false;
-  for (const { host, cookieFile } of HOST_CANDIDATES) {
-    if (!fs.existsSync(cookieFile)) continue;
-    ACTIVE_HOST = host;
-    try {
-      await openWithRetry(page, `http://${host}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    } catch {}
-    const saved = JSON.parse(fs.readFileSync(cookieFile, 'utf8')).map(c => ({ ...c, domain: host }));
-    try { await page.setCookie(...saved); } catch { continue; }
-    try {
-      await openWithRetry(page, partsQueryUrl(), { waitUntil: 'domcontentloaded', timeout: 30000 });
-    } catch {}
-    await sleep(2000);
-    const ok = await page.evaluate(() => !!document.querySelector('#btn_search')).catch(() => false);
-    if (ok) {
-      console.log(`🔐 已載入登入狀態: ${host} + ${path.basename(cookieFile)}`);
-      sessionOk = true;
-      break;
-    }
-    console.log(`  ✗ ${host} + ${path.basename(cookieFile)} 的 Session 無效，換下一個…`);
-  }
-  if (!sessionOk) {
-    console.log('❌ 所有 Cookie 檔的登入狀態都已失效，請先執行 node scripts/run_all.cjs 重新登入。');
-    await browser.close();
-    process.exit(2);
+  
+  // 載入登入狀態
+  const cookieFileToUse = fs.existsSync(PRIMARY_COOKIES_FILE)
+    ? PRIMARY_COOKIES_FILE
+    : FALLBACK_COOKIES_FILE;
+  if (fs.existsSync(cookieFileToUse)) {
+    const saved = JSON.parse(fs.readFileSync(cookieFileToUse, 'utf8'));
+    await page.setCookie(...saved);
+    console.log(`🔐 已載入登入 Cookie: ${path.basename(cookieFileToUse)}`);
+  } else {
+    console.log('⚠️ 找不到 cookies_cck.json / cookies.json，可能需要先執行登入流程。');
   }
 
   const sqlPath = path.join(OUTPUT_DIR, 'update_legacy_photos.sql');
@@ -166,7 +143,7 @@ async function openWithRetry(page, url, options = {}) {
 
     try {
       // 1. 到搜尋頁面搜尋這個料號
-      await openWithRetry(page, partsQueryUrl(), { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await openWithRetry(page, PARTS_QUERY_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await sleep(1000);
       
       await page.evaluate((partNo) => {
@@ -193,7 +170,7 @@ async function openWithRetry(page, url, options = {}) {
       console.log(`  - 取得舊系統 GUID: ${legacyGuid}`);
 
       // 3. 使用 Iframe_MEDIA_List 抓取圖片
-      const url = `${mediaIframeBase()}?KeyValue=${legacyGuid}&TableName=%E9%9B%B6%E4%BB%B6%E4%B8%BB%E6%AA%94&message=&TYPE_LABLE=&CHNAME_LABLE=`;
+      const url = `${MEDIA_IFRAME_BASE}?KeyValue=${legacyGuid}&TableName=%E9%9B%B6%E4%BB%B6%E4%B8%BB%E6%AA%94&message=&TYPE_LABLE=&CHNAME_LABLE=`;
       
       await openWithRetry(page, url, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await sleep(1000); // 確保圖片 DOM 載入

@@ -42,11 +42,11 @@ const ShorthandConfig = () => {
         setFocusedNewField('');
         setIsSaveNewFocused(false);
         if (activeTab === 'model') {
-            setNewRow({ shorthand: '', name: '', fullname: '', brand: '', note: '' });
+            setNewRow({ shorthand: '', fullname: '', brand: '' });
         } else if (activeTab === 'part') {
-            setNewRow({ shorthand: '', name: '', fullname: '', category: '', note: '' });
+            setNewRow({ shorthand: '', fullname: '', category: '' });
         } else {
-            setNewRow({ shorthand: '', name: '', fullname: '', note: '' });
+            setNewRow({ shorthand: '', fullname: '' });
         }
     };
 
@@ -91,9 +91,7 @@ const ShorthandConfig = () => {
         if (!keyword) return true;
         const scope = [
             item.shorthand || '',
-            item.name || '',
             item.fullname || '',
-            item.note || '',
             activeTab === 'model' ? (item.brand || '') : (activeTab === 'part' ? (item.category || '') : '')
         ].join(' ').toLowerCase();
         return scope.includes(keyword);
@@ -134,8 +132,8 @@ const ShorthandConfig = () => {
     };
 
     const getNewFieldOrder = () => {
-        if (activeTab === 'brand') return ['shorthand', 'name', 'fullname', 'note'];
-        return ['shorthand', 'name', 'fullname', activeTab === 'model' ? 'brand' : 'category', 'note'];
+        if (activeTab === 'brand') return ['shorthand', 'fullname'];
+        return ['shorthand', 'fullname', activeTab === 'model' ? 'brand' : 'category'];
     };
 
     const handleNewFieldKeyDown = (e, fieldKey) => {
@@ -176,10 +174,8 @@ const ShorthandConfig = () => {
                 filePrefix: 'shorthand_models',
                 columns: [
                     { key: 'shorthand', label: 'Shorthand' },
-                    { key: 'name', label: 'Name' },
                     { key: 'fullname', label: 'Fullname' },
                     { key: 'brand', label: 'Brand' },
-                    { key: 'note', label: 'Note' },
                 ],
             };
         }
@@ -188,10 +184,8 @@ const ShorthandConfig = () => {
                 filePrefix: 'shorthand_parts',
                 columns: [
                     { key: 'shorthand', label: 'Shorthand' },
-                    { key: 'name', label: 'Name' },
                     { key: 'fullname', label: 'Fullname' },
                     { key: 'category', label: 'Category' },
-                    { key: 'note', label: 'Note' },
                 ],
             };
         }
@@ -199,9 +193,7 @@ const ShorthandConfig = () => {
             filePrefix: 'shorthand_brands',
             columns: [
                 { key: 'shorthand', label: 'Shorthand' },
-                { key: 'name', label: 'Name' },
                 { key: 'fullname', label: 'Fullname' },
-                { key: 'note', label: 'Note' },
             ],
         };
     };
@@ -274,9 +266,9 @@ const ShorthandConfig = () => {
                 // 偵測目標分類（依欄位或檔名）
                 const fName = file.name.toLowerCase();
                 const targetTab =
-                    (headers.includes('廠牌') || headers.includes('車廠') || headers.includes('brand') || fName.includes('model')) ? 'model' :
+                    (headers.includes('廠牌') || headers.includes('brand') || fName.includes('model')) ? 'model' :
                     (headers.includes('分類') || headers.includes('category') || fName.includes('part')) ? 'part' :
-                    (fName.includes('brand')) ? 'brand' :
+                    (headers.includes('備註') || headers.includes('remark') || fName.includes('brand')) ? 'brand' :
                     activeTab;
 
                 if (targetTab !== activeTab) {
@@ -284,11 +276,9 @@ const ShorthandConfig = () => {
                     return;
                 }
 
-                // 其他欄位（名稱/備註/廠牌/分類）
-                const idxName = headers.findIndex((h) => ['name', '名稱'].includes(h));
-                const idxNote = headers.findIndex((h) => ['note', 'remark', '備註'].includes(h));
+                // 第三欄（廠牌/分類）
                 const idxThird = activeTab === 'model'
-                    ? headers.findIndex((h) => ['brand', '廠牌', '車廠'].includes(h))
+                    ? headers.findIndex((h) => ['brand', '廠牌'].includes(h))
                     : activeTab === 'part'
                         ? headers.findIndex((h) => ['category', '分類'].includes(h))
                         : -1;
@@ -299,18 +289,16 @@ const ShorthandConfig = () => {
                 rows.slice(1).forEach((row) => {
                     const cols = parseCsvRow(row);
                     const shorthand = (cols[idxShorthand] || '').trim();
-                    const name      = idxName >= 0 ? (cols[idxName] || '').trim() : '';
-                    const fullname  = ((cols[idxFullname] || '').trim()) || name;
-                    const note      = idxNote >= 0 ? (cols[idxNote] || '').trim() : '';
+                    const fullname  = (cols[idxFullname]  || '').trim();
                     const thirdVal  = idxThird >= 0 ? (cols[idxThird] || '').trim() : '';
                     if (!shorthand || !fullname) { skipped += 1; return; }
 
                     if (activeTab === 'model') {
-                        newList.push({ shorthand, name, fullname, brand: thirdVal, note });
+                        newList.push({ shorthand, fullname, brand: thirdVal });
                     } else if (activeTab === 'part') {
-                        newList.push({ shorthand, name, fullname, category: thirdVal, note });
+                        newList.push({ shorthand, fullname, category: thirdVal });
                     } else {
-                        newList.push({ shorthand, name, fullname, note });
+                        newList.push({ shorthand, fullname });
                     }
                 });
 
@@ -331,7 +319,7 @@ const ShorthandConfig = () => {
     };
 
     return (
-        <div className="anim-fade-in" style={{ padding: '2rem', maxWidth: '1280px', margin: '0 auto' }}>
+        <div className="anim-fade-in" style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
             <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <Settings size={28} className="text-accent-primary" />
                 <div>
@@ -376,7 +364,7 @@ const ShorthandConfig = () => {
                         transition: 'all 0.2s'
                     }}
                 >
-                    B. 品名片語表 (Part Shorthand)
+                    B. 零件片語表 (Part Shorthand)
                 </button>
                 <button
                     ref={(el) => { tabBtnRefs.current.brand = el; }}
@@ -404,7 +392,7 @@ const ShorthandConfig = () => {
                         type="text"
                         value={searchKeywords[activeTab]}
                         onChange={(e) => setSearchKeywords((prev) => ({ ...prev, [activeTab]: e.target.value }))}
-                        placeholder={activeTab === 'model' ? '搜尋 A.車型（片語/完整名稱/廠牌）' : activeTab === 'part' ? '搜尋 B.品名（片語/完整名稱/分類）' : '搜尋 C.品牌（片語/完整品牌）'}
+                        placeholder={activeTab === 'model' ? '搜尋 A.車型（片語/完整名稱/廠牌）' : activeTab === 'part' ? '搜尋 B.零件（片語/完整名稱/分類）' : '搜尋 C.品牌（片語/完整品牌）'}
                         style={{
                             flex: 1,
                             padding: '8px 12px',
@@ -481,11 +469,11 @@ const ShorthandConfig = () => {
                 </div>
             </div>
 
-            <div style={{ background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
-                <table style={{ width: '100%', minWidth: '960px', textAlign: 'left', borderCollapse: 'collapse' }}>
+            <div style={{ background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                     <thead style={{ background: 'var(--bg-tertiary)' }}>
                         <tr>
-                            <th style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', width: '40px', textAlign: 'center' }}>
+                            <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', width: '40px', textAlign: 'center' }}>
                                 <input
                                     type="checkbox"
                                     checked={filteredList.length > 0 && selectedIds.length === filteredList.length}
@@ -499,25 +487,23 @@ const ShorthandConfig = () => {
                                     style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
                                 />
                             </th>
-                            <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '12%' }}>代碼</th>
-                            <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: activeTab === 'brand' ? '25%' : '18%' }}>名稱</th>
-                            <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: activeTab === 'brand' ? '25%' : '20%' }}>
+                            <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '20%' }}>代碼</th>
+                            <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '40%' }}>
                                 顯示名
                             </th>
                             {activeTab !== 'brand' && (
-                                <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '14%' }}>
+                                <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '25%' }}>
                                     {activeTab === 'model' ? '廠牌' : '分類'}
                                 </th>
                             )}
-                            <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: activeTab === 'brand' ? '22%' : '18%' }}>備註</th>
-                            <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: '12%', textAlign: 'center' }}>操作</th>
+                            <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', width: activeTab === 'brand' ? '40%' : '15%', textAlign: 'center' }}>操作</th>
                         </tr>
                     </thead>
                     <tbody>
                         {newRow && (
                             <tr style={{ background: 'rgba(52, 211, 153, 0.05)', borderBottom: '1px solid var(--border-color)' }}>
-                                <td style={{ padding: '12px 1rem', textAlign: 'center' }}></td>
-                                <td style={{ padding: '12px 1rem' }}>
+                                <td style={{ padding: '12px 1.5rem', textAlign: 'center' }}></td>
+                                <td style={{ padding: '12px 1.5rem' }}>
                                     <input
                                         className="input"
                                         ref={(el) => { newFieldRefs.current.shorthand = el; }}
@@ -540,29 +526,7 @@ const ShorthandConfig = () => {
                                         autoFocus
                                     />
                                 </td>
-                                <td style={{ padding: '12px 1rem' }}>
-                                    <input
-                                        className="input"
-                                        ref={(el) => { newFieldRefs.current.name = el; }}
-                                        value={newRow.name}
-                                        onChange={(e) => setNewRow({ ...newRow, name: e.target.value })}
-                                        onKeyDown={(e) => handleNewFieldKeyDown(e, 'name')}
-                                        onFocus={() => setFocusedNewField('name')}
-                                        onBlur={() => setFocusedNewField('')}
-                                        placeholder="名稱"
-                                        style={{
-                                            width: '100%',
-                                            padding: '6px 10px',
-                                            background: 'var(--bg-tertiary)',
-                                            border: focusedNewField === 'name' ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
-                                            borderRadius: '6px',
-                                            outline: 'none',
-                                            color: 'var(--text-primary)',
-                                            boxShadow: focusedNewField === 'name' ? '0 0 0 4px rgba(59, 130, 246, 0.28)' : 'none'
-                                        }}
-                                    />
-                                </td>
-                                <td style={{ padding: '12px 1rem' }}>
+                                <td style={{ padding: '12px 1.5rem' }}>
                                     <input
                                         className="input"
                                         ref={(el) => { newFieldRefs.current.fullname = el; }}
@@ -585,7 +549,7 @@ const ShorthandConfig = () => {
                                     />
                                 </td>
                                 {activeTab !== 'brand' && (
-                                    <td style={{ padding: '12px 1rem' }}>
+                                    <td style={{ padding: '12px 1.5rem' }}>
                                         <input
                                             className="input"
                                             ref={(el) => { newFieldRefs.current[activeTab === 'model' ? 'brand' : 'category'] = el; }}
@@ -611,29 +575,7 @@ const ShorthandConfig = () => {
                                         />
                                     </td>
                                 )}
-                                <td style={{ padding: '12px 1rem' }}>
-                                    <input
-                                        className="input"
-                                        ref={(el) => { newFieldRefs.current.note = el; }}
-                                        value={newRow.note}
-                                        onChange={(e) => setNewRow({ ...newRow, note: e.target.value })}
-                                        onKeyDown={(e) => handleNewFieldKeyDown(e, 'note')}
-                                        onFocus={() => setFocusedNewField('note')}
-                                        onBlur={() => setFocusedNewField('')}
-                                        placeholder="備註"
-                                        style={{
-                                            width: '100%',
-                                            padding: '6px 10px',
-                                            background: 'var(--bg-tertiary)',
-                                            border: focusedNewField === 'note' ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
-                                            borderRadius: '6px',
-                                            outline: 'none',
-                                            color: 'var(--text-primary)',
-                                            boxShadow: focusedNewField === 'note' ? '0 0 0 4px rgba(59, 130, 246, 0.28)' : 'none'
-                                        }}
-                                    />
-                                </td>
-                                <td style={{ padding: '12px 1rem', textAlign: 'center' }}>
+                                <td style={{ padding: '12px 1.5rem', textAlign: 'center' }}>
                                     <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
                                         <button
                                             ref={saveNewBtnRef}
@@ -665,7 +607,7 @@ const ShorthandConfig = () => {
                         {filteredList.map((item) => (
                             editingRowId === item.id ? (
                                 <tr key={`edit-${item.id}`} style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)' }}>
-                                    <td style={{ padding: '12px 1rem', textAlign: 'center' }}>
+                                    <td style={{ padding: '12px 1.5rem', textAlign: 'center' }}>
                                         <input
                                             type="checkbox"
                                             checked={selectedIds.includes(item.id)}
@@ -673,7 +615,7 @@ const ShorthandConfig = () => {
                                             style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
                                         />
                                     </td>
-                                    <td style={{ padding: '12px 1rem' }}>
+                                    <td style={{ padding: '12px 1.5rem' }}>
                                         <input
                                             className="input"
                                             value={editingRowData.shorthand}
@@ -682,15 +624,7 @@ const ShorthandConfig = () => {
                                             autoFocus
                                         />
                                     </td>
-                                    <td style={{ padding: '12px 1rem' }}>
-                                        <input
-                                            className="input"
-                                            value={editingRowData.name || ''}
-                                            onChange={(e) => setEditingRowData({ ...editingRowData, name: e.target.value })}
-                                            style={{ width: '100%', padding: '6px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', outline: 'none', color: 'var(--text-primary)' }}
-                                        />
-                                    </td>
-                                    <td style={{ padding: '12px 1rem' }}>
+                                    <td style={{ padding: '12px 1.5rem' }}>
                                         <input
                                             className="input"
                                             value={editingRowData.fullname}
@@ -699,7 +633,7 @@ const ShorthandConfig = () => {
                                         />
                                     </td>
                                     {activeTab !== 'brand' && (
-                                        <td style={{ padding: '12px 1rem' }}>
+                                        <td style={{ padding: '12px 1.5rem' }}>
                                             <input
                                                 className="input"
                                                 value={activeTab === 'model' ? editingRowData.brand : editingRowData.category}
@@ -711,15 +645,7 @@ const ShorthandConfig = () => {
                                             />
                                         </td>
                                     )}
-                                    <td style={{ padding: '12px 1rem' }}>
-                                        <input
-                                            className="input"
-                                            value={editingRowData.note || ''}
-                                            onChange={(e) => setEditingRowData({ ...editingRowData, note: e.target.value })}
-                                            style={{ width: '100%', padding: '6px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', outline: 'none', color: 'var(--text-primary)' }}
-                                        />
-                                    </td>
-                                    <td style={{ padding: '12px 1rem', textAlign: 'center' }}>
+                                    <td style={{ padding: '12px 1.5rem', textAlign: 'center' }}>
                                         <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
                                             <button onClick={handleEditSave} style={{ color: '#3b82f6', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px' }} title="儲存"><Save size={18} /></button>
                                             <button onClick={() => setEditingRowId(null)} style={{ color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px' }} title="取消"><Trash2 size={18} /></button>
@@ -728,7 +654,7 @@ const ShorthandConfig = () => {
                                 </tr>
                             ) : (
                                 <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }} className="hover:bg-bg-tertiary transition">
-                                    <td style={{ padding: '12px 1rem', textAlign: 'center' }}>
+                                    <td style={{ padding: '12px 1.5rem', textAlign: 'center' }}>
                                         <input
                                             type="checkbox"
                                             checked={selectedIds.includes(item.id)}
@@ -736,18 +662,16 @@ const ShorthandConfig = () => {
                                             style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
                                         />
                                     </td>
-                                    <td style={{ padding: '12px 1rem', fontWeight: 600, color: 'var(--accent-hover)' }}>{item.shorthand}</td>
-                                    <td style={{ padding: '12px 1rem', color: 'var(--text-secondary)' }}>{item.name}</td>
-                                    <td style={{ padding: '12px 1rem', fontWeight: 600 }}>{item.fullname}</td>
+                                    <td style={{ padding: '12px 1.5rem', fontWeight: 600, color: 'var(--accent-hover)' }}>{item.shorthand}</td>
+                                    <td style={{ padding: '12px 1.5rem', fontWeight: 600 }}>{item.fullname}</td>
                                     {activeTab !== 'brand' && (
-                                        <td style={{ padding: '12px 1rem', color: 'var(--text-secondary)' }}>
+                                        <td style={{ padding: '12px 1.5rem', color: 'var(--text-secondary)' }}>
                                             <span style={{ background: 'var(--bg-tertiary)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>
                                                 {activeTab === 'model' ? item.brand : item.category}
                                             </span>
                                         </td>
                                     )}
-                                    <td style={{ padding: '12px 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{item.note}</td>
-                                    <td style={{ padding: '12px 1rem', textAlign: 'center' }}>
+                                    <td style={{ padding: '12px 1.5rem', textAlign: 'center' }}>
                                         <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
                                             <button
                                                 onClick={() => handleEditInit(item)}
@@ -778,7 +702,7 @@ const ShorthandConfig = () => {
 
                         {filteredList.length === 0 && !newRow && (
                             <tr>
-                                <td colSpan={activeTab === 'brand' ? 6 : 7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                <td colSpan={activeTab === 'brand' ? 4 : 5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                                     {keyword ? '找不到符合搜尋條件的片語。' : '目前無片語資料。'}
                                 </td>
                             </tr>

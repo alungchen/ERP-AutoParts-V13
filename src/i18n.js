@@ -263,10 +263,7 @@ const translations = {
             typePh: "Type",
             numPh: "Part Number",
             brandPh: "Brand",
-            carPh: "Vehicle Model...",
-            noData: "No products yet.",
-            noResults: "No products match the current filters. Clear filters to show all products.",
-            clearFilters: "Clear filters"
+            carPh: "Vehicle Model..."
         },
         sourcing: {
             title: "Import cost estimation",
@@ -631,10 +628,7 @@ const translations = {
             typePh: "類型 (OE/AM)",
             numPh: "料號",
             brandPh: "品牌",
-            carPh: "適用車型年份...",
-            noData: "目前尚無產品資料",
-            noResults: "沒有符合目前搜尋條件的產品。請清除條件後再試。",
-            clearFilters: "清除條件"
+            carPh: "適用車型年份..."
         },
         sourcing: {
             title: "進口貿易成本估價",

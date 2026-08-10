@@ -42,9 +42,7 @@ const mapToDb = (item, type) => ({
     type,
     shorthand: item.shorthand,
     fullname: item.fullname,
-    meta_category: item.brand || item.category || '',
-    name: item.name || '',
-    note: item.note || ''
+    meta_category: item.brand || item.category || ''
 });
 
 const mapFromDb = (item) => ({
@@ -53,8 +51,6 @@ const mapFromDb = (item) => ({
     fullname: item.fullname,
     brand: item.type === 'model' ? item.meta_category : undefined,
     category: item.type !== 'model' ? item.meta_category : undefined,
-    name: item.name || '',
-    note: item.note || '',
 });
 
 export const useShorthandStore = create(persist((set, get) => ({
