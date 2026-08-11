@@ -4,16 +4,19 @@ const path = require('path');
 const os = require('os');
 const { execSync, spawn } = require('child_process');
 
-const LOGIN_URL = 'http://cck.uparts.info/car2009/Default/'; // 登入專用網址
+// 舊系統主機（與單據同步相同：2026-07 起改走 cck2；可用 --host= 覆寫）
+const HOST = (process.argv.find(a => a.startsWith('--host='))?.split('=')[1] || 'cck2.uparts.info')
+  .replace(/^https?:\/\//, '').replace(/\/$/, '');
+const LOGIN_URL = `http://${HOST}/car2009/Default/`;
 const DOC_URLS = {
-  quotation: 'http://cck.uparts.info/car2009/tq/',
-  sales: 'http://cck.uparts.info/car2009/ts/',
-  salesReturn: 'http://cck.uparts.info/car2009/tt/',
-  inquiry: 'http://cck.uparts.info/car2009/tii/',
-  po: 'http://cck.uparts.info/car2009/tip/',            // 採購單 (Purchase Order)
-  purchase: 'http://cck.uparts.info/car2009/tb/',          // 進貨單 (Purchase Inbound) - 已修正從 /tip/ 變更為 /tb/
-  purchaseReturn: 'http://cck.uparts.info/car2009/tr/',
-  order: 'http://cck.uparts.info/car2009/to/',           // 客戶訂單 (Sales Order)
+  quotation: `http://${HOST}/car2009/tq/`,
+  sales: `http://${HOST}/car2009/ts/`,
+  salesReturn: `http://${HOST}/car2009/tt/`,
+  inquiry: `http://${HOST}/car2009/tii/`,
+  po: `http://${HOST}/car2009/tip/`,            // 採購單 (Purchase Order)
+  purchase: `http://${HOST}/car2009/tb/`,          // 進貨單 (Purchase Inbound) - 已修正從 /tip/ 變更為 /tb/
+  purchaseReturn: `http://${HOST}/car2009/tr/`,
+  order: `http://${HOST}/car2009/to/`,           // 客戶訂單 (Sales Order)
 };
 
 // 參數解析
@@ -31,7 +34,7 @@ if (!allowedBranches.includes(branchArg)) {
 
 if (!typeArg || !startArg || !endArg) {
   console.log(`
-使用方式: node scripts/scrape_documents.cjs --branch=<分店代號> --type=<單據類型> --start=<開始日期> --end=<結束日期>
+使用方式: node scripts/scrape_documents.cjs --branch=<分店代號> --type=<單據類型> --start=<開始日期> --end=<結束日期> [--host=cck2.uparts.info]
 分店代號支援: songshan (松山店), xizhi (汐止店), linkou (林口店) (預設為 songshan)
 單據類型支援: quotation (報價), sales (銷貨), salesReturn (銷退), inquiry (詢價), po (採購), purchase (進貨), purchaseReturn (進退), order (訂單), all (一次搬移8種)
 範例: node scripts/scrape_documents.cjs --branch=xizhi --type=purchase --start=2026-05-18 --end=2026-05-18
@@ -46,6 +49,20 @@ if (typeArg !== 'all' && !DOC_URLS[typeArg]) {
 const OUTPUT_DIR = path.join(__dirname, '..', 'output', branchArg);
 const COOKIES_FILE = path.join(__dirname, `cookies_${branchArg}.json`);
 const PROFILE_DIR = path.join(__dirname, `.chrome-profile-docs-${branchArg}`);
+
+function remapCookiesForHost(cookies) {
+  return (cookies || []).map((c) => ({ ...c, domain: HOST }));
+}
+
+function loadCookiesFromFile(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return remapCookiesForHost(JSON.parse(fs.readFileSync(filePath, 'utf8')));
+  } catch (e) {
+    console.log(`⚠️ 讀取 Cookie 失敗 (${path.basename(filePath)}): ${e.message}`);
+    return null;
+  }
+}
 
 // 自動啟動防休眠程式 (在新視窗開啟)，防止重複開啟
 if (!process.env.KEEP_AWAKE_STARTED) {
@@ -108,45 +125,54 @@ function writeCSV(filePath, headers, rows) {
   page.setDefaultNavigationTimeout(60000);
   page.setDefaultTimeout(20000);
   
-  // 1. 登入檢查
-  console.log('\n[1] 檢查登入狀態...');
+  // 1. 登入檢查（主機與單據同步相同：預設 cck2）
+  console.log(`\n[1] 檢查登入狀態...（主機: ${HOST}）`);
+  try { await page.goto(`http://${HOST}/`, { waitUntil: 'domcontentloaded' }); } catch {}
   try { await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' }); } catch {}
   await ensurePageReady(page);
   await sleep(2000);
 
   let cookiesLoaded = false;
-  if (fs.existsSync(COOKIES_FILE)) {
-    const saved = JSON.parse(fs.readFileSync(COOKIES_FILE, 'utf8'));
-    await page.setCookie(...saved);
-    try { await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' }); } catch {}
-    await ensurePageReady(page);
-    await sleep(2000);
-    cookiesLoaded = true;
-  } else {
-    // 試圖載入松山店的 MachineId 授權 Cookie，免去新裝置授權
-    const songshanCookiesFile = path.join(__dirname, 'cookies_songshan.json');
-    const defaultCookiesFile = path.join(__dirname, 'cookies.json');
-    let sourceFile = null;
-    if (fs.existsSync(songshanCookiesFile)) {
-      sourceFile = songshanCookiesFile;
-    } else if (fs.existsSync(defaultCookiesFile)) {
-      sourceFile = defaultCookiesFile;
+  const branchCookies = loadCookiesFromFile(COOKIES_FILE);
+  const cck2Cookies = loadCookiesFromFile(path.join(__dirname, 'cookies_cck2.json'));
+  const songshanCookies = loadCookiesFromFile(path.join(__dirname, 'cookies_songshan.json'));
+  const defaultCookies = loadCookiesFromFile(path.join(__dirname, 'cookies.json'));
+
+  const preferredCookies = branchCookies
+    || cck2Cookies
+    || songshanCookies
+    || defaultCookies;
+
+  if (preferredCookies && preferredCookies.length > 0) {
+    try {
+      await page.setCookie(...preferredCookies);
+      const mid = preferredCookies.find((c) => c.name === 'MachineId');
+      if (mid) {
+        console.log(`ℹ️ 已注入 Cookie／MachineId（${mid.value.slice(0, 8)}…）→ ${HOST}`);
+      } else {
+        console.log(`ℹ️ 已注入 ${preferredCookies.length} 個 Cookie → ${HOST}`);
+      }
+      try { await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+      await ensurePageReady(page);
+      await sleep(2000);
+      cookiesLoaded = true;
+    } catch (e) {
+      console.log(`⚠️ 注入 Cookie 失敗: ${e.message}`);
     }
-    
-    if (sourceFile) {
+  } else if (songshanCookies || defaultCookies) {
+    // 僅注入 MachineId（無完整 session 時仍可通過裝置授權）
+    const src = songshanCookies || defaultCookies;
+    const machineIdCookie = src.find(c => c.name === 'MachineId');
+    if (machineIdCookie) {
       try {
-        const songshanCookies = JSON.parse(fs.readFileSync(sourceFile, 'utf8'));
-        const machineIdCookie = songshanCookies.find(c => c.name === 'MachineId');
-        if (machineIdCookie) {
-          await page.setCookie(machineIdCookie);
-          console.log(`ℹ️ 已自動載入松山店的 MachineId 授權 Cookie (${machineIdCookie.value})，免去新裝置授權步驟。`);
-          try { await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' }); } catch {}
-          await ensurePageReady(page);
-          await sleep(2000);
-          cookiesLoaded = true;
-        }
+        await page.setCookie(machineIdCookie);
+        console.log(`ℹ️ 已自動載入 MachineId 授權 Cookie (${machineIdCookie.value})，免去新裝置授權步驟。`);
+        try { await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+        await ensurePageReady(page);
+        await sleep(2000);
+        cookiesLoaded = true;
       } catch (e) {
-        console.log('⚠️ 載入松山店 MachineId Cookie 失敗:', e.message);
+        console.log('⚠️ 載入 MachineId Cookie 失敗:', e.message);
       }
     }
   }

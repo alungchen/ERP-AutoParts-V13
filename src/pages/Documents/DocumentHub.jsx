@@ -21,8 +21,8 @@ const TAB_GROUPS = [
         title: { zh: '銷售業務', en: 'Sales' },
         type: 'sales',
         tabs: [
-            { key: 'quotation', labelKey: 'docs.tabQuotation' },
             { key: 'sales', labelKey: 'docs.tabSales' },
+            { key: 'quotation', labelKey: 'docs.tabQuotation' },
             { key: 'salesReturn', labelKey: 'docs.tabSalesReturn' },
         ]
     },
@@ -30,8 +30,8 @@ const TAB_GROUPS = [
         title: { zh: '採購進貨', en: 'Procurement' },
         type: 'procurement',
         tabs: [
-            { key: 'inquiry', labelKey: 'docs.tabInquiry' },
             { key: 'purchase', labelKey: 'docs.tabPurchase' },
+            { key: 'inquiry', labelKey: 'docs.tabInquiry' },
             { key: 'shortageBook', labelKey: 'docs.tabShortageBook' },
             { key: 'purchaseReturn', labelKey: 'docs.tabPurchaseReturn' },
         ]
@@ -40,8 +40,8 @@ const TAB_GROUPS = [
 
 const VALID_DOC_TABS = ['inquiry', 'purchase', 'quotation', 'sales', 'salesReturn', 'purchaseReturn', 'shortageBook'];
 const KEYBOARD_TAB_GROUPS = {
-    sales: ['quotation', 'sales', 'salesReturn'],
-    procurement: ['inquiry', 'purchase', 'shortageBook', 'purchaseReturn'],
+    sales: ['sales', 'quotation', 'salesReturn'],
+    procurement: ['purchase', 'inquiry', 'shortageBook', 'purchaseReturn'],
 };
 
 const STATUS_LABEL = {
@@ -104,10 +104,10 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
     const { t, language } = useTranslation();
     const initialTab = searchParams.get('tab');
     const typeFromQuery = searchParams.get('type');
-    // 進入製單系統預設為 銷售業務/報價單；若有指定 type 則預設為該單別
+    // 進入製單系統預設為 銷售業務/銷貨單；若有指定 type 則預設為該單別
     const tabFromQuery = VALID_DOC_TABS.includes(initialTab) 
         ? initialTab 
-        : (VALID_DOC_TABS.includes(typeFromQuery) ? typeFromQuery : 'quotation');
+        : (VALID_DOC_TABS.includes(typeFromQuery) ? typeFromQuery : 'sales');
     /** 新分頁模式（standalone=1）：只顯示當前單別，隱藏銷售/採購切換與同區其他子分頁 */
     const isStandaloneDocHub = searchParams.get('standalone') === '1';
     const isDocFocusMode = isStandaloneDocHub;

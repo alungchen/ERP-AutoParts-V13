@@ -110,16 +110,16 @@ const AppLayout = () => {
             {
                 title: '銷售業務',
                 links: [
-                    { key: 'quotation', label: '報價單', icon: FileText, path: '/document-editor?type=quotation', color: '#2563eb' },
                     { key: 'sales', label: '銷貨單', icon: Layers, path: '/document-editor?type=sales', color: '#16a34a' },
+                    { key: 'quotation', label: '報價單', icon: FileText, path: '/document-editor?type=quotation', color: '#2563eb' },
                     { key: 'salesReturn', label: '銷貨退回', icon: Layers, path: '/document-editor?type=salesReturn', color: '#0ea5e9' },
                 ],
             },
             {
                 title: '採購業務',
                 links: [
-                    { key: 'inquiry', label: '詢價單', icon: Search, path: '/document-editor?type=inquiry', color: '#8b5cf6' },
                     { key: 'purchase', label: '進貨單', icon: Package, path: '/document-editor?type=purchase', color: '#f59e0b' },
+                    { key: 'inquiry', label: '詢價單', icon: Search, path: '/document-editor?type=inquiry', color: '#8b5cf6' },
                     { key: 'shortageBook', label: '缺貨簿', icon: ClipboardList, path: '/document-editor?type=shortageBook', color: '#dc2626' },
                     { key: 'purchaseReturn', label: '進貨退回', icon: Package, path: '/document-editor?type=purchaseReturn', color: '#f97316' },
                 ],
