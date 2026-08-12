@@ -1,9 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { BarChart3, Printer } from 'lucide-react';
 import { useDocumentStore } from '../../store/useDocumentStore';
+import { useProductStore } from '../../store/useProductStore';
 
 const ReportsPage = () => {
-    const { salesOrders = [], purchaseOrders = [] } = useDocumentStore();
+    const { salesOrders = [], purchaseOrders = [], salesReturns = [], purchaseReturns = [] } = useDocumentStore();
+    const { products = [], fetchProducts } = useProductStore();
+
+    useEffect(() => {
+        if (!products || products.length === 0) {
+            fetchProducts();
+        }
+    }, [products, fetchProducts]);
     const [activeTab, setActiveTab] = useState('sales');
     const [activeView, setActiveView] = useState('report'); // report | detail
     const [filters, setFilters] = useState({
@@ -13,12 +21,58 @@ const ReportsPage = () => {
         dateTo: '',
     });
 
-    const rows = activeTab === 'sales' ? salesOrders : purchaseOrders;
+    const rows = activeTab === 'sales' 
+        ? [...salesOrders, ...salesReturns] 
+        : [...purchaseOrders, ...purchaseReturns];
+
+    const latestPurchasePriceMap = useMemo(() => {
+        const map = {};
+        const sortedPOs = [...purchaseOrders].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        sortedPOs.forEach(po => {
+            (po.items || []).forEach(item => {
+                if (item.p_id && item.unit_price) {
+                    map[item.p_id] = Number(item.unit_price) || 0;
+                } else if (item.part_number && item.unit_price) {
+                    map[item.part_number] = Number(item.unit_price) || 0;
+                }
+            });
+        });
+        return map;
+    }, [purchaseOrders]);
+
+    const productCostMap = useMemo(() => {
+        const map = {};
+        products.forEach(p => {
+            const baseCost = Number(p.base_cost) || 0;
+            if (baseCost > 0) {
+                map[p.p_id] = baseCost;
+            } else {
+                map[p.p_id] = latestPurchasePriceMap[p.p_id] || 0;
+            }
+        });
+        return map;
+    }, [products, latestPurchasePriceMap]);
 
     const withAmount = useMemo(() => rows.map((doc) => {
-        const amount = (doc.items || []).reduce((sum, item) => sum + ((item.qty || 0) * (item.unit_price || 0)), 0);
-        return { ...doc, _amount: amount };
-    }), [rows]);
+        const isReturn = doc.type === 'salesReturn' || doc.type === 'purchaseReturn';
+        const sign = isReturn ? -1 : 1;
+
+        let amount = 0;
+        let costAmount = 0;
+
+        (doc.items || []).forEach(item => {
+            const qty = (item.qty || 0) * sign;
+            const unitPrice = item.unit_price || 0;
+            amount += qty * unitPrice;
+            
+            if (activeTab === 'sales') {
+                const unitCost = productCostMap[item.p_id] || latestPurchasePriceMap[item.p_id] || latestPurchasePriceMap[item.part_number] || 0;
+                costAmount += qty * unitCost;
+            }
+        });
+
+        return { ...doc, _amount: amount, _costAmount: costAmount, _isReturn: isReturn };
+    }), [rows, activeTab, productCostMap, latestPurchasePriceMap]);
 
     const filteredRows = useMemo(() => {
         return withAmount.filter((doc) => {
@@ -34,49 +88,80 @@ const ReportsPage = () => {
 
     const summary = useMemo(() => {
         const totalAmount = filteredRows.reduce((sum, doc) => sum + (doc._amount || 0), 0);
+        let totalCost = 0;
+        if (activeTab === 'sales') {
+            totalCost = filteredRows.reduce((sum, doc) => sum + (doc._costAmount || 0), 0);
+        }
+        const grossProfit = totalAmount - totalCost;
+        const grossMargin = totalAmount > 0 ? (grossProfit / totalAmount) * 100 : 0;
+
         const totalItems = filteredRows.reduce((sum, doc) => sum + ((doc.items || []).length), 0);
-        return { totalAmount, totalItems };
-    }, [filteredRows]);
+        return { totalAmount, totalItems, grossProfit, grossMargin };
+    }, [filteredRows, activeTab]);
 
     const partySummaryRows = useMemo(() => {
         const grouped = filteredRows.reduce((acc, doc) => {
             const party = doc.customer_name || doc.supplier_name || '-';
             if (!acc[party]) {
-                acc[party] = { party, docCount: 0, itemCount: 0, amount: 0 };
+                acc[party] = { party, docCount: 0, itemCount: 0, amount: 0, costAmount: 0 };
             }
             acc[party].docCount += 1;
             acc[party].itemCount += (doc.items || []).length;
             acc[party].amount += (doc._amount || 0);
+            if (activeTab === 'sales') {
+                acc[party].costAmount += (doc._costAmount || 0);
+            }
             return acc;
         }, {});
-        return Object.values(grouped).sort((a, b) => b.amount - a.amount);
-    }, [filteredRows]);
+
+        return Object.values(grouped).map(row => {
+            const grossProfit = row.amount - row.costAmount;
+            const grossMargin = row.amount > 0 ? (grossProfit / row.amount) * 100 : 0;
+            return { ...row, grossProfit, grossMargin };
+        }).sort((a, b) => b.amount - a.amount);
+    }, [filteredRows, activeTab]);
 
     const detailRows = useMemo(() => {
         return filteredRows.flatMap((doc) => {
+            const isReturn = doc.type === 'salesReturn' || doc.type === 'purchaseReturn';
+            const sign = isReturn ? -1 : 1;
+
             const base = {
                 docId: doc.doc_id || '-',
                 date: doc.date || '-',
                 party: doc.customer_name || doc.supplier_name || '-',
+                type: doc.type,
             };
             const items = doc.items || [];
             if (items.length === 0) {
-                return [{ ...base, partNo: '-', itemName: '-', qty: 0, unitPrice: 0, amount: 0 }];
+                return [{ ...base, partNo: '-', itemName: '-', qty: 0, unitPrice: 0, amount: 0, cost: 0, grossProfit: 0 }];
             }
             return items.map((item) => {
-                const qty = Number(item.qty || 0);
+                const qty = Number(item.qty || 0) * sign;
                 const unitPrice = Number(item.unit_price || 0);
+                const amount = qty * unitPrice;
+                let cost = 0;
+                let grossProfit = 0;
+
+                if (activeTab === 'sales') {
+                    const unitCost = productCostMap[item.p_id] || latestPurchasePriceMap[item.p_id] || latestPurchasePriceMap[item.part_number] || 0;
+                    cost = qty * unitCost;
+                    grossProfit = amount - cost;
+                }
+
                 return {
                     ...base,
                     partNo: item.part_number || item.p_id || '-',
                     itemName: item.name || '-',
                     qty,
                     unitPrice,
-                    amount: qty * unitPrice,
+                    amount,
+                    cost,
+                    grossProfit
                 };
             });
         });
-    }, [filteredRows]);
+    }, [filteredRows, activeTab, productCostMap, latestPurchasePriceMap]);
 
     const resetFilters = () => {
         setFilters({
@@ -111,6 +196,10 @@ const ReportsPage = () => {
                     <td style="text-align:right;">${row.docCount}</td>
                     <td style="text-align:right;">${row.itemCount}</td>
                     <td style="text-align:right;">${row.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    ${activeTab === 'sales' ? `
+                    <td style="text-align:right;">${row.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="text-align:right;">${row.grossMargin.toFixed(2)}%</td>
+                    ` : ''}
                 </tr>
             `).join('')
             : detailRows.map((row, idx) => `
@@ -124,6 +213,10 @@ const ReportsPage = () => {
                     <td style="text-align:right;">${row.qty}</td>
                     <td style="text-align:right;">${row.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td style="text-align:right;">${row.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    ${activeTab === 'sales' ? `
+                    <td style="text-align:right;">${row.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="text-align:right;">${row.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    ` : ''}
                 </tr>
             `).join('');
 
@@ -156,7 +249,16 @@ const ReportsPage = () => {
                     <div class="summary-row"><span>狀態篩選</span><span>${statusText}</span></div>
                     <div class="summary-row"><span>單據總數（篩選後）</span><span>${filteredRows.length} 張</span></div>
                     <div class="summary-row"><span>品項總數</span><span>${summary.totalItems} 項</span></div>
-                    <div class="summary-row summary-total"><span>總金額</span><span>${summary.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                    <div class="summary-row summary-total">
+                        <span>總金額</span>
+                        <span>${summary.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    ${activeTab === 'sales' ? `
+                    <div class="summary-row summary-total" style="margin-top: 4px;">
+                        <span>總毛利</span>
+                        <span>${summary.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (毛利率: ${summary.grossMargin.toFixed(2)}%)</span>
+                    </div>
+                    ` : ''}
                 </div>
                 <table>
                     <thead>
@@ -167,6 +269,10 @@ const ReportsPage = () => {
                                 <th style="text-align:right;">單據數</th>
                                 <th style="text-align:right;">品項數</th>
                                 <th style="text-align:right;">總金額</th>
+                                ${activeTab === 'sales' ? `
+                                <th style="text-align:right;">毛利</th>
+                                <th style="text-align:right;">毛利率</th>
+                                ` : ''}
                             </tr>`
                             : `<tr>
                                 <th style="width:60px;">#</th>
@@ -178,11 +284,15 @@ const ReportsPage = () => {
                                 <th style="text-align:right;">數量</th>
                                 <th style="text-align:right;">單價</th>
                                 <th style="text-align:right;">小計</th>
+                                ${activeTab === 'sales' ? `
+                                <th style="text-align:right;">進貨成本</th>
+                                <th style="text-align:right;">毛利</th>
+                                ` : ''}
                             </tr>`
                         }
                     </thead>
                     <tbody>
-                        ${rowsHtml ? rowsHtml : `<tr><td colspan="${activeView === 'report' ? 5 : 9}" class="empty">找不到符合篩選條件的資料</td></tr>`}
+                        ${rowsHtml ? rowsHtml : `<tr><td colspan="${activeView === 'report' ? (activeTab === 'sales' ? 7 : 5) : (activeTab === 'sales' ? 11 : 9)}" class="empty">找不到符合篩選條件的資料</td></tr>`}
                     </tbody>
                 </table>
             </body>
@@ -361,8 +471,14 @@ const ReportsPage = () => {
             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>單據總數（篩選後）：{filteredRows.length} 張</div>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>品項總數：{summary.totalItems} 項</div>
-                <div style={{ marginTop: '0.35rem', fontWeight: 800, fontSize: '1.05rem' }}>
-                    總金額：{summary.totalAmount.toLocaleString()}
+                <div style={{ marginTop: '0.35rem', fontWeight: 800, fontSize: '1.05rem', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                    <span>總金額：{summary.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    {activeTab === 'sales' && (
+                        <>
+                            <span>總毛利：{summary.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span>總毛利率：{summary.grossMargin.toFixed(2)}%</span>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -375,6 +491,12 @@ const ReportsPage = () => {
                                 <th style={{ ...tableHeaderCellBase, textAlign: 'right' }}>單據數</th>
                                 <th style={{ ...tableHeaderCellBase, textAlign: 'right' }}>品項數</th>
                                 <th style={{ ...tableHeaderCellBase, textAlign: 'right' }}>總金額</th>
+                                {activeTab === 'sales' && (
+                                    <>
+                                        <th style={{ ...tableHeaderCellBase, textAlign: 'right' }}>毛利</th>
+                                        <th style={{ ...tableHeaderCellBase, textAlign: 'right' }}>毛利率</th>
+                                    </>
+                                )}
                             </tr>
                         ) : (
                             <tr>
@@ -386,6 +508,12 @@ const ReportsPage = () => {
                                 <th style={{ ...tableHeaderCellBase, textAlign: 'right' }}>數量</th>
                                 <th style={{ ...tableHeaderCellBase, textAlign: 'right' }}>單價</th>
                                 <th style={{ ...tableHeaderCellBase, textAlign: 'right' }}>小計</th>
+                                {activeTab === 'sales' && (
+                                    <>
+                                        <th style={{ ...tableHeaderCellBase, textAlign: 'right' }}>進貨成本</th>
+                                        <th style={{ ...tableHeaderCellBase, textAlign: 'right' }}>毛利</th>
+                                    </>
+                                )}
                             </tr>
                         )}
                     </thead>
@@ -395,7 +523,17 @@ const ReportsPage = () => {
                                 <td style={{ padding: '0.75rem' }}>{row.party}</td>
                                 <td style={{ padding: '0.75rem', textAlign: 'right' }}>{row.docCount}</td>
                                 <td style={{ padding: '0.75rem', textAlign: 'right' }}>{row.itemCount}</td>
-                                <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700 }}>{row.amount.toLocaleString()}</td>
+                                <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700 }}>{row.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                {activeTab === 'sales' && (
+                                    <>
+                                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, color: row.grossProfit < 0 ? 'var(--text-danger)' : 'inherit' }}>
+                                            {row.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </td>
+                                        <td style={{ padding: '0.75rem', textAlign: 'right', color: row.grossMargin < 0 ? 'var(--text-danger)' : 'inherit' }}>
+                                            {row.grossMargin.toFixed(2)}%
+                                        </td>
+                                    </>
+                                )}
                             </tr>
                         )) : detailRows.map((row, idx) => (
                             <tr key={`${row.docId}-${row.partNo}-${idx}`} style={{ borderTop: '1px solid var(--border-color)' }}>
@@ -407,11 +545,19 @@ const ReportsPage = () => {
                                 <td style={{ padding: '0.75rem', textAlign: 'right' }}>{row.qty}</td>
                                 <td style={{ padding: '0.75rem', textAlign: 'right' }}>{row.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700 }}>{row.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                {activeTab === 'sales' && (
+                                    <>
+                                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>{row.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, color: row.grossProfit < 0 ? 'var(--text-danger)' : 'inherit' }}>
+                                            {row.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </td>
+                                    </>
+                                )}
                             </tr>
                         ))}
                         {((activeView === 'report' ? partySummaryRows.length : detailRows.length) === 0) && (
                             <tr>
-                                <td colSpan={activeView === 'report' ? 4 : 8} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                <td colSpan={activeView === 'report' ? (activeTab === 'sales' ? 6 : 4) : (activeTab === 'sales' ? 10 : 8)} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                                     找不到符合篩選條件的資料
                                 </td>
                             </tr>
