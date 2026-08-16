@@ -86,16 +86,16 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                     </div>
 
                     <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem', border: '1px solid var(--border-color)' }}>
                             <thead style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
                                 <tr>
-                                    <th style={{ width: '40px', textAlign: 'center', padding: '0.75rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>#</th>
-                                    <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thAppNumber')}</th>
-                                    <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thVehicle')}</th>
-                                    <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thYear')}</th>
-                                    <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thBrand')}</th>
-                                    <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thProdSpec')}</th>
-                                    <th style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thNotes')}</th>
+                                    <th style={{ width: '40px', textAlign: 'center', padding: '0.75rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>#</th>
+                                    <th style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thAppNumber')}</th>
+                                    <th style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thVehicle')}</th>
+                                    <th style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thYear')}</th>
+                                    <th style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thBrand')}</th>
+                                    <th style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thProdSpec')}</th>
+                                    <th style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thNotes')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -115,8 +115,8 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                                             background: isMatch ? 'var(--accent-subtle)' : (idx % 2 === 0 ? 'transparent' : 'var(--bg-tertiary)'),
                                             boxShadow: isMatch ? 'inset 0 0 0 2px var(--accent-primary)' : 'none'
                                         }}>
-                                        <td style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: '500', fontSize: '0.85rem' }}>{idx + 1}</td>
-                                        <td style={{ padding: '0.75rem' }}>
+                                        <td style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: '500', fontSize: '0.85rem', border: '1px solid var(--border-color)' }}>{idx + 1}</td>
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <button
                                                     className="text-secondary hover:text-primary transition shrink-0 bg-transparent border-0 p-0 m-0 cursor-pointer"
@@ -133,15 +133,15 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                                                 <span style={{ fontFamily: 'monospace', color: 'var(--accent-hover)' }}>{pn.part_number}</span>
                                             </div>
                                         </td>
-                                        <td style={{ padding: '0.75rem' }}>{(() => {
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>{(() => {
                                             if (pn.car_model) return pn.car_model;
                                             const c = (product.car_models || [])[idx] || (product.car_models || [])[0];
                                             return typeof c === 'string' ? c : (c?.model || '-');
                                         })()}</td>
-                                        <td style={{ padding: '0.75rem' }}>{pn.year || '-'}</td>
-                                        <td style={{ padding: '0.75rem' }}>{pn.brand || '-'}</td>
-                                        <td style={{ padding: '0.75rem' }}>{pn.name_spec || '-'}</td>
-                                        <td style={{ padding: '0.75rem' }}>{pn.note || '-'}</td>
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>{pn.year || '-'}</td>
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>{pn.brand || '-'}</td>
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>{pn.name_spec || '-'}</td>
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>{pn.note || '-'}</td>
                                     </tr>
                                     );
                                 })}

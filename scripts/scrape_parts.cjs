@@ -10,8 +10,9 @@ const path = require('path');
 const os   = require('os');
 const { execSync } = require('child_process');
 
-const BASE_URL     = 'http://cck.uparts.info/car2009/Default/';
-const PARTS_URL    = 'http://cck.uparts.info/car2009/parts_query/';
+const HOST          = process.env.UPARTS_HOST || 'cck2.uparts.info';
+const BASE_URL     = `http://${HOST}/car2009/Default/`;
+const PARTS_URL    = `http://${HOST}/car2009/parts_query/`;
 const OUTPUT_DIR   = path.join(__dirname, '..', 'output');
 const KEYWORDS_FILE = path.join(__dirname, '..', 'keywords.txt');
 
@@ -73,7 +74,9 @@ function writeCSV(filePath, headers, rows) {
     userDataDir: PROFILE_DIR,
     protocolTimeout: 1200000,
     args: ['--no-sandbox','--disable-setuid-sandbox','--allow-running-insecure-content',
-           '--ignore-certificate-errors','--disable-popup-blocking']
+           '--ignore-certificate-errors','--disable-popup-blocking',
+           '--no-proxy-server', '--proxy-server=direct://', '--proxy-bypass-list=*',
+           '--disable-features=HttpsFirstBalancedModeAutoEnable,HttpsUpgrades']
   });
 
   const page = await browser.newPage();
@@ -82,24 +85,124 @@ function writeCSV(filePath, headers, rows) {
 
   // ── [1] 登入 ──────────────────────────────────────────────────────
   console.log('\n[1] Opening page...');
-  try { await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' }); } catch {}
-  await ensurePageReady(page);
-  await sleep(2000);
 
-  if (fs.existsSync(COOKIES_FILE)) {
-    const saved = JSON.parse(fs.readFileSync(COOKIES_FILE, 'utf8'));
-    await page.setCookie(...saved);
-    try { await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' }); } catch {}
-    await ensurePageReady(page);
-    await sleep(2000);
+  const cookieCandidates = [
+    path.join(__dirname, 'cookies.json'),
+    path.join(__dirname, 'cookies_cck2_user.json'),
+    path.join(__dirname, 'cookies_xizhi.json'),
+    path.join(__dirname, 'cookies_songshan.json')
+  ];
+
+  const needLogin = async () => {
+    try {
+      return await page.evaluate(() =>
+        Array.from(document.querySelectorAll('input')).some(i => i.type === 'password') &&
+        !document.querySelector('#btn_search')
+      );
+    } catch (e) {
+      return true;
+    }
+  };
+
+  let loggedIn = false;
+
+  try { await page.goto(`http://${HOST}/`, { waitUntil: 'domcontentloaded' }); } catch {}
+
+  for (const cFile of cookieCandidates) {
+    if (fs.existsSync(cFile)) {
+      console.log(`  Trying cookie file: ${path.basename(cFile)}...`);
+      try {
+        const saved = JSON.parse(fs.readFileSync(cFile, 'utf8'));
+        const remapped = saved.map(c => ({ ...c, domain: HOST }));
+        await page.setCookie(...remapped);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await ensurePageReady(page);
+        await sleep(2000);
+        
+        if (!(await needLogin())) {
+          console.log(`✅ Successfully logged in using ${path.basename(cFile)}`);
+          if (cFile !== COOKIES_FILE) {
+             fs.writeFileSync(COOKIES_FILE, JSON.stringify(await page.cookies(), null, 2));
+          }
+          loggedIn = true;
+          break;
+        }
+      } catch (err) {
+        console.log(`  ⚠️ Cookie ${path.basename(cFile)} test failed: ${err.message}`);
+      }
+    }
   }
 
-  const needLogin = () => page.evaluate(() =>
-    Array.from(document.querySelectorAll('input')).some(i => i.type === 'password') &&
-    !document.querySelector('#btn_search')
-  ).catch(() => true);
+  // ── 如果既有 Session 全部失效，啟動「自動填寫帳密」自動登入 ─────────────────
+  if (!loggedIn && (await needLogin())) {
+    console.log('  🔑 Session 已過期，嘗試自動進行帳密登入 (car00401)...');
+    
+    let machineIdValue = null;
+    for (const cFile of cookieCandidates) {
+      if (fs.existsSync(cFile)) {
+        try {
+          const cookies = JSON.parse(fs.readFileSync(cFile, 'utf8'));
+          const m = cookies.find(c => c.name === 'MachineId');
+          if (m && m.value) { machineIdValue = m.value; break; }
+        } catch {}
+      }
+    }
 
-  if (await needLogin()) {
+    const hostMatch = BASE_URL.match(/^https?:\/\/([^\/]+)/);
+    const host = hostMatch ? hostMatch[1] : 'cck.uparts.info';
+
+    if (machineIdValue) {
+      await page.setCookie({
+        name: 'MachineId',
+        value: machineIdValue,
+        domain: host,
+        path: '/',
+        expires: Math.floor(Date.now() / 1000) + 86400 * 365
+      });
+      console.log(`  ✅ 已注入 MachineId 授權標記`);
+    }
+
+    const loginUrl = `http://${host}/SERVICE_CENTER/`;
+    try { await page.goto(loginUrl, { waitUntil: 'domcontentloaded' }); } catch {}
+    await sleep(1500);
+
+    await page.evaluate(() => {
+      const inputs = Array.from(document.querySelectorAll('input'));
+      const textInputs = inputs.filter(i => i.type === 'text' || !i.type);
+      const passwordInput = inputs.find(i => i.type === 'password');
+      if (!passwordInput) return;
+      passwordInput.value = '1';
+      const [serviceInput, userInput] = textInputs;
+      if (serviceInput) {
+        serviceInput.value = 'car00401';
+        serviceInput.dispatchEvent(new Event('input', { bubbles: true }));
+        serviceInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      if (userInput) {
+        userInput.value = 'b9';
+        userInput.dispatchEvent(new Event('input', { bubbles: true }));
+        userInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+      passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
+      const btn = Array.from(document.querySelectorAll('input[type=submit], button, input[type=button]'))
+        .find(b => /登入|login|確定/i.test(b.value || b.innerText || ''));
+      if (btn) btn.click();
+    }).catch(() => {});
+
+    await sleep(4000);
+
+    try { await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+    await sleep(2000);
+
+    if (!(await needLogin())) {
+      console.log('🎉 自動帳密登入成功！已更新 Cookie。');
+      fs.writeFileSync(COOKIES_FILE, JSON.stringify(await page.cookies(), null, 2));
+      loggedIn = true;
+    }
+  }
+
+  if (!loggedIn && (await needLogin())) {
     if (headlessArg) {
       console.error('\n❌ [Error] 登入狀態已失效 (Session Cookie expired)！無法在無頭模式下進行手動登入。');
       console.error('👉 請您在本機手動執行一次以下指令重新登入以刷新 Cookie：\n  node scripts/run_all.cjs\n');

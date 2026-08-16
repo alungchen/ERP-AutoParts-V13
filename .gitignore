@@ -44,3 +44,6 @@ temp.js
 batch_*.sql
 data_only.sql
 schema_only.sql
+functions_dist/
+scratch/
+*.bak

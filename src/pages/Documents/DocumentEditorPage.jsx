@@ -790,6 +790,26 @@ const DocumentEditorPage = () => {
         }
     };
 
+    // Global shortcut Alt+V to trigger Applicability modal for active row item
+    useEffect(() => {
+        const handleAltVShortcut = (e) => {
+            if (e.altKey && (e.key === 'v' || e.key === 'V')) {
+                const items = doc?.items || [];
+                if (items.length === 0) return;
+                const idx = (activeItemIndex >= 0 && activeItemIndex < items.length) ? activeItemIndex : 0;
+                const item = items[idx];
+                if (!item) return;
+                const associatedProduct = item._full_product || products.find(p => p.p_id === item.p_id || (item.part_number && (p.part_number === item.part_number || p.part_numbers?.some(pn => pn.part_number === item.part_number))));
+                if (associatedProduct) {
+                    e.preventDefault();
+                    setMappingProduct(associatedProduct);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleAltVShortcut);
+        return () => window.removeEventListener('keydown', handleAltVShortcut);
+    }, [doc?.items, activeItemIndex, products]);
+
     const handlePickProduct = (p) => {
         const pnObj = p.part_numbers?.[0] || {};
         const isPurch = type === 'purchase' || type === 'purchaseReturn';
@@ -1272,37 +1292,40 @@ const DocumentEditorPage = () => {
                         </div>
                     )}
                     <div className={`${styles.docEditorTableScroll} custom-scrollbar`}>
-                    <table className={styles.docEditorTable} style={{ textAlign: 'left' }}>
+                    <table className={styles.docEditorTable} style={{ textAlign: 'left', border: '1px solid var(--border-color)', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr>
-                                <th style={{ width: '44px', textAlign: 'center' }}>#</th>
-                                <th style={{ width: '54px' }}>
-                                    {!isReadOnly && (
+                                <th style={{ width: '44px', textAlign: 'center', border: '1px solid var(--border-color)' }}>#</th>
+                                {!isReadOnly && (
+                                    <th style={{ width: '54px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
                                         <input
                                             ref={selectAllRef}
                                             type="checkbox"
                                             checked={isAllSelected}
                                             onChange={(e) => toggleSelectAllItems(e.target.checked)}
                                         />
-                                    )}
-                                </th>
-                                <th>{'\u96f6\u4ef6\u865f\u78bc'} (ID)</th>
-                                <th>{'\u8eca\u578b'} / {'\u5e74\u4efd'}</th>
-                                <th>{'\u54c1\u540d'} / {'\u898f\u683c'}</th>
-                                <th>{'\u54c1\u724c'}</th>
-                                <th style={{ width: '80px', textAlign: 'center' }}>{'\u5eab\u5b58'}</th>
-                                <th style={{ width: '100px' }}>庫位</th>
-                                <th style={{ width: '100px' }}>{'\u6578\u91cf'}</th>
-                                <th style={{ width: '120px' }}>{'\u55ae\u50f9'}</th>
-                                <th style={{ width: '120px' }}>{'\u5c0f\u8a08'}</th>
-                                <th style={{ width: '50px' }}></th>
+                                    </th>
+                                )}
+                                <th style={{ border: '1px solid var(--border-color)', padding: '0.75rem' }}>{'\u96f6\u4ef6\u865f\u78bc'}</th>
+                                <th style={{ border: '1px solid var(--border-color)', padding: '0.75rem' }}>車型</th>
+                                <th style={{ border: '1px solid var(--border-color)', padding: '0.75rem', width: '90px' }}>年份</th>
+                                <th style={{ border: '1px solid var(--border-color)', padding: '0.75rem' }}>品名</th>
+                                <th style={{ border: '1px solid var(--border-color)', padding: '0.75rem' }}>規格</th>
+                                <th style={{ border: '1px solid var(--border-color)', padding: '0.75rem' }}>{'\u54c1\u724c'}</th>
+                                <th style={{ width: '80px', textAlign: 'center', border: '1px solid var(--border-color)', padding: '0.75rem' }}>{'\u5eab\u5b58'}</th>
+                                <th style={{ width: '100px', border: '1px solid var(--border-color)', padding: '0.75rem', textAlign: 'center' }}>庫位</th>
+                                <th style={{ width: '100px', border: '1px solid var(--border-color)', padding: '0.75rem', textAlign: 'center' }}>{'\u6578\u91cf'}</th>
+                                <th style={{ width: '120px', border: '1px solid var(--border-color)', padding: '0.75rem', textAlign: 'center' }}>{'\u55ae\u50f9'}</th>
+                                <th style={{ width: '120px', border: '1px solid var(--border-color)', padding: '0.75rem', textAlign: 'center' }}>{'\u5c0f\u8a08'}</th>
+                                {!isReadOnly && (
+                                    <th style={{ width: '50px', border: '1px solid var(--border-color)' }}></th>
+                                )}
                             </tr>
                         </thead>
                         <tbody ref={itemTbodyRef}>
                             {docItems.map((item, idx) => {
                                 // Find associated product metadata if exists (to show applicability link)
                                 const associatedProduct = item._full_product || products.find(p => p.p_id === item.p_id || (item.part_number && (p.part_number === item.part_number || p.part_numbers?.some(pn => pn.part_number === item.part_number))));
-                                const mappingCount = associatedProduct?.part_numbers?.length || 0;
 
                                 const displayCarModel = (item.car_model && typeof item.car_model === 'object') ? (item.car_model?.model || '') : (item.car_model || (associatedProduct ? productLineCarModel(associatedProduct) : '-'));
                                 const displayYear = (item.year && typeof item.year === 'object') ? (item.year?.year || '') : (item.year || (associatedProduct ? productLineYear(associatedProduct) : '-'));
@@ -1325,46 +1348,53 @@ const DocumentEditorPage = () => {
                                             ev.currentTarget.focus();
                                         }}
                                     >
-                                        <td style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 700 }}>
+                                        <td style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 700, border: '1px solid var(--border-color)' }}>
                                             {idx + 1}
                                         </td>
-                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
-                                            {!isReadOnly && (
+                                        {!isReadOnly && (
+                                            <td style={{ padding: '0.75rem', textAlign: 'center', border: '1px solid var(--border-color)' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedIndexes.includes(idx)}
                                                     onChange={(e) => toggleItemSelection(idx, e.target.checked)}
                                                 />
-                                            )}
+                                            </td>
+                                        )}
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>
+                                            <span
+                                                className={styles.partNumberLink}
+                                                onClick={(e) => {
+                                                    if (associatedProduct) {
+                                                        e.stopPropagation();
+                                                        setMappingProduct(associatedProduct);
+                                                    }
+                                                }}
+                                                title={associatedProduct ? '點擊或按 Alt+V 查看適用車型 / 對應料號' : ''}
+                                            >
+                                                {item.part_number || item.p_id}
+                                            </span>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ color: '#60a5fa', fontWeight: 800, fontFamily: 'monospace' }}>{item.part_number || item.p_id}</div>
-                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{item.p_id !== item.part_number ? item.p_id : (associatedProduct?.p_id || '')}</div>
-                                            {mappingCount > 0 && (
-                                                <div
-                                                    style={{ mt: '4px', fontSize: '10px', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', color: '#60a5fa', cursor: 'pointer', display: 'inline-block', border: '1px solid var(--border-color)' }}
-                                                    onClick={(e) => { e.stopPropagation(); setMappingProduct(associatedProduct); }}
-                                                >
-                                                    +{mappingCount} {'\u9069\u7528'}</div>
-                                            )}
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                            {displayCarModel}
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayCarModel}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{displayYear}</div>
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                            {displayYear}
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayName}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{displaySpec}</div>
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                            {displayName}
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                            {displaySpec}
+                                        </td>
+                                        <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>
                                             <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayBrand}</div>
                                         </td>
-                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                        <td style={{ padding: '0.75rem', textAlign: 'center', border: '1px solid var(--border-color)' }}>
                                             <div style={{ fontWeight: 700, fontSize: '0.85rem', color: (associatedProduct?.stock ?? item.stock ?? 0) > 0 ? '#10b981' : '#ef4444' }}>
                                                 {associatedProduct?.stock ?? item.stock ?? '-'}
                                             </div>
                                         </td>
-                                        <td style={{ padding: '0.5rem 1rem' }}>
+                                        <td style={{ padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
                                             <input
                                                 type="text"
                                                 disabled={isReadOnly}
@@ -1382,7 +1412,7 @@ const DocumentEditorPage = () => {
                                                 }}
                                             />
                                         </td>
-                                        <td style={{ padding: '0.5rem 1rem' }}>
+                                        <td style={{ padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
                                             <input
                                                 data-doc-item-qty
                                                 type="number"
@@ -1406,7 +1436,7 @@ const DocumentEditorPage = () => {
                                                 }}
                                             />
                                         </td>
-                                        <td style={{ padding: '0.5rem 1rem' }}>
+                                        <td style={{ padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
                                             <input
                                                 data-doc-item-price
                                                 type="number"
@@ -1435,16 +1465,18 @@ const DocumentEditorPage = () => {
                                                 }}
                                             />
                                         </td>
-                                        <td style={{ padding: '1rem', fontWeight: 800 }}>{(item.qty * item.unit_price).toLocaleString()}</td>
-                                        <td style={{ padding: '1rem' }}>
-                                            {!isReadOnly && <button onClick={() => removeItem(idx)} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>}
-                                        </td>
+                                        <td style={{ padding: '0.75rem', fontWeight: 800, border: '1px solid var(--border-color)', textAlign: 'center' }}>{(item.qty * item.unit_price).toLocaleString()}</td>
+                                        {!isReadOnly && (
+                                            <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                                <button onClick={() => removeItem(idx)} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                                            </td>
+                                        )}
                                     </tr>
                                 );
                             })}
                             {!isReadOnly && (
                                 <tr>
-                                    <td colSpan={12} style={{ padding: '1rem' }}>
+                                    <td colSpan={14} style={{ padding: '1rem' }}>
                                         <button
                                             type="button"
                                             ref={addPartBtnRef}

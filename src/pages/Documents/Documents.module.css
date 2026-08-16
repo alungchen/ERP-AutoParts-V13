@@ -262,27 +262,45 @@
 .docEditorTable {
     width: 100%;
     border-collapse: collapse;
+    border: 1px solid var(--border-color);
 }
 
 .docEditorTable th {
     position: sticky;
     top: 0;
     z-index: 2;
-    padding: 1rem;
+    padding: 0.75rem;
     text-align: left;
     background-color: var(--bg-tertiary);
     color: var(--text-secondary);
     font-size: 0.75rem;
     text-transform: uppercase;
     font-weight: 600;
-    border-bottom: 1px solid var(--border-color);
-    box-shadow: 0 1px 0 var(--border-color);
+    border: 1px solid var(--border-color);
 }
 
 .docEditorTable td {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
     vertical-align: middle;
+}
+
+.partNumberLink {
+    color: #3b82f6;
+    font-weight: 800;
+    font-family: monospace;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    transition: all 0.15s ease;
+}
+
+.partNumberLink:hover {
+    color: #2563eb;
+    background-color: rgba(59, 130, 246, 0.18);
+    text-decoration: underline;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
 }
 
 /* 單據／缺貨列表：在卡片內捲動（依父層 flex 剩餘高度） */
@@ -299,6 +317,7 @@
 .table {
     width: 100%;
     border-collapse: collapse;
+    border: 1px solid var(--border-color);
 }
 
 .table th {
@@ -309,7 +328,7 @@
     font-weight: 600;
     color: var(--text-muted);
     letter-spacing: 0.05em;
-    border-bottom: 1px solid var(--border-color);
+    border: 1px solid var(--border-color);
     background: var(--bg-tertiary);
     position: sticky;
     top: 0;
@@ -318,15 +337,15 @@
 }
 
 .table td {
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 1.25rem;
+    border: 1px solid var(--border-color);
     vertical-align: middle;
     font-size: 0.875rem;
     color: var(--text-primary);
 }
 
 .table tr:last-child td {
-    border-bottom: none;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .table tr:hover td {
@@ -501,20 +520,22 @@
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 2rem;
+    border: 1px solid #e5e7eb;
 }
 
 .viewerTable th {
     padding: 0.75rem 1rem;
-    border-bottom: 2px solid #e5e7eb;
+    border: 1px solid #e5e7eb;
     color: #6b7280;
     font-weight: 600;
     font-size: 0.875rem;
     text-transform: uppercase;
+    background-color: #f9fafb;
 }
 
 .viewerTable td {
-    padding: 1rem;
-    border-bottom: 1px solid #f3f4f6;
+    padding: 0.85rem 1rem;
+    border: 1px solid #e5e7eb;
     vertical-align: top;
 }
 

@@ -1,9 +1,14 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
-const PROFILE_DIR = path.join(__dirname, '.chrome-profile');
-const COOKIES_FILE = path.join(__dirname, 'cookies.json');
+const HOST = (process.argv.find(a => a.startsWith('--host='))?.split('=')[1] || 'cck2.uparts.info')
+  .replace(/^https?:\/\//, '').replace(/\/$/, '');
+const headlessArg = process.argv.find(a => a.startsWith('--headless='))?.split('=')[1];
+const HEADLESS = headlessArg === 'false' ? false : (headlessArg || "new");
+
+const PROFILE_DIR = path.join(__dirname, '.chrome-profile-cck2');
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -15,11 +20,33 @@ const escapeCSV = (str) => {
     return `"${cleanStr}"`;
 };
 
+function remapCookiesForHost(cookies) {
+    return (cookies || []).map(c => ({ ...c, domain: HOST }));
+}
+
+function loadCookiesFromFile(filePath) {
+    if (!fs.existsSync(filePath)) return null;
+    try {
+        return remapCookiesForHost(JSON.parse(fs.readFileSync(filePath, 'utf8')));
+    } catch (e) {
+        console.log(`⚠️ 讀取 Cookie 失敗 (${path.basename(filePath)}): ${e.message}`);
+        return null;
+    }
+}
+
 // 從列表頁抓取所有 ID
 async function getAllIdsFromList(page, listUrl) {
     console.log(`正在前往列表頁面: ${listUrl}`);
     await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await sleep(3000);
+
+    // 檢查是否跳轉至登入頁
+    const needLogin = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('input')).some(i => i.type === 'password');
+    });
+    if (needLogin) {
+        throw new Error('未登入或 Session 已失效，請先確認登入狀態或 Cookie！');
+    }
 
     // 將每頁顯示筆數設為最大 (200)，減少換頁次數
     await page.evaluate(() => {
@@ -120,13 +147,21 @@ async function scrapeDetails(page, editUrlBase, id) {
 (async () => {
     if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-    console.log('🚀 啟動聯絡人爬蟲...');
+    const chromePaths = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        `C:\\Users\\${os.userInfo().username}\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe`,
+    ];
+    const executablePath = chromePaths.find(p => fs.existsSync(p));
+
+    console.log(`🚀 啟動聯絡人爬蟲 (目標主機: ${HOST})...`);
     const browser = await puppeteer.launch({
-        headless: "new",
+        headless: HEADLESS,
         userDataDir: PROFILE_DIR,
+        ...(executablePath ? { executablePath } : {}),
         args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
+    page.setDefaultNavigationTimeout(60000);
     
     // 自動關閉對話框，避免卡住
     page.on('dialog', async dialog => {
@@ -134,25 +169,44 @@ async function scrapeDetails(page, editUrlBase, id) {
         await dialog.dismiss();
     });
 
-    // 載入登入狀態
-    if (fs.existsSync(COOKIES_FILE)) {
-        const saved = JSON.parse(fs.readFileSync(COOKIES_FILE, 'utf8'));
-        await page.setCookie(...saved);
-        console.log('已載入登入狀態...');
+    // 載入登入狀態 (按優先順序)
+    const userCookies = loadCookiesFromFile(path.join(__dirname, 'cookies_cck2_user.json'));
+    const cck2Cookies = loadCookiesFromFile(path.join(__dirname, 'cookies_cck2.json'));
+    const xizhiCookies = loadCookiesFromFile(path.join(__dirname, 'cookies_xizhi.json'));
+    const songshanCookies = loadCookiesFromFile(path.join(__dirname, 'cookies_songshan.json'));
+    const defaultCookies = loadCookiesFromFile(path.join(__dirname, 'cookies.json'));
+
+    const preferredCookies = userCookies || cck2Cookies || xizhiCookies || songshanCookies || defaultCookies;
+
+    if (preferredCookies && preferredCookies.length > 0) {
+        try {
+            await page.setCookie(...preferredCookies);
+            console.log(`已為 ${HOST} 載入 ${preferredCookies.length} 個 Cookie / 認證資訊...`);
+        } catch (e) {
+            console.log(`⚠️ Cookie 注入失敗: ${e.message}`);
+        }
+    }
+
+    // 先連往首頁確定 Session
+    try {
+        await page.goto(`http://${HOST}/car2009/Default/`, { waitUntil: 'domcontentloaded' });
+        await sleep(2000);
+    } catch (e) {
+        console.log(`連線主頁: ${e.message}`);
     }
 
     // 定義要抓取的目標
     const targets = [
         {
             name: '供應商',
-            listUrl: 'http://cck.uparts.info/car2009/supplier_query/',
-            editUrlBase: 'http://cck.uparts.info/CAR2009/Supplier_Query_Edit/',
+            listUrl: `http://${HOST}/car2009/supplier_query/`,
+            editUrlBase: `http://${HOST}/CAR2009/Supplier_Query_Edit/`,
             csvFile: path.join(OUTPUT_DIR, 'scraped_suppliers.csv')
         },
         {
             name: '客戶',
-            listUrl: 'http://cck.uparts.info/car2009/customer_query/',
-            editUrlBase: 'http://cck.uparts.info/CAR2009/Customer_Query_Edit/',
+            listUrl: `http://${HOST}/car2009/customer_query/`,
+            editUrlBase: `http://${HOST}/CAR2009/Customer_Query_Edit/`,
             csvFile: path.join(OUTPUT_DIR, 'scraped_customers.csv')
         }
     ];
@@ -213,3 +267,4 @@ async function scrapeDetails(page, editUrlBase, id) {
     console.log('==================================================');
 
 })();
+

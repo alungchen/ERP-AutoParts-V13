@@ -973,8 +973,10 @@ const ProductList = () => {
                 <tr class="applicable-print-row">
                     <td class="applicable-indent"></td>
                     <td>${escapeHtml(pnStr || dash)}</td>
-                    <td>${escapeHtml(modelYear)}</td>
+                    <td>${escapeHtml(cm || dash)}</td>
+                    <td>${escapeHtml(yr || dash)}</td>
                     <td><span class="muted">${escapeHtml(nt || dash)}</span></td>
+                    <td>${dash}</td>
                     <td>${escapeHtml(br || dash)}</td>
                     ${emptyCell.repeat(4)}
                 </tr>
@@ -989,16 +991,19 @@ const ProductList = () => {
                         <td>${escapeHtml(car.trim())}</td>
                         <td class="muted">${dash}</td>
                         <td class="muted">${dash}</td>
+                        <td class="muted">${dash}</td>
+                        <td class="muted">${dash}</td>
                         ${emptyCell.repeat(4)}
                     </tr>
                 `);
             } else if (car && (car.model || car.year)) {
-                const my = [car.model, car.year].filter(Boolean).join(' / ') || dash;
                 rows.push(`
                     <tr class="applicable-print-row">
                         <td class="applicable-indent"></td>
                         <td class="muted">${dash}</td>
-                        <td>${escapeHtml(my)}</td>
+                        <td>${escapeHtml(car.model || dash)}</td>
+                        <td>${escapeHtml(car.year || dash)}</td>
+                        <td class="muted">${dash}</td>
                         <td class="muted">${dash}</td>
                         <td class="muted">${dash}</td>
                         ${emptyCell.repeat(4)}
@@ -1056,8 +1061,10 @@ const ProductList = () => {
                 <tr class="product-main-row">
                     <td>${idx + 1}</td>
                     <td>${escapeHtml(p.part_number || mainPN.part_number || '-')}</td>
-                    <td>${escapeHtml(displayModel)} / ${escapeHtml(displayYear)}</td>
-                    <td>${escapeHtml(p.name || '-')}<br><span class="muted">${escapeHtml(p.specifications || '-')}</span></td>
+                    <td>${escapeHtml(displayModel)}</td>
+                    <td>${escapeHtml(displayYear)}</td>
+                    <td>${escapeHtml(p.name || '-')}</td>
+                    <td>${escapeHtml(p.specifications || '-')}</td>
                     <td>${escapeHtml(p.brand || mainPN.brand || '-')}</td>
                     <td>${stockCellHtml}<br><span class="muted">安全庫存: ${escapeHtml(String(safetyNum))}</span></td>
                     <td>${showPrices ? `NT$ ${(p.base_cost || 0).toLocaleString()}` : '***'}</td>
@@ -1159,8 +1166,10 @@ const ProductList = () => {
                             <tr>
                                 <th style="width:40px;">#</th>
                                 <th style="width:120px;">零件號碼</th>
-                                <th style="width:160px;">車種 / 年份</th>
-                                <th style="width:180px;">品名 / 規格</th>
+                                <th style="width:120px;">車型</th>
+                                <th style="width:80px;">年份</th>
+                                <th style="width:140px;">品名</th>
+                                <th style="width:120px;">規格</th>
                                 <th style="width:90px;">品牌</th>
                                 <th style="width:110px;">庫存</th>
                                 <th style="width:90px;">進價</th>
@@ -1570,8 +1579,10 @@ const ProductList = () => {
                             </th>
                             <th className={styles.thList}>{t('pim.thIndex')}</th>
                             <th className={styles.thList}>零件號碼 (ID)</th>
-                            <th className={styles.thList}>車種 / 年份</th>
-                            <th className={styles.thList}>品名 / 規格</th>
+                            <th className={styles.thList}>車型</th>
+                            <th className={styles.thList}>年份</th>
+                            <th className={styles.thList}>品名</th>
+                            <th className={styles.thList}>規格</th>
                             <th className={styles.thList}>品牌</th>
                             <th className={styles.thList}>庫存狀態</th>
                             <th className={styles.thList}>
@@ -1605,7 +1616,7 @@ const ProductList = () => {
                     <tbody ref={productTbodyRef}>
                         {paginatedResults.length === 0 ? (
                             <tr>
-                                <td colSpan="11" className={styles.emptyState}>
+                                <td colSpan="13" className={styles.emptyState}>
                                     <Search size={48} strokeWidth={1.5} />
                                     <p>{hasSearched ? t('pim.noResults') : t('pim.noData')}</p>
                                 </td>
@@ -1697,7 +1708,10 @@ const ProductList = () => {
                                                 +{(p.part_numbers || []).filter(pn => pn.car_model).length > 1 ? (p.part_numbers || []).filter(pn => pn.car_model).length - 1 : (p.car_models || []).length - 1} 車型
                                             </div>
                                         }
-                                        <div className="text-xs text-muted mt-1">
+                                    </td>
+
+                                    <td className={styles.tdList}>
+                                        <div className="text-secondary font-medium">
                                             {(() => {
                                                 if (matchedPn && matchedPn.year) return matchedPn.year;
                                                 const activeCar = (p.part_numbers || []).find(pn => pn.year);
@@ -1711,7 +1725,10 @@ const ProductList = () => {
 
                                     <td className={styles.tdList}>
                                         <div className="font-bold text-primary max-w-[180px] truncate" title={p.name}>{p.name || '-'}</div>
-                                        <div className="text-xs text-muted mt-1 max-w-[180px] truncate" title={matchedPn?.note || p.specifications}>{matchedPn?.note || p.specifications || '-'}</div>
+                                    </td>
+
+                                    <td className={styles.tdList}>
+                                        <div className="text-secondary max-w-[180px] truncate" title={matchedPn?.note || p.specifications}>{matchedPn?.note || p.specifications || '-'}</div>
                                     </td>
 
                                     <td className={styles.tdList}>

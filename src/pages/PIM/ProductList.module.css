@@ -112,13 +112,14 @@
     min-width: 520px;
     border-collapse: collapse;
     font-size: 0.78rem;
+    border: 1px solid var(--border-color);
 }
 
 .historyTable th,
 .historyTable td {
     padding: 0.45rem 0.5rem;
     text-align: left;
-    border-bottom: 1px solid var(--border-color);
+    border: 1px solid var(--border-color);
     vertical-align: top;
 }
 
@@ -132,7 +133,7 @@
 }
 
 .historyTable tr:last-child td {
-    border-bottom: none;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .historyEmpty {
@@ -324,17 +325,18 @@
     width: 100%;
     border-collapse: collapse;
     text-align: left;
+    border: 1px solid var(--border-color);
 }
 
 .th {
     position: sticky;
     top: 0;
     background-color: var(--bg-tertiary);
-    padding: 1rem 1.5rem;
+    padding: 0.85rem 1.25rem;
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--text-secondary);
-    border-bottom: 1px solid var(--border-color);
+    border: 1px solid var(--border-color);
     z-index: 2;
 }
 
@@ -349,9 +351,10 @@
 }
 
 .td {
-    padding: 1rem 1.5rem;
+    padding: 0.85rem 1.25rem;
     font-size: 0.875rem;
     vertical-align: top;
+    border: 1px solid var(--border-color);
 }
 
 .productInfo {
@@ -425,7 +428,7 @@
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--text-muted);
-    border-bottom: 1px solid var(--border-color);
+    border: 1px solid var(--border-color);
     z-index: 2;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -446,6 +449,7 @@
     font-size: 0.8125rem;
     vertical-align: middle;
     color: var(--text-primary);
+    border: 1px solid var(--border-color);
 }
 
 .modalOverlay {

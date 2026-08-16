@@ -9,8 +9,9 @@ const FALLBACK_COOKIES_FILE = path.join(__dirname, 'cookies.json');
 // 使用獨立 profile，避免與 login:uparts 佔用同一個 userDataDir
 const PROFILE_DIR = path.join(__dirname, '.chrome-profile-legacy-photos');
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
-const PARTS_QUERY_URL = 'http://cck.uparts.info/car2009/parts_query/';
-const MEDIA_IFRAME_BASE = 'http://cck.uparts.info/car2009/Iframe_MEDIA_List/';
+const HOST = process.env.UPARTS_HOST || 'cck2.uparts.info';
+const PARTS_QUERY_URL = `http://${HOST}/car2009/parts_query/`;
+const MEDIA_IFRAME_BASE = `http://${HOST}/car2009/Iframe_MEDIA_List/`;
 
 // 自動啟動防休眠程式 (在新視窗開啟)，防止重複開啟
 if (!process.env.KEEP_AWAKE_STARTED) {
@@ -120,16 +121,113 @@ async function openWithRetry(page, url, options = {}) {
   });
   const page = await browser.newPage();
   
-  // 載入登入狀態
-  const cookieFileToUse = fs.existsSync(PRIMARY_COOKIES_FILE)
-    ? PRIMARY_COOKIES_FILE
-    : FALLBACK_COOKIES_FILE;
-  if (fs.existsSync(cookieFileToUse)) {
-    const saved = JSON.parse(fs.readFileSync(cookieFileToUse, 'utf8'));
-    await page.setCookie(...saved);
-    console.log(`🔐 已載入登入 Cookie: ${path.basename(cookieFileToUse)}`);
-  } else {
-    console.log('⚠️ 找不到 cookies_cck.json / cookies.json，可能需要先執行登入流程。');
+  const needLogin = () => page.evaluate(() =>
+    Array.from(document.querySelectorAll('input')).some(i => i.type === 'password') &&
+    !document.querySelector('#btn_search')
+  ).catch(() => true);
+
+  const cookieCandidates = [
+    path.join(__dirname, 'cookies.json'),
+    path.join(__dirname, 'cookies_cck.json'),
+    path.join(__dirname, 'cookies_cck2_user.json'),
+    path.join(__dirname, 'cookies_xizhi.json'),
+    path.join(__dirname, 'cookies_songshan.json')
+  ];
+
+  let loggedIn = false;
+  for (const cFile of cookieCandidates) {
+    if (fs.existsSync(cFile)) {
+      console.log(`  Trying cookie file: ${path.basename(cFile)}...`);
+      const saved = JSON.parse(fs.readFileSync(cFile, 'utf8'));
+      
+      const hostMatch = PARTS_QUERY_URL.match(/^https?:\/\/([^\/]+)/);
+      const host = hostMatch ? hostMatch[1] : 'cck.uparts.info';
+      const remapped = saved.map(c => ({ ...c, domain: host }));
+      
+      await page.setCookie(...remapped);
+      try { await page.goto(PARTS_QUERY_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+      await sleep(1500);
+      
+      if (!(await needLogin())) {
+        console.log(`✅ Successfully logged in using ${path.basename(cFile)}`);
+        loggedIn = true;
+        break;
+      }
+    }
+  }
+
+  // ── 如果既有 Session 全部失效，啟動「自動填寫帳密」自動登入 ─────────────────
+  if (!loggedIn && (await needLogin())) {
+    console.log('  🔑 Session 已過期，嘗試自動進行帳密登入 (car00401)...');
+    
+    let machineIdValue = null;
+    for (const cFile of cookieCandidates) {
+      if (fs.existsSync(cFile)) {
+        try {
+          const cookies = JSON.parse(fs.readFileSync(cFile, 'utf8'));
+          const m = cookies.find(c => c.name === 'MachineId');
+          if (m && m.value) { machineIdValue = m.value; break; }
+        } catch {}
+      }
+    }
+
+    const hostMatch = PARTS_QUERY_URL.match(/^https?:\/\/([^\/]+)/);
+    const host = hostMatch ? hostMatch[1] : 'cck.uparts.info';
+
+    if (machineIdValue) {
+      await page.setCookie({
+        name: 'MachineId',
+        value: machineIdValue,
+        domain: host,
+        path: '/',
+        expires: Math.floor(Date.now() / 1000) + 86400 * 365
+      });
+      console.log(`  ✅ 已注入 MachineId 授權標記`);
+    }
+
+    const loginUrl = `http://${host}/SERVICE_CENTER/`;
+    try { await page.goto(loginUrl, { waitUntil: 'domcontentloaded' }); } catch {}
+    await sleep(1500);
+
+    await page.evaluate(() => {
+      const inputs = Array.from(document.querySelectorAll('input'));
+      const textInputs = inputs.filter(i => i.type === 'text' || !i.type);
+      const passwordInput = inputs.find(i => i.type === 'password');
+      if (!passwordInput) return;
+      passwordInput.value = '1';
+      const [serviceInput, userInput] = textInputs;
+      if (serviceInput) {
+        serviceInput.value = 'car00401';
+        serviceInput.dispatchEvent(new Event('input', { bubbles: true }));
+        serviceInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      if (userInput) {
+        userInput.value = 'b9';
+        userInput.dispatchEvent(new Event('input', { bubbles: true }));
+        userInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+      passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
+      const btn = Array.from(document.querySelectorAll('input[type=submit], button, input[type=button]'))
+        .find(b => /登入|login|確定/i.test(b.value || b.innerText || ''));
+      if (btn) btn.click();
+    }).catch(() => {});
+
+    await sleep(4000);
+
+    try { await page.goto(PARTS_QUERY_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+    await sleep(2000);
+
+    if (!(await needLogin())) {
+      console.log('🎉 自動帳密登入成功！已更新 Cookie。');
+      const cookiesFile = path.join(__dirname, 'cookies.json');
+      fs.writeFileSync(cookiesFile, JSON.stringify(await page.cookies(), null, 2));
+      loggedIn = true;
+    }
+  }
+
+  if (!loggedIn) {
+    console.log('⚠️ 所有備用 Cookie 與自動登入皆失敗，可能需要先手動執行登入流程。');
   }
 
   const sqlPath = path.join(OUTPUT_DIR, 'update_legacy_photos.sql');

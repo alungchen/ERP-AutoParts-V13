@@ -193,23 +193,24 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
             {/* Content Body */}
             <div className="custom-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', padding: '0.5rem' }}>
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', border: '1px solid var(--border-color)' }}>
                         <thead style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: '0.72rem', textTransform: 'uppercase', position: 'sticky', top: 0, zIndex: 2 }}>
                             <tr>
-                                <th style={{ padding: '0.5rem 0.75rem', boxShadow: '0 1px 0 var(--border-color)' }}>零件號碼 (ID)</th>
-                                <th style={{ padding: '0.5rem 0.75rem', boxShadow: '0 1px 0 var(--border-color)' }}>車種 / 年份</th>
-                                <th style={{ padding: '0.5rem 0.75rem', boxShadow: '0 1px 0 var(--border-color)' }}>品名 / 規格</th>
-                                <th style={{ padding: '0.5rem 0.75rem', boxShadow: '0 1px 0 var(--border-color)' }}>品牌</th>
-                                <th style={{ padding: '0.5rem 0.75rem', width: '70px', textAlign: 'center', boxShadow: '0 1px 0 var(--border-color)' }}>庫存</th>
-                                <th style={{ padding: '0.5rem 0.75rem', width: '60px', textAlign: 'center', boxShadow: '0 1px 0 var(--border-color)' }}>數量</th>
-                                <th style={{ padding: '0.5rem 0.75rem', width: '90px', textAlign: 'center', boxShadow: '0 1px 0 var(--border-color)' }}>單價</th>
-                                <th style={{ padding: '0.5rem 0.75rem', width: '90px', textAlign: 'center', boxShadow: '0 1px 0 var(--border-color)' }}>小計</th>
+                                <th style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)' }}>零件號碼</th>
+                                <th style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)' }}>車型</th>
+                                <th style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)', width: '80px' }}>年份</th>
+                                <th style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)' }}>品名</th>
+                                <th style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)' }}>規格</th>
+                                <th style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)' }}>品牌</th>
+                                <th style={{ padding: '0.5rem 0.75rem', width: '70px', textAlign: 'center', border: '1px solid var(--border-color)' }}>庫存</th>
+                                <th style={{ padding: '0.5rem 0.75rem', width: '60px', textAlign: 'center', border: '1px solid var(--border-color)' }}>數量</th>
+                                <th style={{ padding: '0.5rem 0.75rem', width: '90px', textAlign: 'center', border: '1px solid var(--border-color)' }}>單價</th>
+                                <th style={{ padding: '0.5rem 0.75rem', width: '90px', textAlign: 'center', border: '1px solid var(--border-color)' }}>小計</th>
                             </tr>
                         </thead>
                         <tbody>
                             {doc.items.map((item, idx) => {
                                 const associatedProduct = products.find(p => p.p_id === item.p_id || (item.part_number && (p.part_number === item.part_number || p.part_numbers?.some(pn => pn.part_number === item.part_number))));
-                                const mappingCount = associatedProduct?.part_numbers?.length || 0;
 
                                 const displayCarModel = (item.car_model && typeof item.car_model === 'object') ? (item.car_model?.model || '') : (item.car_model || (associatedProduct ? productLineCarModel(associatedProduct) : '-'));
                                 const displayYear = (item.year && typeof item.year === 'object') ? (item.year?.year || '') : (item.year || (associatedProduct ? productLineYear(associatedProduct) : '-'));
@@ -219,39 +220,43 @@ const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, c
 
                                 return (
                                     <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.82rem' }}>
-                                        <td style={{ padding: '0.45rem 0.75rem' }}>
-                                            <div style={{ color: '#60a5fa', fontWeight: 800, fontFamily: 'monospace' }}>{item.part_number || item.p_id}</div>
-                                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{item.p_id !== item.part_number ? item.p_id : (associatedProduct?.p_id || '')}</div>
-                                            {mappingCount > 0 && (
-                                                <div
-                                                    onClick={(e) => { e.stopPropagation(); setMappingProduct(associatedProduct); }}
-                                                    style={{ marginTop: '2px', fontSize: '10px', backgroundColor: 'var(--bg-tertiary)', padding: '1px 5px', borderRadius: '4px', color: '#60a5fa', border: '1px solid var(--border-color)', display: 'inline-block', cursor: 'pointer' }}
-                                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--border-color)'}
-                                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)'}
-                                                >
-                                                    +{mappingCount} 適用
-                                                </div>
-                                            )}
+                                        <td style={{ padding: '0.45rem 0.75rem', border: '1px solid var(--border-color)' }}>
+                                            <span
+                                                className={styles.partNumberLink}
+                                                onClick={(e) => {
+                                                    if (associatedProduct) {
+                                                        e.stopPropagation();
+                                                        setMappingProduct(associatedProduct);
+                                                    }
+                                                }}
+                                                title={associatedProduct ? '點擊或按 Alt+V 查看適用車型 / 對應料號' : ''}
+                                            >
+                                                {item.part_number || item.p_id}
+                                            </span>
                                         </td>
-                                        <td style={{ padding: '0.45rem 0.75rem' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayCarModel}</div>
-                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{displayYear}</div>
+                                        <td style={{ padding: '0.45rem 0.75rem', border: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                            {displayCarModel}
                                         </td>
-                                        <td style={{ padding: '0.45rem 0.75rem' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayName}</div>
-                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{displaySpec}</div>
+                                        <td style={{ padding: '0.45rem 0.75rem', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                            {displayYear}
                                         </td>
-                                        <td style={{ padding: '0.45rem 0.75rem' }}>
+                                        <td style={{ padding: '0.45rem 0.75rem', border: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                            {displayName}
+                                        </td>
+                                        <td style={{ padding: '0.45rem 0.75rem', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                            {displaySpec}
+                                        </td>
+                                        <td style={{ padding: '0.45rem 0.75rem', border: '1px solid var(--border-color)' }}>
                                             <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{displayBrand}</div>
                                         </td>
-                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center' }}>
+                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center', border: '1px solid var(--border-color)' }}>
                                             <div style={{ fontWeight: 700, fontSize: '0.82rem', color: (associatedProduct?.stock ?? item.stock ?? 0) > 0 ? '#10b981' : '#ef4444' }}>
                                                 {associatedProduct?.stock ?? item.stock ?? '-'}
                                             </div>
                                         </td>
-                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center', color: 'var(--text-primary)', fontWeight: 700 }}>{item.qty}</td>
-                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center', color: 'var(--text-primary)', fontWeight: 700 }}>{item.unit_price?.toLocaleString()}</td>
-                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center', color: '#f59e0b', fontWeight: 800 }}>{(item.qty * (item.unit_price || 0)).toLocaleString()}</td>
+                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center', color: 'var(--text-primary)', fontWeight: 700, border: '1px solid var(--border-color)' }}>{item.qty}</td>
+                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center', color: 'var(--text-primary)', fontWeight: 700, border: '1px solid var(--border-color)' }}>{item.unit_price?.toLocaleString()}</td>
+                                        <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center', color: '#f59e0b', fontWeight: 800, border: '1px solid var(--border-color)' }}>{(item.qty * (item.unit_price || 0)).toLocaleString()}</td>
                                     </tr>
                                 );
                             })}
