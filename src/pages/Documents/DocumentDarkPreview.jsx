@@ -20,6 +20,7 @@ import {
     productLineCarModel,
     productLineYear
 } from '../../utils/productPickerSync';
+import styles from './Documents.module.css';
 
 // --- Viewing Mode Component ---
 const DocumentDarkPreviewView = ({ doc, type, onEdit, onClose, inline = false, canEdit = true }) => {
