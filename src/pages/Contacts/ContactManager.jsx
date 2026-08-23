@@ -108,13 +108,26 @@ const ContactManager = () => {
         (e.email || '').toLowerCase().includes(empSearch.toLowerCase())
     );
 
+    // 客戶匯出/匯入的完整欄位（欄名即資料庫欄位，匯出後可直接回匯）
+    const CUST_FULL_FIELDS = [
+        'cust_id', 'customer_code', 'name', 'contact_name', 'responsible_person', 'email',
+        'payment_terms', 'phone1', 'phone2', 'mobile', 'fax', 'tax_id', 'invoice_title',
+        'invoice_address', 'zip_code', 'website', 'closing_day', 'collection_day', 'region_code',
+        'accounting_code', 'address', 'delivery_address', 'salesperson', 'full_invoice',
+        'country', 'currency', 'tier', 'credit_limit', 'notes', 'branch_id'
+    ];
+    const csvEscape = (v) => {
+        const s = v == null ? '' : String(v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
     const handleExport = async () => {
         try {
             const data = activeTab === 'suppliers' ? filteredSuppliers : activeTab === 'customers' ? filteredCustomers : filteredEmployees;
             const headers = activeTab === 'suppliers'
                 ? ['ID', 'Name', 'Contact', 'Email', 'Payment']
                 : activeTab === 'customers'
-                    ? ['ID', 'Name', 'Contact', 'Tier', 'Credit']
+                    ? CUST_FULL_FIELDS
                 : enablePermissionRole
                     ? ['ID', 'Name', 'Department', 'Role', 'Permission', 'Email', 'Phone', 'Status']
                     : ['ID', 'Name', 'Department', 'Role', 'Email', 'Phone', 'Status'];
@@ -124,7 +137,10 @@ const ContactManager = () => {
                 if (activeTab === 'suppliers') {
                     csvRows.push([item.sup_id, `"${name}"`, item.contact_name, item.email, item.payment_terms].join(','));
                 } else if (activeTab === 'customers') {
-                    csvRows.push([item.cust_id, `"${name}"`, item.contact_name, item.tier, item.credit_limit].join(','));
+                    csvRows.push(CUST_FULL_FIELDS.map(f => {
+                        if (f === 'full_invoice') return item.full_invoice ? 1 : 0;
+                        return csvEscape(item[f]);
+                    }).join(','));
                 } else {
                     if (enablePermissionRole) {
                         csvRows.push([item.emp_id, `"${name}"`, item.department, item.role, item.permission_role || '一般', item.email, item.phone, item.status].join(','));
@@ -238,9 +254,11 @@ const ContactManager = () => {
                 
                 // Detect legacy scraper format
                 const isLegacyFormat = normalizedHeaders.includes('guid_id') || normalizedHeaders.includes('cname');
+                // 客戶完整欄位格式（由「匯出表格」產生，欄名即資料庫欄位）
+                const isFullCustFormat = activeTab === 'customers' && !isLegacyFormat && normalizedHeaders.includes('cust_id');
 
                 let expectedHeaders = [];
-                if (!isLegacyFormat) {
+                if (!isLegacyFormat && !isFullCustFormat) {
                     expectedHeaders = activeTab === 'suppliers'
                         ? expectedSupHeaders
                         : activeTab === 'customers'
@@ -254,7 +272,7 @@ const ContactManager = () => {
                             activeTab === 'suppliers'
                                 ? '匯入失敗：目前是供應商頁，請匯入供應商格式（ID, Name, Contact, Email, Payment）的 CSV。'
                                 : activeTab === 'customers'
-                                    ? '匯入失敗：目前是客戶頁，請匯入客戶格式（ID, Name, Contact, Tier, Credit）的 CSV。'
+                                    ? '匯入失敗：目前是客戶頁，請匯入客戶格式的 CSV（由「匯出表格」產生的完整欄位檔，或舊格式 ID, Name, Contact, Tier, Credit）。'
                                     : `匯入失敗：目前是員工頁，請匯入員工格式（ID, Name, Department, Role, ${enablePermissionRole ? 'Permission, ' : ''}Email, Phone, Status）的 CSV。`
                         );
                         return;
@@ -269,6 +287,12 @@ const ContactManager = () => {
                 const legacyMap = {};
                 if (isLegacyFormat) {
                     normalizedHeaders.forEach((h, i) => { legacyMap[h] = i; });
+                }
+
+                // 完整客戶格式的欄名索引
+                const fullCustMap = {};
+                if (isFullCustFormat) {
+                    normalizedHeaders.forEach((h, i) => { fullCustMap[h] = i; });
                 }
 
                 dataRows.forEach(row => {
@@ -383,6 +407,36 @@ const ContactManager = () => {
                                 notes: notes || (existing?.notes || ''),
                             });
                         }
+                    } else if (isFullCustFormat) {
+                        // 完整客戶格式：依欄名對應所有欄位；空白欄保留原有值
+                        const getF = (key) => {
+                            const idx = fullCustMap[key];
+                            return idx !== undefined ? (parts[idx] ?? '').trim() : '';
+                        };
+                        const cust_id = getF('cust_id');
+                        if (!cust_id) {
+                            skippedByType += 1;
+                            return;
+                        }
+                        const existing = customers.find(c => c.cust_id === cust_id);
+                        const obj = { ...(existing || {}), cust_id };
+                        for (const f of CUST_FULL_FIELDS) {
+                            if (f === 'cust_id') continue;
+                            const v = getF(f);
+                            if (f === 'full_invoice') {
+                                obj.full_invoice = v === ''
+                                    ? (existing?.full_invoice || false)
+                                    : (v === '1' || v.toLowerCase() === 'true');
+                            } else if (f === 'credit_limit') {
+                                obj.credit_limit = v === '' ? (existing?.credit_limit || 0) : (parseFloat(v) || 0);
+                            } else {
+                                obj[f] = v !== '' ? v : (existing?.[f] || '');
+                            }
+                        }
+                        if (!obj.tier) obj.tier = 'B';
+                        if (!obj.country) obj.country = 'Taiwan';
+                        if (!obj.currency) obj.currency = defaultCurrency;
+                        updates.push(obj);
                     } else if (parts.length >= 5) {
                         // Standard ERP Format Mapping
                         const parsed = parts;
