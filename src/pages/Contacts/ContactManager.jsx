@@ -15,7 +15,8 @@ import { sortedCustomersForSelect, sortedSuppliersForSelect } from '../../utils/
 
 const ContactManager = () => {
     const { t } = useTranslation();
-    const { isMultiCountryMode, defaultCurrency, showImportExport, enablePermissionRole } = useAppStore();
+    const { isMultiCountryMode, defaultCurrency, showImportExport, enablePermissionRole, branches } = useAppStore();
+    const branchName = (branchId) => (branches || []).find(b => b.branch_id === branchId)?.name || branchId || '-';
 
     // Supplier Store
     const {
@@ -625,6 +626,7 @@ const ContactManager = () => {
                                 <th>行動電話</th>
                                 <th>當月結帳日</th>
                                 <th>歸屬業務</th>
+                                <th>分店歸屬</th>
                                 <th>等級</th>
                                 <th></th>
                             </tr>
@@ -661,6 +663,7 @@ const ContactManager = () => {
                                     <td>{cust.mobile}</td>
                                     <td>{cust.closing_day}</td>
                                     <td>{cust.salesperson}</td>
+                                    <td>{branchName(cust.branch_id)}</td>
                                     <td>
                                         {cust.tier && <span className={`${styles.badge} ${tierClass(cust.tier)}`}>{cust.tier}</span>}
                                     </td>

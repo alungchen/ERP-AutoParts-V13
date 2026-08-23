@@ -13,7 +13,7 @@ import CountryFlag from '../../components/CountryFlag';
 
 const CustomerDrawer = ({ customer, onClose }) => {
     const { addCustomer, updateCustomer, deleteCustomer } = useCustomerStore();
-    const { isMultiCountryMode, defaultCurrency } = useAppStore();
+    const { isMultiCountryMode, defaultCurrency, branches, activeBranchId } = useAppStore();
     const { t } = useTranslation();
     const isNew = !customer?.cust_id;
 
@@ -22,7 +22,8 @@ const CustomerDrawer = ({ customer, onClose }) => {
         phone1: '', phone2: '', mobile: '', fax: '', contact_name: '', responsible_person: '',
         invoice_title: '', tax_id: '', invoice_address: '', closing_day: '', collection_day: '', notes: '',
         zip_code: '', business_items: '', website: '', email: '', full_invoice: false, region_code: '',
-        salesperson: '', tier: 'B', accounting_code: '', offset_supplier: ''
+        salesperson: '', tier: 'B', accounting_code: '', offset_supplier: '',
+        branch_id: activeBranchId || 'songshan'
     };
 
     const [form, setForm] = useState(emptyForm);
@@ -87,6 +88,18 @@ const CustomerDrawer = ({ customer, onClose }) => {
                             <div className={drawerStyles.inputGroup} style={{ flex: 2 }}>
                                 <label className={drawerStyles.label}>客戶名稱</label>
                                 <input className={drawerStyles.input} value={form.name || ''} onChange={e => set('name', e.target.value)} />
+                            </div>
+                            <div className={drawerStyles.inputGroup} style={{ flex: 1 }}>
+                                <label className={drawerStyles.label}>分店歸屬</label>
+                                <select
+                                    className={drawerStyles.input}
+                                    value={form.branch_id || ''}
+                                    onChange={e => set('branch_id', e.target.value)}
+                                >
+                                    {(branches || []).map(b => (
+                                        <option key={b.branch_id} value={b.branch_id}>{b.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                         <div className={drawerStyles.inputGroup}>
