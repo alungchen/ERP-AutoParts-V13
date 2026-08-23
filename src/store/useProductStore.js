@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useAppStore } from './useAppStore';
 
 export const useProductStore = create((set, get) => ({
   products: [],
@@ -10,15 +11,45 @@ export const useProductStore = create((set, get) => ({
   selectedProduct: null,
   setSelectedProduct: (product) => set({ selectedProduct: product }),
 
-  // 從 API 載入所有產品 (取代 localStorage 初始載入)
-  fetchProducts: async () => {
+  // 從 API 以游標分頁載入「全部」產品，邊載邊顯示；庫存另行平行載入後合併
+  fetchProducts: async (branchIdOverride) => {
+    if (get().isLoading) return;
+    const branchId = branchIdOverride || useAppStore.getState().activeBranchId || 'songshan';
     set({ isLoading: true });
     try {
-      const res = await fetch('/api/products');
-      if (res.ok) {
+      const stockPromise = fetch(`/api/products?stockOnly=1&branch_id=${encodeURIComponent(branchId)}`)
+        .then((res) => (res.ok ? res.json() : { stock: {} }))
+        .catch(() => ({ stock: {} }));
+
+      const all = [];
+      let cursor = 0;
+      const PAGE_SIZE = 2000;
+      // 逐頁抓取直到沒有更多資料
+      for (;;) {
+        const url = new URL('/api/products', window.location.origin);
+        url.searchParams.set('cursor', String(cursor));
+        url.searchParams.set('limit', String(PAGE_SIZE));
+        url.searchParams.set('branch_id', branchId);
+
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error(`Failed to fetch products (${res.status})`);
         const data = await res.json();
-        set({ products: data, isLoading: false });
+        const items = Array.isArray(data) ? data : (data.items || []);
+        all.push(...items);
+        set({ products: [...all] });
+
+        if (Array.isArray(data) || !data.hasMore || data.nextCursor == null || items.length === 0) break;
+        cursor = data.nextCursor;
       }
+
+      const stockMap = (await stockPromise)?.stock || {};
+      const withStock = all.map((p) => {
+        const details = stockMap[p.p_id] || p.stock_details || [];
+        const totalStock = details.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+        return { ...p, stock_details: details, stock: totalStock };
+      });
+      withStock.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+      set({ products: withStock, isLoading: false });
     } catch (err) {
       console.error("Failed to fetch products:", err);
       set({ isLoading: false });

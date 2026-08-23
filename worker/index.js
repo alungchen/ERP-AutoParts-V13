@@ -123,17 +123,118 @@ export default {
         /* ---------- /api/products（同 functions/api/products.js）---------- */
         if (path === '/api/products' && request.method === 'GET') {
             try {
-                // 1. 查詢所有產品主檔
-                const { results: products } = await env.DB.prepare(
-                    'SELECT * FROM products ORDER BY updated_at DESC'
-                ).all();
+                const url = new URL(request.url);
+                const limit = Number.parseInt(url.searchParams.get('limit') || '', 10);
+                const activeBranch = request.headers.get('X-Active-Branch') || url.searchParams.get('branch_id') || '';
 
-                // 2. 查詢所有產品的庫存明細
-                const { results: stockDetails } = await env.DB.prepare(
-                    'SELECT * FROM product_stock'
-                ).all();
+                const safeParseJson = (value, fallback) => {
+                    if (value == null || value === '') return fallback;
+                    try { return JSON.parse(value); } catch { return fallback; }
+                };
 
-                // 將庫存明細按 p_id 分組
+                // 僅回傳庫存表（含所有分店，前端與產品分頁平行載入後合併）
+                if (url.searchParams.get('stockOnly') === '1') {
+                    const { results: stockRows } = await env.DB.prepare(
+                        'SELECT p_id, branch_id, location_code, qty FROM product_stock'
+                    ).all();
+                    const stock = {};
+                    for (const row of stockRows || []) {
+                        if (!stock[row.p_id]) stock[row.p_id] = [];
+                        stock[row.p_id].push({ branch_id: row.branch_id, location_code: row.location_code, qty: row.qty });
+                    }
+                    return Response.json({ stock }, {
+                        headers: { ...corsHeaders, 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+                    });
+                }
+
+                // rowid 游標分頁：全量載入用，深頁不需 OFFSET 掃描；庫存由 stockOnly 另行合併
+                const cursorRaw = url.searchParams.get('cursor');
+                if (cursorRaw !== null) {
+                    const cursor = Number(cursorRaw) || 0;
+                    const pageSize = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 3000) : 2000;
+                    const branchFilter = activeBranch
+                        ? ' AND EXISTS (SELECT 1 FROM product_stock ps WHERE ps.p_id = p.p_id AND ps.branch_id = ?)'
+                        : '';
+
+                    const countBinds = activeBranch ? [activeBranch] : [];
+                    const countRow = await env.DB.prepare(
+                        `SELECT COUNT(*) AS total FROM products p WHERE 1=1${branchFilter}`
+                    ).bind(...countBinds).first();
+                    const total = Number(countRow?.total) || 0;
+
+                    const pageBinds = activeBranch ? [cursor, activeBranch, pageSize] : [cursor, pageSize];
+                    const { results: rows } = await env.DB.prepare(
+                        `SELECT p.rowid AS _rid, p.* FROM products p WHERE p.rowid > ?${branchFilter} ORDER BY p.rowid LIMIT ?`
+                    ).bind(...pageBinds).all();
+
+                    const pageRows = rows || [];
+                    const items = pageRows.map((row) => {
+                        const { _rid, ...p } = row;
+                        return {
+                            ...p,
+                            car_models: safeParseJson(p.car_models, []),
+                            images: safeParseJson(p.images, []),
+                            part_numbers: safeParseJson(p.part_numbers, []),
+                            stock: 0,
+                            stock_details: [],
+                        };
+                    });
+
+                    return Response.json({
+                        items,
+                        total,
+                        nextCursor: pageRows.length ? pageRows[pageRows.length - 1]._rid : null,
+                        hasMore: pageRows.length === pageSize,
+                    }, {
+                        headers: { ...corsHeaders, 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+                    });
+                }
+
+                let products = [];
+                let stockDetails = [];
+
+                if (activeBranch) {
+                    const baseQuery = `
+                        SELECT p.*
+                        FROM products p
+                        INNER JOIN product_stock ps ON ps.p_id = p.p_id AND ps.branch_id = ?
+                        GROUP BY p.p_id
+                        ORDER BY p.updated_at DESC
+                    `;
+
+                    const query = Number.isFinite(limit) && limit > 0
+                        ? `${baseQuery} LIMIT ?`
+                        : baseQuery;
+
+                    const bindValues = Number.isFinite(limit) && limit > 0
+                        ? [activeBranch, limit]
+                        : [activeBranch];
+
+                    const { results: branchProducts } = await env.DB.prepare(query).bind(...bindValues).all();
+                    products = branchProducts || [];
+
+                    const { results: branchStock } = await env.DB.prepare(
+                        'SELECT * FROM product_stock WHERE branch_id = ? ORDER BY p_id ASC'
+                    ).bind(activeBranch).all();
+                    stockDetails = branchStock || [];
+                } else {
+                    let productsQuery = 'SELECT * FROM products ORDER BY updated_at DESC';
+                    const bindValues = [];
+                    if (Number.isFinite(limit) && limit > 0) {
+                        productsQuery += ' LIMIT ?';
+                        bindValues.push(limit);
+                    }
+
+                    const stmt = bindValues.length > 0
+                        ? env.DB.prepare(productsQuery).bind(...bindValues)
+                        : env.DB.prepare(productsQuery);
+                    const { results: allProducts } = await stmt.all();
+                    products = allProducts || [];
+
+                    const { results: allStock } = await env.DB.prepare('SELECT * FROM product_stock').all();
+                    stockDetails = allStock || [];
+                }
+
                 const stockMap = new Map();
                 for (const row of stockDetails || []) {
                     if (!stockMap.has(row.p_id)) {
@@ -146,7 +247,6 @@ export default {
                     });
                 }
 
-                // 將儲存的 JSON 字串與庫存明細整合回物件結構
                 const productsWithStock = (products || []).map((p) => {
                     const details = stockMap.get(p.p_id) || [];
                     const totalStock = details.reduce((sum, item) => sum + item.qty, 0);
@@ -156,8 +256,8 @@ export default {
                         car_models: p.car_models ? JSON.parse(p.car_models) : [],
                         images: p.images ? JSON.parse(p.images) : [],
                         part_numbers: p.part_numbers ? JSON.parse(p.part_numbers) : [],
-                        stock: totalStock, // 保留原欄位以向下相容舊介面
-                        stock_details: details // 新增的多分店、多庫位明細欄位
+                        stock: totalStock,
+                        stock_details: details
                     };
                 });
 

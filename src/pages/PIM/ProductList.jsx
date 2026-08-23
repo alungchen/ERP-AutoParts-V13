@@ -279,6 +279,14 @@ const ProductList = () => {
         localStorage.setItem(PIM_SEARCH_STATE_KEY, JSON.stringify({ query, appliedQuery, hasSearched }));
     }, [query, appliedQuery, hasSearched]);
 
+    // 僅在切換分店時重置搜尋條件；products 分批載入時不可清空使用者輸入
+    useEffect(() => {
+        setQuery(DEFAULT_QUERY);
+        setAppliedQuery(DEFAULT_QUERY);
+        setHasSearched(false);
+        localStorage.removeItem(PIM_SEARCH_STATE_KEY);
+    }, [activeBranchId]);
+
     useEffect(() => {
         localStorage.setItem('erp-pim-export-fields', JSON.stringify({ ...exportFields, part_number: true }));
     }, [exportFields]);

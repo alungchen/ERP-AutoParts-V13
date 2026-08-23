@@ -61,9 +61,44 @@ function App() {
   useEffect(() => {
     void bootstrapFromD1();
     fetchBranches();
-    fetchProducts();
-    fetchShorthands();
-  }, [fetchBranches, fetchProducts, fetchShorthands]);
+  }, [fetchBranches]);
+
+  useEffect(() => {
+    void fetchProducts(activeBranchId);
+  }, [activeBranchId, fetchProducts]);
+
+  useEffect(() => {
+    const refreshOnFocus = () => {
+      void fetchProducts(activeBranchId);
+      void fetchShorthands();
+    };
+
+    const refreshOnVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchProducts(activeBranchId);
+        void fetchShorthands();
+      }
+    };
+
+    const refreshOnBranchChange = () => {
+      void fetchProducts(activeBranchId);
+      void fetchShorthands();
+    };
+
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnVisible);
+    window.addEventListener('erp:branch-changed', refreshOnBranchChange);
+
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnVisible);
+      window.removeEventListener('erp:branch-changed', refreshOnBranchChange);
+    };
+  }, [fetchProducts, fetchShorthands]);
+
+  useEffect(() => {
+    void fetchShorthands();
+  }, [activeBranchId, fetchShorthands]);
 
   // Fetch branch-specific data on active branch change (which covers initial load too)
   useEffect(() => {

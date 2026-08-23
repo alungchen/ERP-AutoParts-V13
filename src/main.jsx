@@ -11,17 +11,24 @@ window.fetch = function (url, options = {}) {
   const urlStr = typeof url === 'string' ? url : (url && url.url) || '';
   if (urlStr.includes('/api/')) {
     const activeBranchId = useAppStore.getState().activeBranchId || 'songshan';
-    
-    // Ensure headers object exists
+
+    if (urlStr.includes('/api/products')) {
+      try {
+        const urlObj = new URL(urlStr, window.location.origin);
+        urlObj.searchParams.set('branch_id', activeBranchId);
+        url = urlObj.toString();
+      } catch {
+        // keep original URL if it is not a valid absolute/relative URL
+      }
+    }
+
     const headers = options.headers ? { ...options.headers } : {};
-    
-    // Add active branch header, keeping compatibility with Headers objects or plain objects
     if (headers instanceof Headers) {
       headers.set('X-Active-Branch', activeBranchId);
     } else {
       headers['X-Active-Branch'] = activeBranchId;
     }
-    
+
     options.headers = headers;
   }
   return originalFetch(url, options);

@@ -14,7 +14,12 @@ export const useAppStore = create(persist((set) => ({
 
     // Multi-branch settings
     activeBranchId: 'songshan',
-    setActiveBranch: (branchId) => set({ activeBranchId: branchId }),
+    setActiveBranch: (branchId) => {
+        set({ activeBranchId: branchId });
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('erp:branch-changed', { detail: { branchId } }));
+        }
+    },
     branches: [
         { branch_id: 'songshan', name: '松山店' },
         { branch_id: 'xizhi', name: '汐止店' },
