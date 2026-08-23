@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Calculator, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useImportEstimateStore } from '../../store/useImportEstimateStore';
@@ -9,6 +9,16 @@ import styles from './SourcingList.module.css';
 const ImportEstimateHub = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const location = useLocation();
+    // 新分頁模式（standalone=1）下導覽需保留該參數，否則會被啟動器頁面攔截
+    const isStandalonePage = new URLSearchParams(location.search).get('standalone') === '1';
+    const estimatePath = (id) => {
+        const params = new URLSearchParams();
+        if (id) params.set('id', id);
+        if (isStandalonePage) params.set('standalone', '1');
+        const qs = params.toString();
+        return qs ? `/sourcing/estimate?${qs}` : '/sourcing/estimate';
+    };
     const importEstimates = useImportEstimateStore((s) => s.importEstimates);
     const deleteImportEstimate = useImportEstimateStore((s) => s.deleteImportEstimate);
     const addImportEstimate = useImportEstimateStore((s) => s.addImportEstimate);
@@ -68,11 +78,11 @@ const ImportEstimateHub = () => {
                 }
                 const doc = addImportEstimate(result.patch);
                 showFlash(t('importCost.backup.doneNew'));
-                navigate(`/sourcing/estimate?id=${encodeURIComponent(doc.estimate_id)}`);
+                navigate(estimatePath(doc.estimate_id));
             };
             reader.readAsText(file, 'UTF-8');
         },
-        [addImportEstimate, navigate, t, showFlash],
+        [addImportEstimate, navigate, t, showFlash, isStandalonePage],
     );
 
     return (
@@ -118,7 +128,7 @@ const ImportEstimateHub = () => {
                     >
                         <Upload size={16} /> {t('importCost.backup.importNew')}
                     </button>
-                    <Link to="/sourcing/estimate" className={styles.primaryLinkBtn}>
+                    <Link to={estimatePath()} className={styles.primaryLinkBtn}>
                         <Plus size={18} /> {t('importCost.newEstimate')}
                     </Link>
                 </div>
@@ -144,7 +154,7 @@ const ImportEstimateHub = () => {
                                 <td>
                                     <Link
                                         className={styles.hubIdLink}
-                                        to={`/sourcing/estimate?id=${encodeURIComponent(row.estimate_id)}`}
+                                        to={estimatePath(row.estimate_id)}
                                     >
                                         {row.estimate_id}
                                     </Link>
@@ -157,7 +167,7 @@ const ImportEstimateHub = () => {
                                     <div className={styles.hubRowActions}>
                                         <Link
                                             className={styles.secondaryBtn}
-                                            to={`/sourcing/estimate?id=${encodeURIComponent(row.estimate_id)}`}
+                                            to={estimatePath(row.estimate_id)}
                                         >
                                             {t('importCost.open')}
                                         </Link>

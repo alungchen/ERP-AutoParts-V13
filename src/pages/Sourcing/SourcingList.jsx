@@ -250,13 +250,16 @@ const SourcingList = () => {
                 const params = new URLSearchParams();
                 params.set('id', doc.estimate_id);
                 if (shortageBoot?.trim()) params.set('shortage', shortageBoot.trim());
+                // 新分頁模式下保留 standalone=1，避免被啟動器頁面攔截
+                if (spBoot.get('standalone') === '1') params.set('standalone', '1');
                 navigate(`/sourcing/estimate?${params.toString()}`, { replace: true });
                 return;
             }
             creatingEstimateRef.current = false;
             const saved = getImportEstimate(idFromUrl);
             if (!saved) {
-                navigate('/sourcing', { replace: true });
+                const isStandalone = new URLSearchParams(window.location.search).get('standalone') === '1';
+                navigate(isStandalone ? '/sourcing?standalone=1' : '/sourcing', { replace: true });
                 return;
             }
             setHydrated(false);
@@ -919,7 +922,7 @@ const SourcingList = () => {
                     t={t}
                 />
             )}
-            <Link to="/sourcing" className={styles.backLink}>
+            <Link to={searchParams.get('standalone') === '1' ? '/sourcing?standalone=1' : '/sourcing'} className={styles.backLink}>
                 <ArrowLeft size={16} /> {t('importCost.backToList')}
             </Link>
             <div className={styles.sourcingTop}>
