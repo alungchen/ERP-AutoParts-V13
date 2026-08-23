@@ -1,15 +1,15 @@
 // functions/api/customers.js
 export async function onRequestGet(context) {
   try {
-    const branchId = context.request.headers.get('X-Active-Branch') || 'songshan';
+    // 客戶為全分店共用的基本資料，不做分店過濾
     const url = new URL(context.request.url);
     const id = url.searchParams.get('id');
     if (id) {
-      const row = await context.env.DB.prepare('SELECT * FROM customers WHERE cust_id = ? AND branch_id = ?').bind(id, branchId).first();
+      const row = await context.env.DB.prepare('SELECT * FROM customers WHERE cust_id = ?').bind(id).first();
       if (!row) return new Response('Not found', { status: 404 });
       return Response.json({ ...row, full_invoice: !!row.full_invoice });
     }
-    const { results } = await context.env.DB.prepare('SELECT * FROM customers WHERE branch_id = ? ORDER BY name ASC').bind(branchId).all();
+    const { results } = await context.env.DB.prepare('SELECT * FROM customers ORDER BY name ASC').all();
     return Response.json(results.map(r => ({ ...r, full_invoice: !!r.full_invoice })));
   } catch (err) {
     return new Response(err.message, { status: 500 });
@@ -61,16 +61,15 @@ export async function onRequestPut(context) {
 
 export async function onRequestDelete(context) {
   try {
-    const branchId = context.request.headers.get('X-Active-Branch') || 'songshan';
     const url = new URL(context.request.url);
     const id = url.searchParams.get('id');
     const clearAll = url.searchParams.get('clearAll');
     if (clearAll === '1') {
-      await context.env.DB.prepare('DELETE FROM customers WHERE branch_id = ?').bind(branchId).run();
+      await context.env.DB.prepare('DELETE FROM customers').run();
       return Response.json({ success: true, cleared: true });
     }
     if (!id) return new Response('Missing id', { status: 400 });
-    await context.env.DB.prepare('DELETE FROM customers WHERE cust_id = ? AND branch_id = ?').bind(id, branchId).run();
+    await context.env.DB.prepare('DELETE FROM customers WHERE cust_id = ?').bind(id).run();
     return Response.json({ success: true });
   } catch (err) {
     return new Response(err.message, { status: 500 });

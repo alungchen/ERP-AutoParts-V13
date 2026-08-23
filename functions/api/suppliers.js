@@ -1,15 +1,15 @@
 // functions/api/suppliers.js
 export async function onRequestGet(context) {
   try {
-    const branchId = context.request.headers.get('X-Active-Branch') || 'songshan';
+    // 供應商為全分店共用的基本資料，不做分店過濾
     const url = new URL(context.request.url);
     const id = url.searchParams.get('id');
     if (id) {
-      const row = await context.env.DB.prepare('SELECT * FROM suppliers WHERE sup_id = ? AND branch_id = ?').bind(id, branchId).first();
+      const row = await context.env.DB.prepare('SELECT * FROM suppliers WHERE sup_id = ?').bind(id).first();
       if (!row) return new Response('Not found', { status: 404 });
       return Response.json({ ...row, categories: row.categories ? JSON.parse(row.categories) : [] });
     }
-    const { results } = await context.env.DB.prepare('SELECT * FROM suppliers WHERE branch_id = ? ORDER BY name ASC').bind(branchId).all();
+    const { results } = await context.env.DB.prepare('SELECT * FROM suppliers ORDER BY name ASC').all();
     return Response.json(results.map(r => ({ ...r, categories: r.categories ? JSON.parse(r.categories) : [] })));
   } catch (err) {
     return new Response(err.message, { status: 500 });
@@ -58,16 +58,15 @@ export async function onRequestPut(context) {
 
 export async function onRequestDelete(context) {
   try {
-    const branchId = context.request.headers.get('X-Active-Branch') || 'songshan';
     const url = new URL(context.request.url);
     const id = url.searchParams.get('id');
     const clearAll = url.searchParams.get('clearAll');
     if (clearAll === '1') {
-      await context.env.DB.prepare('DELETE FROM suppliers WHERE branch_id = ?').bind(branchId).run();
+      await context.env.DB.prepare('DELETE FROM suppliers').run();
       return Response.json({ success: true, cleared: true });
     }
     if (!id) return new Response('Missing id', { status: 400 });
-    await context.env.DB.prepare('DELETE FROM suppliers WHERE sup_id = ? AND branch_id = ?').bind(id, branchId).run();
+    await context.env.DB.prepare('DELETE FROM suppliers WHERE sup_id = ?').bind(id).run();
     return Response.json({ success: true });
   } catch (err) {
     return new Response(err.message, { status: 500 });
