@@ -51,6 +51,18 @@ export const useCustomerStore = create((set, get) => ({
         }));
     },
 
+    // ── 批次更新（完整欄位匯入用）：僅逐筆 upsert，不清空既有資料 ──
+    upsertCustomers: async (list) => {
+        const BATCH = 50;
+        for (let i = 0; i < list.length; i += BATCH) {
+            const batch = list.slice(i, i + BATCH);
+            await Promise.all(batch.map(item =>
+                fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) })
+            ));
+        }
+        await get().fetchCustomers();
+    },
+
     // ── 批次匯入（匯入 CSV 時使用）──
     bulkUpdateCustomers: async (list) => {
         await fetch(`${API}?clearAll=1`, { method: 'DELETE' });

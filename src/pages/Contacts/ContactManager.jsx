@@ -34,6 +34,7 @@ const ContactManager = () => {
         searchQuery: custSearch,
         setSearchQuery: setCustSearch,
         bulkUpdateCustomers,
+        upsertCustomers,
         fetchCustomers,
     } = useCustomerStore();
 
@@ -518,7 +519,9 @@ const ContactManager = () => {
                         await bulkUpdateSuppliers(updates);
                     } else if (activeTab === 'customers') {
                         alert(`正在匯入 ${updates.length} 筆客戶到資料庫，請稍候...`);
-                        await bulkUpdateCustomers(updates);
+                        // 完整欄位格式僅逐筆更新，不清空未列於檔案中的客戶
+                        if (isFullCustFormat) await upsertCustomers(updates);
+                        else await bulkUpdateCustomers(updates);
                     } else {
                         bulkUpdateEmployees(updates);
                     }
