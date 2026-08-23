@@ -32,7 +32,7 @@ export async function onRequestGet(context) {
             params.push(`%${docIdLike}%`);
         }
         
-        query += ' ORDER BY date DESC, updated_at DESC LIMIT ? OFFSET ?';
+        query += ' ORDER BY date DESC, doc_id DESC LIMIT ? OFFSET ?';
         params.push(limit, offset);
 
         const { results: docs } = await env.DB.prepare(query).bind(...params).all();
@@ -53,7 +53,7 @@ export async function onRequestGet(context) {
                 itemQuery += ' AND doc_id LIKE ?';
                 itemParams.push(`%${docIdLike}%`);
             }
-            itemQuery += ' ORDER BY date DESC, updated_at DESC LIMIT ? OFFSET ?)';
+            itemQuery += ' ORDER BY date DESC, doc_id DESC LIMIT ? OFFSET ?)';
             itemParams.push(limit, offset);
 
             const { results: allItems } = await env.DB.prepare(itemQuery).bind(...itemParams).all();

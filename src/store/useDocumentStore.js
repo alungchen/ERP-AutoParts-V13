@@ -254,7 +254,13 @@ export const useDocumentStore = create(persist((set, get) => ({
             }
             
             const res = await fetch(url);
-            const data = await res.json();
+            const rawData = await res.json();
+            // 日期新的在前；同日期以單據編號大的在前
+            const data = [...rawData].sort((a, b) => {
+                const dateDiff = String(b.date || '').localeCompare(String(a.date || ''));
+                if (dateDiff !== 0) return dateDiff;
+                return String(b.doc_id || '').localeCompare(String(a.doc_id || ''), undefined, { numeric: true });
+            });
             const grouped = {
                 inquiries: data.filter(d => d.type === 'inquiry'),
                 purchaseOrders: data.filter(d => d.type === 'purchase'),
