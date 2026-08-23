@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { useAppStore } from './useAppStore';
 
 export const useProductStore = create((set, get) => ({
   products: [],
@@ -12,12 +11,15 @@ export const useProductStore = create((set, get) => ({
   setSelectedProduct: (product) => set({ selectedProduct: product }),
 
   // 從 API 以游標分頁載入「全部」產品，邊載邊顯示；庫存另行平行載入後合併
-  fetchProducts: async (branchIdOverride) => {
+  // 產品目錄全分店共用，僅庫存依分店呈現差異
+  lastFetchedAt: 0,
+  fetchProducts: async () => {
     if (get().isLoading) return;
-    const branchId = branchIdOverride || useAppStore.getState().activeBranchId || 'songshan';
+    // 60 秒內已載入過就跳過（避免視窗聚焦等事件頻繁觸發全量重載）
+    if (Date.now() - get().lastFetchedAt < 60000 && get().products.length > 0) return;
     set({ isLoading: true });
     try {
-      const stockPromise = fetch(`/api/products?stockOnly=1&branch_id=${encodeURIComponent(branchId)}`)
+      const stockPromise = fetch('/api/products?stockOnly=1')
         .then((res) => (res.ok ? res.json() : { stock: {} }))
         .catch(() => ({ stock: {} }));
 
@@ -29,7 +31,6 @@ export const useProductStore = create((set, get) => ({
         const url = new URL('/api/products', window.location.origin);
         url.searchParams.set('cursor', String(cursor));
         url.searchParams.set('limit', String(PAGE_SIZE));
-        url.searchParams.set('branch_id', branchId);
 
         const res = await fetch(url.toString());
         if (!res.ok) throw new Error(`Failed to fetch products (${res.status})`);
@@ -49,7 +50,7 @@ export const useProductStore = create((set, get) => ({
         return { ...p, stock_details: details, stock: totalStock };
       });
       withStock.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
-      set({ products: withStock, isLoading: false });
+      set({ products: withStock, isLoading: false, lastFetchedAt: Date.now() });
     } catch (err) {
       console.error("Failed to fetch products:", err);
       set({ isLoading: false });

@@ -63,25 +63,25 @@ function App() {
     fetchBranches();
   }, [fetchBranches]);
 
+  // 產品目錄全分店共用，只需在掛載時載入一次（fetchProducts 內建 60 秒節流）
   useEffect(() => {
-    void fetchProducts(activeBranchId);
-  }, [activeBranchId, fetchProducts]);
+    void fetchProducts();
+  }, [fetchProducts]);
 
   useEffect(() => {
     const refreshOnFocus = () => {
-      void fetchProducts(activeBranchId);
+      void fetchProducts();
       void fetchShorthands();
     };
 
     const refreshOnVisible = () => {
       if (document.visibilityState === 'visible') {
-        void fetchProducts(activeBranchId);
+        void fetchProducts();
         void fetchShorthands();
       }
     };
 
     const refreshOnBranchChange = () => {
-      void fetchProducts(activeBranchId);
       void fetchShorthands();
     };
 

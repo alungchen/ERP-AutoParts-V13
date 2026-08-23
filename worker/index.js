@@ -125,7 +125,6 @@ export default {
             try {
                 const url = new URL(request.url);
                 const limit = Number.parseInt(url.searchParams.get('limit') || '', 10);
-                const activeBranch = request.headers.get('X-Active-Branch') || url.searchParams.get('branch_id') || '';
 
                 const safeParseJson = (value, fallback) => {
                     if (value == null || value === '') return fallback;
@@ -148,24 +147,20 @@ export default {
                 }
 
                 // rowid 游標分頁：全量載入用，深頁不需 OFFSET 掃描；庫存由 stockOnly 另行合併
+                // 產品目錄為全分店共用，不做分店過濾（庫存差異由 stock_details 呈現）
                 const cursorRaw = url.searchParams.get('cursor');
                 if (cursorRaw !== null) {
                     const cursor = Number(cursorRaw) || 0;
                     const pageSize = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 3000) : 2000;
-                    const branchFilter = activeBranch
-                        ? ' AND EXISTS (SELECT 1 FROM product_stock ps WHERE ps.p_id = p.p_id AND ps.branch_id = ?)'
-                        : '';
 
-                    const countBinds = activeBranch ? [activeBranch] : [];
                     const countRow = await env.DB.prepare(
-                        `SELECT COUNT(*) AS total FROM products p WHERE 1=1${branchFilter}`
-                    ).bind(...countBinds).first();
+                        'SELECT COUNT(*) AS total FROM products'
+                    ).first();
                     const total = Number(countRow?.total) || 0;
 
-                    const pageBinds = activeBranch ? [cursor, activeBranch, pageSize] : [cursor, pageSize];
                     const { results: rows } = await env.DB.prepare(
-                        `SELECT p.rowid AS _rid, p.* FROM products p WHERE p.rowid > ?${branchFilter} ORDER BY p.rowid LIMIT ?`
-                    ).bind(...pageBinds).all();
+                        'SELECT p.rowid AS _rid, p.* FROM products p WHERE p.rowid > ? ORDER BY p.rowid LIMIT ?'
+                    ).bind(cursor, pageSize).all();
 
                     const pageRows = rows || [];
                     const items = pageRows.map((row) => {
@@ -190,50 +185,21 @@ export default {
                     });
                 }
 
-                let products = [];
-                let stockDetails = [];
-
-                if (activeBranch) {
-                    const baseQuery = `
-                        SELECT p.*
-                        FROM products p
-                        INNER JOIN product_stock ps ON ps.p_id = p.p_id AND ps.branch_id = ?
-                        GROUP BY p.p_id
-                        ORDER BY p.updated_at DESC
-                    `;
-
-                    const query = Number.isFinite(limit) && limit > 0
-                        ? `${baseQuery} LIMIT ?`
-                        : baseQuery;
-
-                    const bindValues = Number.isFinite(limit) && limit > 0
-                        ? [activeBranch, limit]
-                        : [activeBranch];
-
-                    const { results: branchProducts } = await env.DB.prepare(query).bind(...bindValues).all();
-                    products = branchProducts || [];
-
-                    const { results: branchStock } = await env.DB.prepare(
-                        'SELECT * FROM product_stock WHERE branch_id = ? ORDER BY p_id ASC'
-                    ).bind(activeBranch).all();
-                    stockDetails = branchStock || [];
-                } else {
-                    let productsQuery = 'SELECT * FROM products ORDER BY updated_at DESC';
-                    const bindValues = [];
-                    if (Number.isFinite(limit) && limit > 0) {
-                        productsQuery += ' LIMIT ?';
-                        bindValues.push(limit);
-                    }
-
-                    const stmt = bindValues.length > 0
-                        ? env.DB.prepare(productsQuery).bind(...bindValues)
-                        : env.DB.prepare(productsQuery);
-                    const { results: allProducts } = await stmt.all();
-                    products = allProducts || [];
-
-                    const { results: allStock } = await env.DB.prepare('SELECT * FROM product_stock').all();
-                    stockDetails = allStock || [];
+                let productsQuery = 'SELECT * FROM products ORDER BY updated_at DESC';
+                const bindValues = [];
+                if (Number.isFinite(limit) && limit > 0) {
+                    productsQuery += ' LIMIT ?';
+                    bindValues.push(limit);
                 }
+
+                const stmt = bindValues.length > 0
+                    ? env.DB.prepare(productsQuery).bind(...bindValues)
+                    : env.DB.prepare(productsQuery);
+                const { results: allProducts } = await stmt.all();
+                const products = allProducts || [];
+
+                const { results: allStock } = await env.DB.prepare('SELECT * FROM product_stock').all();
+                const stockDetails = allStock || [];
 
                 const stockMap = new Map();
                 for (const row of stockDetails || []) {
