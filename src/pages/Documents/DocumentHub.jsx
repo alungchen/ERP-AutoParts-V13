@@ -757,13 +757,23 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
         setSelectedShortageIds([]);
     };
 
+    // 傳統配置模式的編輯改開與新分頁模式相同的編輯頁（/document-editor）
+    const openEditorPageForDoc = (docId) => {
+        if (!docId) return;
+        try {
+            sessionStorage.setItem(
+                'erp-doc-hub-return',
+                `${window.location.pathname}${window.location.search}`
+            );
+        } catch {
+            /* ignore */
+        }
+        window.open(`/document-editor?type=${activeTab}&id=${encodeURIComponent(docId)}`, '_blank');
+    };
+
     const openSelectedDocInInlineEdit = (doc) => {
-        const targetId = doc?.doc_id;
-        const nextPreviewIndex = filteredDocs.findIndex((d) => d.doc_id === targetId);
         setSelectedDoc(null);
-        setIsQuickPreview(true);
-        setIsEditingInline(true);
-        setPreviewIndex(nextPreviewIndex >= 0 ? nextPreviewIndex : 0);
+        openEditorPageForDoc(doc?.doc_id);
     };
 
     /** 子分頁列（詢價單/進貨單/缺貨簿/進貨退回、或報價單/銷貨單/銷貨退回）左/右鍵切換 */
@@ -1316,7 +1326,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
                                     {canEditCurrentTab && (
                                         <button
                                             type="button"
-                                            onClick={() => setIsEditingInline(true)}
+                                            onClick={() => openEditorPageForDoc(filteredDocs[previewIndex]?.doc_id)}
                                             style={{ height: '44px', padding: '0 20px', borderRadius: '8px', fontWeight: 600, background: '#f59e0b', color: 'white', border: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
                                         >
                                             <Edit2 size={18} /> 編輯
@@ -1665,7 +1675,7 @@ const DocumentHub = ({ isDrawerMode, onSelectDoc, drawerAnchorDocType }) => {
                         isEditing={isEditingInline}
                         canEdit={canEditCurrentTab}
                         docHistoryDrawerHostEl={docHistoryDrawerHostEl}
-                        onEdit={() => canEditCurrentTab && setIsEditingInline(true)}
+                        onEdit={() => canEditCurrentTab && openEditorPageForDoc(filteredDocs[previewIndex]?.doc_id)}
                         onSave={() => setIsEditingInline(false)}
                         onClose={() => { setIsQuickPreview(false); setIsEditingInline(false); }}
                     />
