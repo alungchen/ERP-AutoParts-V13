@@ -103,7 +103,31 @@ async function openWithRetry(page, url, options = {}) {
       return;
   }
 
+function cleanChromeProfileLock(profileDir) {
+  try {
+    if (process.platform === 'win32') {
+      const cleanPathForPs = profileDir.replace(/\\/g, '\\\\');
+      const psCmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-CimInstance Win32_Process -Filter \\"Name = 'chrome.exe'\\" | Where-Object { $_.CommandLine -like '*${cleanPathForPs}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"`;
+      try {
+        execSync(psCmd, { stdio: 'ignore' });
+      } catch (e) {}
+      
+      const lockFiles = [
+        path.join(profileDir, 'SingletonLock'),
+        path.join(profileDir, 'SingletonCookie'),
+        path.join(profileDir, 'SingletonSocket')
+      ];
+      lockFiles.forEach(f => {
+        if (fs.existsSync(f)) {
+          try { fs.unlinkSync(f); } catch (e) {}
+        }
+      });
+    }
+  } catch (err) {}
+}
+
   console.log('\n🚀 步驟 2: 啟動爬蟲，從舊版系統讀取圖片...');
+  cleanChromeProfileLock(PROFILE_DIR);
   const browser = await puppeteer.launch({
     headless: "new",
     userDataDir: PROFILE_DIR,

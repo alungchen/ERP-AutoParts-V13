@@ -56,9 +56,35 @@ function writeCSV(filePath, headers, rows) {
   console.log(`  ✓ ${rows.length} rows → ${path.basename(filePath)}`);
 }
 
+function cleanChromeProfileLock(profileDir) {
+  try {
+    if (process.platform === 'win32') {
+      const cleanPathForPs = profileDir.replace(/\\/g, '\\\\');
+      const psCmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-CimInstance Win32_Process -Filter \\"Name = 'chrome.exe'\\" | Where-Object { $_.CommandLine -like '*${cleanPathForPs}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"`;
+      try {
+        execSync(psCmd, { stdio: 'ignore' });
+      } catch (e) {}
+      
+      const lockFiles = [
+        path.join(profileDir, 'SingletonLock'),
+        path.join(profileDir, 'SingletonCookie'),
+        path.join(profileDir, 'SingletonSocket')
+      ];
+      lockFiles.forEach(f => {
+        if (fs.existsSync(f)) {
+          try { fs.unlinkSync(f); } catch (e) {}
+        }
+      });
+    }
+  } catch (err) {}
+}
+
 (async () => {
   if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   if (!fs.existsSync(PROFILE_DIR)) fs.mkdirSync(PROFILE_DIR, { recursive: true });
+
+  // 啟動前進行自癒清理，以防鎖定衝突
+  cleanChromeProfileLock(PROFILE_DIR);
 
   const chromePaths = [
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -73,10 +99,11 @@ function writeCSV(filePath, headers, rows) {
     ...(executablePath ? { executablePath } : {}),
     userDataDir: PROFILE_DIR,
     protocolTimeout: 1200000,
-    args: ['--no-sandbox','--disable-setuid-sandbox','--allow-running-insecure-content',
+    args: ['--no-sandbox','--disable-setuid-sandbox','--disable-extensions','--allow-running-insecure-content',
            '--ignore-certificate-errors','--disable-popup-blocking',
            '--no-proxy-server', '--proxy-server=direct://', '--proxy-bypass-list=*',
-           '--disable-features=HttpsFirstBalancedModeAutoEnable,HttpsUpgrades']
+           '--unsafely-treat-insecure-origin-as-secure=http://cck2.uparts.info,http://cck.uparts.info',
+           '--disable-features=HttpsFirstBalancedModeAutoEnable,HttpsUpgrades,HttpsOnlyMode,InsecurePrivateNetworkRequestsAllowed']
   });
 
   const page = await browser.newPage();
@@ -223,9 +250,9 @@ function writeCSV(filePath, headers, rows) {
     }
     await sleep(2000);
     fs.writeFileSync(COOKIES_FILE, JSON.stringify(await page.cookies(), null, 2));
-    try { await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+    try { await page.goto(BASE_URL, { waitUntil: 'networkidle2' }); } catch {}
     await ensurePageReady(page);
-    await sleep(2000);
+    await sleep(3000);
   } else {
     console.log('[1] Already logged in ✓');
   }
@@ -234,124 +261,139 @@ function writeCSV(filePath, headers, rows) {
   const allMainRows   = [];
   const allCompatRows = [];
 
-  try {
-    for (const SEARCH_TERM of searchTerms) {
-      let keywordResolved = false;
-      try { await page.goto(PARTS_URL, { waitUntil: 'domcontentloaded' }); } catch {}
+async function safeGoto(page, url) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await sleep(1500);
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await sleep(1000);
       await ensurePageReady(page);
-    await sleep(1500);
+      return true;
+    } catch (e) {
+      console.log(`  ⚠️ 頁面導航重試 (${attempt}/3): ${e.message}`);
+      await sleep(2000);
+    }
+  }
+  return false;
+}
 
-    const cleanSearchTerm = SEARCH_TERM.replace(/\s+/g, '');
-    console.log(`\n[2] Searching: "${SEARCH_TERM}" (clean: "${cleanSearchTerm}")`);
-  await page.evaluate(term => {
-    const inp = Array.from(document.querySelectorAll('input[type="text"]'))
-      .find(i => (i.id || '').startsWith('ele_search_'));
-    if (inp) { inp.focus(); inp.value = term; inp.dispatchEvent(new Event('change',{bubbles:true})); }
-  }, cleanSearchTerm);
-  await sleep(400);
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
-    page.evaluate(() => document.querySelector('#btn_search')?.click())
-  ]);
-  await sleep(1000); // Give it a moment to render
-  await ensurePageReady(page);
+  for (const SEARCH_TERM of searchTerms) {
+    let keywordResolved = false;
+    let foundExactMatch = false;
+    let firstNonExactRow = null; // 備用：若完全找不到精確符合，使用第一個非精確列資料
+    try {
+      await safeGoto(page, PARTS_URL);
 
-  // ── [3] 頁數 ──────────────────────────────────────────────────────
-  const totalPages = await page.evaluate(() => {
-    const m = (document.body.innerText || '').match(/共\s*(\d+)\s*頁/);
-    return m ? parseInt(m[1]) : 1;
-  });
-  const totalRecs = await page.evaluate(() => {
-    const m = (document.body.innerText || '').match(/共\s*(\d+)\s*筆/);
-    return m ? parseInt(m[1]) : '?';
-  });
-  console.log(`[3] ${totalRecs} records, ${totalPages} pages`);
-
-  // ── [4] 爬取 ──────────────────────────────────────────────────────
-
-  for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-    console.log(`\n${'─'.repeat(50)}`);
-    console.log(`  Page ${pageNum} / ${totalPages}`);
-
-    // 讀取列資料，同時抓 tr 的 row 屬性
-    const gridRows = await page.evaluate(() => {
-      const container = document.querySelector('#display_DataGrid') || document.body;
-      return Array.from(container.querySelectorAll('tr'))
-        .filter(tr => tr.hasAttribute('row') && tr.querySelectorAll('td').length >= 4)
-        .map(tr => ({
-          rowAttr: tr.getAttribute('row') || '',
-          cells: Array.from(tr.querySelectorAll('td')).map(td => {
-            const inp = td.querySelector('input[type="text"],input[type="number"],input:not([type])');
-            return (inp ? inp.value : td.innerText).trim().replace(/\s+/g,' ');
-          })
-        }));
-    });
-
-    console.log(`  DOM rows: ${gridRows.length}`);
-
-    for (const { rowAttr, cells } of gridRows) {
-      // 找料號欄 (料號可能包含數字，例如 Z2R-001S)
-      let pnIdx = -1;
-      for (let ci = 0; ci < cells.length; ci++) {
-        if (/^[A-Z0-9]{2,10}-[A-Z0-9-*_\s]{1,25}$/i.test(cells[ci]) || /^[A-Z0-9*_\s-]{3,25}$/i.test(cells[ci])) { 
-            // 嘗試確保這欄真的是料號，通常料號在 index 1 或 2
-            if (ci <= 3) {
-                pnIdx = ci; 
-                break; 
-            }
-        }
-      }
-      // 如果正規表示式都找不到，強制預設為 index 1 (通常 index 0 是勾選框/序號)
-      if (pnIdx < 0 && cells.length >= 8) {
-          pnIdx = 1;
-      }
-      
-      if (pnIdx < 0 || !cells[pnIdx]) continue;
-
-      const partNo   = cells[pnIdx];
-      const selfCode = cells[pnIdx+1]  || '';
-      const compatNo = cells[pnIdx+2]  || ''; // 適用號碼
-      const carModel = cells[pnIdx+3]  || ''; // 車種 (e.g. ALTIS)
-      const year     = cells[pnIdx+4]  || ''; // 年份
-      const name     = cells[pnIdx+5]  || ''; // 品名 (e.g. 工具)
-      const spec     = cells[pnIdx+6]  || ''; // 規格
-      const brand    = cells[pnIdx+7]  || ''; // 品牌
-      const priceB   = cells[pnIdx+20] || '0';
-      const priceC   = cells[pnIdx+21] || '0';
-      const notes    = cells[pnIdx+25] || '';
-
-      process.stdout.write(`  ${partNo.padEnd(18)} [row=${rowAttr}]`);
-      allMainRows.push([partNo, name, brand, '0', spec, carModel, year, '0', '0', '0', notes]);
-      if (partNo.replace(/\s+/g, '') !== SEARCH_TERM.replace(/\s+/g, '')) {
-        allMainRows.push([SEARCH_TERM, name, brand, '0', spec, carModel, year, '0', '0', '0', `對照自: ${partNo}。 ${notes}`.trim()]);
-      }
-      keywordResolved = true;
-
-      try {
-        if (!rowAttr) throw new Error('no row attr');
-
-        // 記錄目前 iframe src
-        let prevSrc = await page.evaluate(() =>
-          document.querySelector('#iframe_partkey')?.src || '');
-
-        // 直接點擊該列然後點 btn_partkey，模擬真實使用者行為
-        await page.evaluate(rowAttr => {
-          const tr = document.querySelector(`tr[row="${rowAttr}"]`);
-          if (tr) {
-              tr.click();
-              const btn = document.querySelector('#btn_partkey');
-              if (btn) btn.click();
+      const cleanSearchTerm = SEARCH_TERM.replace(/\s+/g, '');
+      console.log(`\n[2] Searching: "${SEARCH_TERM}" (clean: "${cleanSearchTerm}")`);
+      await page.evaluate(term => {
+        // 清空所有 ele_search_ 輸入框，防止舊搜尋條件（如車種 "MA3"、品名等）殘留干擾
+        const inputs = Array.from(document.querySelectorAll('input[type="text"]'));
+        inputs.forEach(i => {
+          if ((i.id || '').startsWith('ele_search_')) {
+            i.value = '';
+            i.dispatchEvent(new Event('change', { bubbles: true }));
           }
-        }, rowAttr);
+        });
 
-        // 等 iframe src 更新
-        let waitResult = await page.waitForFunction((old) => {
-          const src = document.querySelector('#iframe_partkey')?.src || '';
-          return src !== old && src.includes('partsID=');
-        }, { timeout: 6000 }, prevSrc).catch(() => null);
+        // 填入目標零件號碼
+        const pNoInput = inputs.find(i => (i.id || '').startsWith('ele_search_'));
+        if (pNoInput) {
+          pNoInput.focus();
+          pNoInput.value = term;
+          pNoInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }, cleanSearchTerm);
+      await sleep(400);
+      try {
+        await page.evaluate(() => {
+          const btn = document.querySelector('#btn_search') || document.querySelector('input[value*="查詢"]');
+          if (btn) btn.click();
+        });
+      } catch (e) {
+        // 忽略 ASP.NET 表單送出引起的 Execution context was destroyed
+      }
+      await sleep(1500); // 等待 ASP.NET 表單送出與 DOM 渲染
+      await ensurePageReady(page);
 
-        if (!waitResult) {
-            console.log(`   [Retry opening iframe...]`);
+      // ── [3] 頁數 ──────────────────────────────────────────────────────
+      const totalPages = await page.evaluate(() => {
+        const m = (document.body.innerText || '').match(/共\s*(\d+)\s*頁/);
+        return m ? parseInt(m[1]) : 1;
+      });
+      const totalRecs = await page.evaluate(() => {
+        const m = (document.body.innerText || '').match(/共\s*(\d+)\s*筆/);
+        return m ? parseInt(m[1]) : '?';
+      });
+      console.log(`[3] ${totalRecs} records, ${totalPages} pages`);
+
+      // ── [4] 爬取 ──────────────────────────────────────────────────────
+
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        console.log(`\n${'─'.repeat(50)}`);
+        console.log(`  Page ${pageNum} / ${totalPages}`);
+
+        // 讀取列資料，同時抓 tr 的 row 屬性
+        const gridRows = await page.evaluate(() => {
+          const container = document.querySelector('#display_DataGrid') || document.body;
+          return Array.from(container.querySelectorAll('tr'))
+            .filter(tr => tr.hasAttribute('row') && tr.querySelectorAll('td').length >= 4)
+            .map(tr => ({
+              rowAttr: tr.getAttribute('row') || '',
+              cells: Array.from(tr.querySelectorAll('td')).map(td => {
+                const inp = td.querySelector('input[type="text"],input[type="number"],input:not([type])');
+                return (inp ? inp.value : td.innerText).trim().replace(/\s+/g,' ');
+              })
+            }));
+        });
+
+        console.log(`  DOM rows: ${gridRows.length}`);
+
+        for (const { rowAttr, cells } of gridRows) {
+          // 找料號欄 (料號可能包含數字，例如 Z2R-001S)
+          let pnIdx = -1;
+          for (let ci = 0; ci < cells.length; ci++) {
+            if (/^[A-Z0-9]{2,10}-[A-Z0-9-*_\s]{1,25}$/i.test(cells[ci]) || /^[A-Z0-9*_\s-]{3,25}$/i.test(cells[ci])) { 
+                if (ci <= 3) {
+                    pnIdx = ci; 
+                    break; 
+                }
+            }
+          }
+          if (pnIdx < 0 && cells.length >= 8) {
+              pnIdx = 1;
+          }
+          
+          if (pnIdx < 0 || !cells[pnIdx]) continue;
+
+          console.log(`  DEBUG CELLS (${cells.length}):`, JSON.stringify(cells));
+          const partNo   = cells[pnIdx] || '';
+          const carModel = (cells.length >= 25 ? cells[pnIdx + 3] : cells[pnIdx + 1]) || '';
+          const year     = (cells.length >= 25 ? cells[pnIdx + 4] : cells[pnIdx + 2]) || '';
+          const name     = (cells.length >= 25 ? cells[pnIdx + 5] : cells[pnIdx + 3]) || '';
+          const spec     = (cells.length >= 25 ? cells[pnIdx + 6] : cells[pnIdx + 4]) || '';
+          const brand    = (cells.length >= 25 ? cells[pnIdx + 7] : cells[pnIdx + 5]) || '';
+          const notes    = (cells.length >= 25 ? cells[27] : cells[10]) || '';
+          const priceB   = cells[pnIdx+20] || '0';
+          const priceC   = cells[pnIdx+21] || '0';
+
+          process.stdout.write(`  ${partNo.padEnd(18)} [row=${rowAttr}]`);
+          allMainRows.push([partNo, name, brand, '0', spec, carModel, year, '0', '0', '0', notes]);
+          const isExact = partNo.replace(/\s+/g, '').toLowerCase() === SEARCH_TERM.replace(/\s+/g, '').toLowerCase();
+          if (isExact) {
+            foundExactMatch = true;
+          } else if (!firstNonExactRow) {
+            // 記住第一個非精確符合列，只有在整個搜尋結束後完全沒有精確符合時才使用
+            firstNonExactRow = { partNo, name, brand, spec, carModel, year, notes };
+          }
+          keywordResolved = true;
+
+          try {
+            if (!rowAttr) throw new Error('no row attr');
+
+            let prevSrc = await page.evaluate(() =>
+              document.querySelector('#iframe_partkey')?.src || '');
+
             await page.evaluate(rowAttr => {
               const tr = document.querySelector(`tr[row="${rowAttr}"]`);
               if (tr) {
@@ -359,144 +401,154 @@ function writeCSV(filePath, headers, rows) {
                   const btn = document.querySelector('#btn_partkey');
                   if (btn) btn.click();
               }
-            }, rowAttr);
-            waitResult = await page.waitForFunction((old) => {
+            }, rowAttr).catch(() => {});
+
+            let waitResult = await page.waitForFunction((old) => {
               const src = document.querySelector('#iframe_partkey')?.src || '';
               return src !== old && src.includes('partsID=');
-            }, { timeout: 8000 }, prevSrc).catch(() => null);
-        }
+            }, { timeout: 6000 }, prevSrc).catch(() => null);
 
-        await sleep(3000); // 等 iframe 內容載入
+            if (!waitResult) {
+                console.log(`   [Retry opening iframe...]`);
+                await page.evaluate(rowAttr => {
+                  const tr = document.querySelector(`tr[row="${rowAttr}"]`);
+                  if (tr) {
+                      tr.click();
+                      const btn = document.querySelector('#btn_partkey');
+                      if (btn) btn.click();
+                  }
+                }, rowAttr).catch(() => {});
+                waitResult = await page.waitForFunction((old) => {
+                  const src = document.querySelector('#iframe_partkey')?.src || '';
+                  return src !== old && src.includes('partsID=');
+                }, { timeout: 8000 }, prevSrc).catch(() => null);
+            }
 
-        // ── 驗證 iframe src 確實有更新（排除 stale 資料）──────────────
-        const actualSrc = await page.evaluate(() =>
-          document.querySelector('#iframe_partkey')?.src || '');
+            await sleep(3000);
 
-        if (actualSrc === prevSrc || !actualSrc.includes('partsID=')) {
-          // iframe 沒有更新（debounce/timeout），使用 fallback
-          allCompatRows.push([partNo,'1',partNo,carModel,'',year,name,spec,brand,'']);
-          console.log(` → (iframe unchanged, fallback)`);
-          await sleep(ROW_DELAY);
-          continue;
-        }
+            const actualSrc = await page.evaluate(() =>
+              document.querySelector('#iframe_partkey')?.src || '');
 
-        // 從 iframe 讀取資料
-        let compatData = [];
-        let partkeyFrame = null;
-        try {
-            const el = await page.$('#iframe_partkey');
-            if (el) partkeyFrame = await el.contentFrame();
-        } catch(e) {}
-        
-        // Fallback or validation
-        if (!partkeyFrame) {
-            partkeyFrame = page.frames().find(f => {
-                try { return f.url().includes('product_info_partkey_big'); } catch(e) { return false; }
-            });
-        }
+            if (actualSrc === prevSrc || !actualSrc.includes('partsID=')) {
+              allCompatRows.push([partNo,'1',partNo,carModel,'',year,name,spec,brand,'']);
+              console.log(` → (iframe unchanged, fallback)`);
+              await sleep(ROW_DELAY);
+              continue;
+            }
 
-        if (partkeyFrame) {
-          try {
-            await partkeyFrame.waitForSelector('tr', { timeout: 5000 });
-            await sleep(500);
-            const frameUrl = partkeyFrame.url();
-
-            compatData = await partkeyFrame.evaluate(() => {
-              const results = [];
-              for (const tr of document.querySelectorAll('tr')) {
-                // 使用 tr.cells 確保只抓取直屬的 td/th，不受巢狀表格干擾
-                const cells = Array.from(tr.cells).map(el => {
-                  const inp = el.querySelector(
-                    'input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=hidden])'
-                  );
-                  return (inp ? inp.value : el.innerText).trim().replace(/\s+/g,' ');
+            let compatData = [];
+            let partkeyFrame = null;
+            try {
+                const el = await page.$('#iframe_partkey');
+                if (el) partkeyFrame = await el.contentFrame();
+            } catch(e) {}
+            
+            if (!partkeyFrame) {
+                partkeyFrame = page.frames().find(f => {
+                    try { return f.url().includes('product_info_partkey_big'); } catch(e) { return false; }
                 });
-                // 目標資料表格通常有 10 個欄位，如果大於 8 個就可以肯定是目標表格的列
-                if (cells.length >= 8) {
-                   results.push(cells);
-                }
+            }
+
+            if (partkeyFrame) {
+              try {
+                await partkeyFrame.waitForSelector('tr', { timeout: 5000 });
+                await sleep(500);
+                const frameUrl = partkeyFrame.url();
+
+                compatData = await partkeyFrame.evaluate(() => {
+                  const results = [];
+                  for (const tr of document.querySelectorAll('tr')) {
+                    const cells = Array.from(tr.cells).map(el => {
+                      const inp = el.querySelector(
+                        'input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=hidden])'
+                      );
+                      return (inp ? inp.value : el.innerText).trim().replace(/\s+/g,' ');
+                    });
+                    if (cells.length >= 8) {
+                       results.push(cells);
+                    }
+                  }
+                  return results;
+                });
+
+                console.log(` [iframe: ${frameUrl.includes('partsID=') ? frameUrl.split('partsID=')[1].substring(0,8) : '?'}, rows=${compatData.length}]`);
+              } catch (e) {
+                console.log(` [frame-err: ${e.message.substring(0,40)}]`);
               }
-              return results;
-            });
+            } else {
+              console.log(` [no frame found]`);
+            }
 
-            console.log(` [iframe: ${frameUrl.includes('partsID=') ? frameUrl.split('partsID=')[1].substring(0,8) : '?'}, rows=${compatData.length}]`);
-          } catch (e) {
-            console.log(` [frame-err: ${e.message.substring(0,40)}]`);
-          }
-        } else {
-          console.log(` [no frame found]`);
-        }
+            if (compatData.length > 0) {
+              let added = 0;
+              let isPrimary = true;
+              for (const c of compatData) {
+                if (c.slice(1, 6).some(v => /號碼|適用號碼|number/i.test(v))) continue;
+                if (c.every(v => v === '')) continue;
 
-        // 處理適用資料
-        // iframe 欄位結構（不 filter 空值後）:
-        // c[0]='' c[1]=控制btn c[2]=適用號碼 c[3]=車種 c[4]=車種規格 c[5]=年份 c[6]=品名 c[7]=品名規格 c[8]=品牌 c[9]=備註
-        if (compatData.length > 0) {
-          let added = 0;
-          let isPrimary = true;
-          for (const c of compatData) {
-            // 跳過 header 列（前 5 欄任一含「號碼」「適用」等 header 文字）
-            if (c.slice(1, 6).some(v => /號碼|適用號碼|number/i.test(v))) continue;
-            // 跳過完全空白列
-            if (c.every(v => v === '')) continue;
+                const compatNo = (c[2] || '').trim();
+                allCompatRows.push([
+                  partNo,
+                  isPrimary ? '1' : '0',
+                  compatNo,
+                  c[3] || '',
+                  c[4] || '',
+                  c[5] || '',
+                  c[6] || '',
+                  c[7] || '',
+                  c[8] || '',
+                  c[9] || '',
+                ]);
+                isPrimary = false;
+                added++;
+              }
+              console.log(` → ${added} compat`);
+              if (added === 0) {
+                allCompatRows.push([partNo,'1',partNo,carModel,'',year,name,spec,brand,'']);
+              }
+            } else {
+              allCompatRows.push([partNo,'1',partNo,carModel,'',year,name,spec,brand,'']);
+              console.log(` → (no iframe data)`);
+            }
 
-            const compatNo = (c[2] || '').trim(); // 適用號碼
-            allCompatRows.push([
-              partNo,
-              isPrimary ? '1' : '0',
-              compatNo,   // 適用號碼
-              c[3] || '', // 車種
-              c[4] || '', // 車種規格
-              c[5] || '', // 年份
-              c[6] || '', // 品名
-              c[7] || '', // 品名規格
-              c[8] || '', // 品牌
-              c[9] || '', // 備註
-            ]);
-            isPrimary = false;
-            added++;
-          }
-          console.log(` → ${added} compat`);
-          if (added === 0) {
+          } catch (err) {
             allCompatRows.push([partNo,'1',partNo,carModel,'',year,name,spec,brand,'']);
+            console.log(` → ERR: ${err.message.substring(0,50)}`);
           }
-        } else {
-          allCompatRows.push([partNo,'1',partNo,carModel,'',year,name,spec,brand,'']);
-          console.log(` → (no iframe data)`);
+
+          await sleep(ROW_DELAY);
         }
 
-      } catch (err) {
-        allCompatRows.push([partNo,'1',partNo,carModel,'',year,name,spec,brand,'']);
-        console.log(` → ERR: ${err.message.substring(0,50)}`);
+        if (pageNum < totalPages) {
+          console.log(`\n  → Page ${pageNum+1}...`);
+          await Promise.all([
+            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
+            page.evaluate(() => document.querySelector('#btn_PageControl_PageNext')?.click())
+          ]);
+          await sleep(1000);
+          await ensurePageReady(page);
+        }
       }
-
-      await sleep(ROW_DELAY);
+    } catch (err) {
+      console.log(`\n⚠️ 搜尋關鍵字 "${SEARCH_TERM}" 時發生中斷: ${err.message}`);
     }
 
-    // 翻頁
-    if (pageNum < totalPages) {
-      console.log(`\n  → Page ${pageNum+1}...`);
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
-        page.evaluate(() => document.querySelector('#btn_PageControl_PageNext')?.click())
-      ]);
-      await sleep(1000);
-      await ensurePageReady(page);
+    // ── 鏡像資料只在「搜尋完所有頁面後都沒有精確符合」時才加入一次 ──
+    if (keywordResolved && !foundExactMatch && firstNonExactRow) {
+      const { partNo, name, brand, spec, carModel, year, notes } = firstNonExactRow;
+      console.log(`  ↳ 未找到精確符合 "${SEARCH_TERM}"，使用「${partNo}」資料建立對照`);
+      allMainRows.push([SEARCH_TERM, name, brand, '0', spec, carModel, year, '0', '0', '0', `對照自: ${partNo}。 ${notes}`.trim()]);
     }
-      }
-      if (!keywordResolved) {
-        console.log(`  ⚠ 舊系統找不到 "${SEARCH_TERM}" 的規格。已自動新增為未尋獲規格佔位資料以防循環卡死。`);
-        allMainRows.push([SEARCH_TERM, "舊系統無此規格", "N/A", "0", "查無資料", "無", "無", "0", "0", "0", "舊版系統查無此零件料號"]);
-      }
+
+    if (!keywordResolved) {
+      console.log(`  ⚠ 舊系統找不到 "${SEARCH_TERM}" 的規格。已自動新增為未尋獲規格佔位資料以防循環卡死。`);
+      allMainRows.push([SEARCH_TERM, "舊系統無此規格", "N/A", "0", "查無資料", "無", "無", "0", "0", "0", "舊版系統查無此零件料號"]);
     }
-  } catch (err) {
-      console.log(`\n❌ 執行中斷: ${err.message}`);
-      if (err.message.includes('detached Frame') || err.message.includes('Execution context was destroyed')) {
-          console.log(`⚠️ 偵測到網頁被強制登出或重新整理 (這是 ERP 系統本身的安全性自動登出)！`);
-          console.log(`💾 系統將為您自動保存中斷前已抓取的進度...`);
-      }
-  } finally {
-      // ── [5] 輸出 ──────────────────────────────────────────────────────
+  }
+
+  // ── [5] 輸出 ──────────────────────────────────────────────────────
       console.log(`\n${'═'.repeat(50)}`);
+      console.log('FINAL ALL MAIN ROWS:', JSON.stringify(allMainRows, null, 2));
       if (allMainRows.length > 0) {
           writeCSV(path.join(OUTPUT_DIR,'products_main.csv'),
             ['p_id','name','brand','stock','specifications','car_model','year','price_a','price_b','price_c','notes'],
@@ -505,19 +557,15 @@ function writeCSV(filePath, headers, rows) {
             ['p_id','is_primary','compatible_number','car_model','vehicle_spec','year','product_name','product_spec','brand','note'],
             allCompatRows);
           console.log(`\n✅ 爬取已儲存！ Main: ${allMainRows.length}, Compatible: ${allCompatRows.length}`);
-      } else {
-          console.log(`\n⚠ 尚未抓取到任何資料。`);
       }
       await browser.close();
-  }
 
   // ── [6] 自動轉換 SQL 並匯入資料庫 ──────────────────────────────────────
   console.log(`\n${'═'.repeat(50)}`);
   try {
     console.log('🔄 正在自動將 CSV 轉換為 SQL 並匯入 Cloudflare D1 資料庫...');
     console.log('  1. 產生 SQL 檔案...');
-    const forceFlag = process.argv.includes('--force') ? ' --force' : '';
-    execSync(`node scripts/generate_import_sql.cjs${forceFlag}`, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+    execSync('node scripts/generate_import_sql.cjs --force', { stdio: 'inherit', cwd: path.join(__dirname, '..') });
     
     console.log('\n  2. 匯入遠端 D1 資料庫 (這可能需要幾十秒)...');
     execSync('npx wrangler d1 execute erp-db --remote --file=output/import_products.sql --yes', { stdio: 'inherit', cwd: path.join(__dirname, '..') });

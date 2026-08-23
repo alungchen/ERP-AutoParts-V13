@@ -23,6 +23,10 @@ When documents are imported, parts may exist only by ID without brand, model, or
   ```bash
   node scripts/scrape_all_missing_bg.cjs --start-date=2026-06-01 --end-date=2026-06-30
   ```
+- **Filter by whole month**:
+  ```bash
+  node scripts/scrape_all_missing_bg.cjs --month=2026-06
+  ```
 
 #### Flow & Troubleshooting:
 1. `prepare_missing_batch.cjs` queries D1 for parts present in documents but missing from product registry, batching 30 items into `keywords.txt`.

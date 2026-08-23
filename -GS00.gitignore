@@ -34,9 +34,6 @@ local-backup.sql
 
 # Puppeteer / Scraper artifacts
 scripts/.chrome-profile*/
-scripts/cookies_cck2.json
-scripts/cookies_cck2_user.json
-scripts/cookies_cck.json
 output/
 temp.js
 
@@ -44,6 +41,3 @@ temp.js
 batch_*.sql
 data_only.sql
 schema_only.sql
-functions_dist/
-scratch/
-*.bak

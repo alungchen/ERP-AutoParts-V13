@@ -26,12 +26,7 @@
     "db:import-docs:xizhi:local": "node scripts/generate_document_sql.cjs --branch=xizhi && wrangler d1 execute erp-db --local --file=./output/xizhi/import_documents.sql --yes",
     "db:import-docs:xizhi:remote": "node scripts/generate_document_sql.cjs --branch=xizhi && wrangler d1 execute erp-db --remote --file=./output/xizhi/import_documents.sql --yes",
     "db:import-docs:linkou:local": "node scripts/generate_document_sql.cjs --branch=linkou && wrangler d1 execute erp-db --local --file=./output/linkou/import_documents.sql --yes",
-    "db:import-docs:linkou:remote": "node scripts/generate_document_sql.cjs --branch=linkou && wrangler d1 execute erp-db --remote --file=./output/linkou/import_documents.sql --yes",
-    "login:uparts": "node scripts/login_service_center.cjs",
-    "open:cck2": "node scripts/launch_cck2.cjs",
-    "scrape:missing": "node scripts/scrape_all_missing_bg.cjs",
-    "sync:docs": "node scripts/sync_documents_daemon.cjs",
-    "sync:docs:once": "node scripts/sync_documents_daemon.cjs --once"
+    "db:import-docs:linkou:remote": "node scripts/generate_document_sql.cjs --branch=linkou && wrangler d1 execute erp-db --remote --file=./output/linkou/import_documents.sql --yes"
   },
   "dependencies": {
     "firebase": "^12.12.0",

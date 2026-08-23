@@ -162,6 +162,8 @@
                             </li>
                             <li class="secret_field" secret_name="出貨檢核"> 
 								<a target="_blank" href="../Package_Check/">出貨檢核</a>							</li> 
+                            <li class="secret_field" secret_name="進貨驗收"> 
+								<a target="_blank" href="../TB_Check/">進貨驗收</a>							</li> 
                         </ul>
 					</li> 
 					<li class="secret_field" secret_name="帳款系統"> 
@@ -348,10 +350,8 @@
 						<a href="../Logout/">系統登出</a>
                     </li>
 				</ul> 
-                <input type="button" value="權限管理" onclick="" id="btn_menu_author_map" class="button_class ui-button ui-widget ui-state-default ui-corner-all" style="display:none" role="button" aria-disabled="false">
-                <div id="dialog_menu_author_map" style="display:none">
-                    <iframe id="iframe_menu_author_map" width="950" height="350"></iframe>
-                </div>
+                <input type="button" value="權限管理" onclick="" id="btn_menu_author_map" class="button_class ui-button ui-widget ui-state-default ui-corner-all" style="" role="button" aria-disabled="false">
+                
                 </div>
                 <div id="dialog-message">
                     <p id="dialog-message-p"></p>
@@ -404,7 +404,7 @@
 <script type="text/javascript" src="/car2009/js/jquery.tools.min.js"></script>
 <script type="text/javascript" src="/car2009/js/jquery-ui-1.9.2.js"></script>
 
-<script type="text/javascript" src="/car2009/AJAX-framework.js?version=202605080002"></script>
+<script type="text/javascript" src="/car2009/AJAX-framework.js?version=202605202233"></script>
 <script type="text/javascript" src="/car2009/js/hoverIntent.js"></script> 
 <script type="text/javascript" src="/car2009/js/superfish.js"></script> 
 <script>
@@ -472,4 +472,6 @@
 
         setInterval(function () { get_store_info("1"); }, 1000 * 60 * 10);
     }
-</script></body></html>
+</script><div class="ui-dialog ui-widget ui-widget-content ui-corner-all ui-draggable ui-resizable" tabindex="-1" role="dialog" aria-labelledby="ui-id-1" style="display: none; outline: 0px; z-index: 1000; position: absolute;"><div class="ui-dialog-titlebar ui-widget-header ui-corner-all ui-helper-clearfix"><span id="ui-id-1" class="ui-dialog-title">權限管理</span><a href="#" class="ui-dialog-titlebar-close ui-corner-all" role="button"><span class="ui-icon ui-icon-closethick">close</span></a></div><div id="dialog_menu_author_map" style="" class="ui-dialog-content ui-widget-content">
+                    <iframe id="iframe_menu_author_map" width="950" height="350"></iframe>
+                </div><div class="ui-resizable-handle ui-resizable-n" style="z-index: 1000;"></div><div class="ui-resizable-handle ui-resizable-e" style="z-index: 1000;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 1000;"></div><div class="ui-resizable-handle ui-resizable-w" style="z-index: 1000;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se ui-icon-grip-diagonal-se" style="z-index: 1000;"></div><div class="ui-resizable-handle ui-resizable-sw" style="z-index: 1000;"></div><div class="ui-resizable-handle ui-resizable-ne" style="z-index: 1000;"></div><div class="ui-resizable-handle ui-resizable-nw" style="z-index: 1000;"></div></div></body></html>

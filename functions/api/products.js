@@ -34,7 +34,12 @@ export async function onRequestGet(context) {
       };
     });
 
-    return Response.json(productsWithStock);
+    return Response.json(productsWithStock, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+      }
+    });
   } catch (err) {
     return new Response(err.message, { status: 500 });
   }

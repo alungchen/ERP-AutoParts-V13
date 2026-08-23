@@ -6,6 +6,28 @@ import styles from './ProductList.module.css';
 const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
     const { t } = useTranslation();
     const [copiedId, setCopiedId] = useState(null);
+    const [localProduct, setLocalProduct] = useState(product);
+    const [selectedMainPnId, setSelectedMainPnId] = useState(() => {
+        const mainPart = product?.part_numbers?.find((pn) => pn.is_main);
+        return mainPart?.pn_id ?? product?.part_numbers?.[0]?.pn_id ?? null;
+    });
+
+    React.useEffect(() => {
+        setLocalProduct(product);
+        const mainPart = product?.part_numbers?.find((pn) => pn.is_main);
+        setSelectedMainPnId(mainPart?.pn_id ?? product?.part_numbers?.[0]?.pn_id ?? null);
+    }, [product]);
+
+    const handleSelectMainPart = (pnId) => {
+        setSelectedMainPnId(pnId);
+        setLocalProduct((prev) => ({
+            ...prev,
+            part_numbers: (prev?.part_numbers || []).map((pn) => ({
+                ...pn,
+                is_main: pn.pn_id === pnId
+            }))
+        }));
+    };
 
     const handleCopy = (text, id) => {
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -34,6 +56,8 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
 
     if (!product) return null;
 
+    const currentMainPart = (localProduct?.part_numbers || []).find((pn) => pn.pn_id === selectedMainPnId) || (localProduct?.part_numbers || [])[0] || {};
+
     // We generate the mapping rows from product.part_numbers
     // In actual use cases, each map entry might have its own specific car model / year
     // Here we use product's car_models for display purposes or leave blank if unspecified per part
@@ -54,7 +78,7 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                 </div>
 
                 <div className={styles.modalBody} style={{ overflowY: 'auto', padding: '1rem', flex: 1 }}>
-                    <div style={{ paddingBottom: '1rem', display: 'flex', gap: '2rem' }}>
+                    <div style={{ paddingBottom: '1rem', display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'center' }}>
                         <div className="text-sm flex items-center gap-2">
                             <span className="text-secondary font-bold">{t('pim.thPartNo')}:</span>
                             <span className="font-mono bg-tertiary px-2 py-1 rounded flex items-center gap-2">
@@ -71,16 +95,22 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                         <div className="text-sm flex items-center gap-2">
                             <span className="text-secondary font-bold">自編號碼:</span>
                             <span className="font-mono bg-tertiary px-2 py-1 rounded flex items-center gap-2">
-                                {product.part_numbers[0]?.part_number || '-'}
-                                {product.part_numbers[0]?.part_number && (
+                                {currentMainPart.part_number || product.part_numbers[0]?.part_number || '-'}
+                                {(currentMainPart.part_number || product.part_numbers[0]?.part_number) && (
                                     <button
                                         className="text-secondary hover:text-primary transition shrink-0 bg-transparent border-0 p-0 m-0 cursor-pointer"
-                                        onClick={() => handleCopy(product.part_numbers[0].part_number, 'main_pn')}
+                                        onClick={() => handleCopy(currentMainPart.part_number || product.part_numbers[0].part_number, 'main_pn')}
                                         style={{ color: copiedId === 'main_pn' ? '#10b981' : 'inherit' }}
                                     >
                                         {copiedId === 'main_pn' ? <Check size={14} /> : <Copy size={14} />}
                                     </button>
                                 )}
+                            </span>
+                        </div>
+                        <div className="text-sm flex items-center gap-2">
+                            <span className="text-secondary font-bold">主要顯示:</span>
+                            <span className="font-mono bg-tertiary px-2 py-1 rounded">
+                                {currentMainPart.part_number || '-'}
                             </span>
                         </div>
                     </div>
@@ -89,6 +119,7 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem', border: '1px solid var(--border-color)' }}>
                             <thead style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
                                 <tr>
+                                    <th style={{ width: '52px', textAlign: 'center', padding: '0.75rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>主顯示</th>
                                     <th style={{ width: '40px', textAlign: 'center', padding: '0.75rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>#</th>
                                     <th style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thAppNumber')}</th>
                                     <th style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('pim.thVehicle')}</th>
@@ -99,7 +130,7 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {product.part_numbers.map((pn, idx) => {
+                                {(localProduct?.part_numbers || []).map((pn, idx) => {
                                     let isMatch = false;
                                     if (activeSearchTerms) {
                                         if (activeSearchTerms.model && (pn.car_model || '').toLowerCase().includes(activeSearchTerms.model.toLowerCase())) isMatch = true;
@@ -109,12 +140,23 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                                         if (activeSearchTerms.part && (pn.note || '').toLowerCase().includes(activeSearchTerms.part.toLowerCase())) isMatch = true;
                                     }
 
+                                    const isSelectedMain = selectedMainPnId === pn.pn_id;
+
                                     return (
                                         <tr key={pn.pn_id} style={{ 
                                             borderBottom: '1px solid var(--border-color)', 
-                                            background: isMatch ? 'var(--accent-subtle)' : (idx % 2 === 0 ? 'transparent' : 'var(--bg-tertiary)'),
-                                            boxShadow: isMatch ? 'inset 0 0 0 2px var(--accent-primary)' : 'none'
+                                            background: isSelectedMain ? 'rgba(16, 185, 129, 0.10)' : (isMatch ? 'var(--accent-subtle)' : (idx % 2 === 0 ? 'transparent' : 'var(--bg-tertiary)')),
+                                            boxShadow: isSelectedMain ? 'inset 0 0 0 2px rgba(16,185,129,0.9)' : (isMatch ? 'inset 0 0 0 2px var(--accent-primary)' : 'none')
                                         }}>
+                                        <td style={{ padding: '0.75rem', textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelectedMain}
+                                                onChange={() => handleSelectMainPart(pn.pn_id)}
+                                                aria-label={`選擇 ${pn.part_number || '適用料號'} 作為主要顯示資料`}
+                                                style={{ accentColor: '#10b981', width: '16px', height: '16px', cursor: 'pointer' }}
+                                            />
+                                        </td>
                                         <td style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: '500', fontSize: '0.85rem', border: '1px solid var(--border-color)' }}>{idx + 1}</td>
                                         <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -135,7 +177,7 @@ const PartMappingModal = ({ product, activeSearchTerms, onClose }) => {
                                         </td>
                                         <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>{(() => {
                                             if (pn.car_model) return pn.car_model;
-                                            const c = (product.car_models || [])[idx] || (product.car_models || [])[0];
+                                            const c = (localProduct?.car_models || [])[idx] || (localProduct?.car_models || [])[0];
                                             return typeof c === 'string' ? c : (c?.model || '-');
                                         })()}</td>
                                         <td style={{ padding: '0.75rem', border: '1px solid var(--border-color)' }}>{pn.year || '-'}</td>
