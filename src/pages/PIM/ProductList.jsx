@@ -242,6 +242,8 @@ const ProductList = () => {
     const firstInputRef = useRef(null);
     const fileInputRef = useRef(null);
     const batchMatchFileInputRef = useRef(null);
+    const [isBatchMatchOpen, setIsBatchMatchOpen] = useState(false);
+    const [isBatchDragOver, setIsBatchDragOver] = useState(false);
     const selectAllRef = useRef(null);
     const productTbodyRef = useRef(null);
     const productListKeyboardRef = useRef(null);
@@ -868,8 +870,8 @@ const ProductList = () => {
         e.target.value = '';
     };
 
-    const handleBatchMatch = async (e) => {
-        const file = e.target.files[0];
+    // 批次料號比對：可由檔案選擇器或拖曳投入檔案
+    const processBatchMatchFile = async (file) => {
         if (!file) return;
 
         try {
@@ -943,6 +945,7 @@ const ProductList = () => {
                     
                     const originalName = file.name.replace(/\.[^/.]+$/, "");
                     XLSX.writeFile(newWb, `比對結果_${originalName}.xlsx`);
+                    setIsBatchMatchOpen(false);
                 } catch (err) {
                     console.error("Batch match parsing error:", err);
                     alert("解析 Excel 檔案時發生錯誤。");
@@ -953,8 +956,28 @@ const ProductList = () => {
             console.error("Failed to load xlsx:", err);
             alert("載入 Excel 處理模組失敗。");
         }
-        
+    };
+
+    const handleBatchMatch = (e) => {
+        const file = e.target.files[0];
         e.target.value = '';
+        void processBatchMatchFile(file);
+    };
+
+    // 下載批次料號比對範本：第一欄填料號，比對結果由系統自動回填
+    const handleBatchMatchTemplate = async () => {
+        const XLSX = await import('xlsx');
+        const rows = [
+            ['料號', '內容', '比對零件號碼', '適用車型料號'],
+            ['EUE-1130', '（比對後由系統自動填入）', '（自動填入）', '（自動填入）'],
+            ['COM-T080', '', '', ''],
+            ['RD-062-2C', '', '', ''],
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{ wch: 20 }, { wch: 40 }, { wch: 20 }, { wch: 40 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '料號比對');
+        XLSX.writeFile(wb, '批次料號比對_範本.xlsx');
     };
 
     const escapeHtml = (value) => String(value ?? '')
@@ -1274,7 +1297,7 @@ const ProductList = () => {
                                 <Upload size={18} /> {t('pim.export')}
                             </button>
                             <input type="file" ref={batchMatchFileInputRef} style={{ display: 'none' }} onChange={handleBatchMatch} accept=".xlsx, .xls, .csv" />
-                            <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => batchMatchFileInputRef.current?.click()} title="上傳 Excel 進行料號比對">
+                            <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setIsBatchMatchOpen(true)} title="上傳 Excel 進行料號比對">
                                 <FileSpreadsheet size={18} /> 批次料號比對
                             </button>
                         </>
@@ -2303,6 +2326,69 @@ const ProductList = () => {
                         </div>
                     </div>
                 )}
+
+            {isBatchMatchOpen && (
+                <div
+                    onClick={() => setIsBatchMatchOpen(false)}
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ width: 'min(480px, 92vw)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.35)', padding: '1.25rem 1.25rem 1.4rem' }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                                <FileSpreadsheet size={20} /> 批次料號比對
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsBatchMatchOpen(false)}
+                                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.2rem', lineHeight: 1 }}
+                                title="關閉"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                            上傳 Excel／CSV，第一欄填料號，系統會自動回填「內容、比對零件號碼、適用車型料號」並下載比對結果檔。
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handleBatchMatchTemplate}
+                            className={`${styles.btn} ${styles.btnSecondary}`}
+                            style={{ width: '100%', justifyContent: 'center', marginBottom: '0.9rem' }}
+                        >
+                            <Download size={16} /> 範本下載
+                        </button>
+                        <div
+                            onClick={() => batchMatchFileInputRef.current?.click()}
+                            onDragOver={(e) => { e.preventDefault(); setIsBatchDragOver(true); }}
+                            onDragLeave={() => setIsBatchDragOver(false)}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                setIsBatchDragOver(false);
+                                const file = e.dataTransfer.files?.[0];
+                                if (file) void processBatchMatchFile(file);
+                            }}
+                            style={{
+                                border: `2px dashed ${isBatchDragOver ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                                background: isBatchDragOver ? 'var(--bg-tertiary)' : 'transparent',
+                                borderRadius: '10px',
+                                padding: '2rem 1rem',
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                            }}
+                        >
+                            <Upload size={26} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }} />
+                            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>上傳比對資料</div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                                點擊選擇檔案，或將 .xlsx / .xls / .csv 檔拖曳到這裡
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {mappingProduct && (
                 <PartMappingModal
