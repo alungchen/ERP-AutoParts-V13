@@ -92,9 +92,30 @@ const mockSourcingItems = [
 
 export const useSourcingStore = create(persist((set) => ({
     rates: initialRates,
+    /** default＝尚未改過；bot＝套用台銀；manual＝使用者覆寫（自動抓取不再覆蓋） */
+    ratesSource: 'default',
+    ratesFetchedAt: null,
+    setRate: (code, value) => set((s) => ({
+        rates: { ...s.rates, [code]: value, TWD: 1 },
+        ratesSource: 'manual',
+    })),
+    applyBotRates: (botRates, fetchedAt) => set((s) => ({
+        rates: { ...s.rates, ...botRates, TWD: 1 },
+        ratesSource: 'bot',
+        ratesFetchedAt: fetchedAt || new Date().toISOString(),
+    })),
     sourcingItems: mockSourcingItems,
     generatePo: (quoteId) => {
         console.log(`PO Generated for Quote: ${quoteId}`);
         // In a real app we'd trigger a PO creation workflow
     }
-}), { name: 'erp-sourcing-store', storage: erpPersistStorage }));
+}), {
+    name: 'erp-sourcing-store',
+    storage: erpPersistStorage,
+    partialize: (s) => ({
+        rates: s.rates,
+        ratesSource: s.ratesSource,
+        ratesFetchedAt: s.ratesFetchedAt,
+        sourcingItems: s.sourcingItems,
+    }),
+}));

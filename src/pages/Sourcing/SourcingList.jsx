@@ -26,7 +26,9 @@ import {
     ZoomOut,
     ChevronLeft,
     ChevronRight,
+    RefreshCw,
 } from 'lucide-react';
+import { apiUrl } from '../../lib/apiUrl';
 import { getSafeImageUrl, productHasExternalUrlImages } from '../../utils/imageUtils';
 import { collectCustomerSalesHistory, collectSupplierPurchaseHistory } from '../../utils/buildProductTransactionHistory';
 import ProductPriceHistoryBody from '../../components/ProductPriceHistoryBody';
@@ -150,7 +152,7 @@ const SourcingList = () => {
     const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { rates } = useSourcingStore();
+    const { rates, ratesSource, ratesFetchedAt, setRate, applyBotRates } = useSourcingStore();
     const { products } = useProductStore();
     const { suppliers } = useSupplierStore();
     const { employees } = useEmployeeStore();
@@ -214,6 +216,42 @@ const SourcingList = () => {
     const [imagePreviewZoom, setImagePreviewZoom] = useState(1);
 
     const [breakdown, setBreakdown] = useState(null);
+    const [fxLoading, setFxLoading] = useState(false);
+    const [fxMessage, setFxMessage] = useState('');
+    const ratesSourceRef = useRef(ratesSource);
+    ratesSourceRef.current = ratesSource;
+
+    const fetchBotRates = useCallback(async ({ force = false } = {}) => {
+        setFxLoading(true);
+        setFxMessage('');
+        try {
+            const res = await fetch(apiUrl('/api/fx-rates'));
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data?.ok || !data.rates) {
+                throw new Error(data?.error || `HTTP ${res.status}`);
+            }
+            const shouldApply = force || ratesSourceRef.current !== 'manual';
+            if (shouldApply) {
+                applyBotRates(data.rates, data.asOf);
+            }
+            const when = data.asOf
+                ? new Date(data.asOf).toLocaleString('zh-TW', { hour12: false })
+                : '';
+            if (shouldApply) {
+                setFxMessage(when ? `已套用台銀即期賣出（${when}）` : '已套用台銀即期賣出');
+            } else {
+                setFxMessage(`台銀已更新${when ? `（${when}）` : ''}，目前為手動匯率（按「抓取台銀匯率」可套用）`);
+            }
+        } catch (e) {
+            setFxMessage(`台銀匯率無法取得：${e.message || e}。請改手動輸入。`);
+        } finally {
+            setFxLoading(false);
+        }
+    }, [applyBotRates]);
+
+    useEffect(() => {
+        fetchBotRates({ force: false });
+    }, [fetchBotRates]);
 
     useEffect(() => {
         let cancelled = false;
@@ -1034,15 +1072,47 @@ const SourcingList = () => {
                         </label>
 
                         <div className={styles.ratesPanel}>
-                            <div className={styles.rateCard}>
-                                <span className={styles.rateLabel}>{t('importCost.ratesTitle')}</span>
+                            <div className={styles.rateCard} style={{ flex: 1 }}>
+                                <div className={styles.rateHeaderRow}>
+                                    <span className={styles.rateLabel}>{t('importCost.ratesTitle')}</span>
+                                    <button
+                                        type="button"
+                                        className={styles.rateFetchBtn}
+                                        onClick={() => fetchBotRates({ force: true })}
+                                        disabled={fxLoading}
+                                    >
+                                        <RefreshCw size={14} className={fxLoading ? styles.rateFetchSpin : undefined} />
+                                        {fxLoading ? t('importCost.ratesFetching') : t('importCost.ratesFetch')}
+                                    </button>
+                                </div>
+                                <p className={styles.rateHint}>{t('importCost.ratesBotHint')}</p>
                                 <div className={styles.rateRow}>
                                     {['USD', 'EUR', 'JPY', 'CNY'].map((c) => (
-                                        <span key={c} className={styles.rateChip}>
-                                            {c} <b>{num(rates?.[c], 0).toFixed(c === 'JPY' ? 4 : 2)}</b>
-                                        </span>
+                                        <label key={c} className={styles.rateChip}>
+                                            {c}
+                                            <input
+                                                className={styles.rateInput}
+                                                type="number"
+                                                min={0}
+                                                step={c === 'JPY' ? '0.0001' : '0.01'}
+                                                value={Number.isFinite(num(rates?.[c], 0)) ? rates[c] : ''}
+                                                onChange={(e) => {
+                                                    const v = Number(e.target.value);
+                                                    if (Number.isFinite(v) && v >= 0) setRate(c, v);
+                                                }}
+                                            />
+                                        </label>
                                     ))}
                                 </div>
+                                {fxMessage && <div className={styles.rateMeta}>{fxMessage}</div>}
+                                {ratesSource === 'manual' && (
+                                    <div className={styles.rateMeta}>{t('importCost.ratesManual')}</div>
+                                )}
+                                {ratesSource === 'bot' && ratesFetchedAt && !fxMessage && (
+                                    <div className={styles.rateMeta}>
+                                        台銀即期賣出 {new Date(ratesFetchedAt).toLocaleString('zh-TW', { hour12: false })}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
