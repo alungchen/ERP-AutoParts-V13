@@ -218,6 +218,36 @@
   to { transform: rotate(360deg); }
 }
 
+.tabRow {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.tabBtn {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tabBtnActive {
+  background: #2563eb22;
+  color: #60a5fa;
+}
+
+.rankCell {
+  font-weight: 800;
+  color: var(--accent-primary);
+}
+
 .summaryBar {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
