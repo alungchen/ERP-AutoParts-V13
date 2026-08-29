@@ -21,6 +21,7 @@ import DocumentEditorPage from './pages/Documents/DocumentEditorPage';
 import SystemSettings from './pages/Config/SystemSettings';
 import ShorthandConfig from './pages/Config/ShorthandConfig';
 import ReportsPage from './pages/Reports/ReportsPage';
+import SalesHistoryQuery from './pages/SalesHistory/SalesHistoryQuery';
 import LoginPage from './pages/Auth/LoginPage';
 import InventoryCountPage from './pages/InventoryCount/InventoryCountPage';
 import SettlementPage from './pages/Settlement/SettlementPage';
@@ -198,6 +199,7 @@ function App() {
           <Route path="employees" element={<RequireAdmin><ContactManager /></RequireAdmin>} />
           <Route path="documents" element={<DocumentHub />} />
           <Route path="reports" element={<ReportsPage />} />
+          <Route path="sales-history" element={<SalesHistoryQuery />} />
           <Route path="inventory-count" element={<InventoryCountPage />} />
           <Route path="settlement" element={<SettlementPage />} />
           <Route path="settings" element={<RequireAdmin><SystemSettings /></RequireAdmin>} />
