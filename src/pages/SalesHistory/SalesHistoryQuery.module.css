@@ -402,3 +402,22 @@
   background: #f9731622;
   color: #fb923c;
 }
+
+.stockLinkBtn {
+  border: none;
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.stockLinkBtn:hover {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60a5fa;
+}

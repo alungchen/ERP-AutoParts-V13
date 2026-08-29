@@ -4,6 +4,7 @@ import {
     Loader2, Printer, RotateCcw, Search, TrendingUp, Users,
 } from 'lucide-react';
 import AutocompleteInput from '../../components/AutocompleteInput';
+import BranchStockDrawer from '../../components/BranchStockDrawer';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useProductStore } from '../../store/useProductStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
@@ -45,6 +46,7 @@ const DETAIL_COLUMNS = [
     { key: 'name', label: '品名', numeric: false, align: 'left' },
     { key: 'car_model', label: '車型', numeric: false, align: 'left' },
     { key: 'brand', label: '品牌', numeric: false, align: 'left' },
+    { key: 'stock', label: '庫存', numeric: true, align: 'right' },
     { key: 'qty', label: '數量', numeric: true, align: 'right' },
     { key: 'unit_price', label: '單價', numeric: true, align: 'right' },
     { key: 'amount', label: '金額', numeric: true, align: 'right' },
@@ -55,6 +57,7 @@ const RANKING_COLUMNS = [
     { key: 'name', label: '品名', numeric: false, align: 'left' },
     { key: 'car_model', label: '車型', numeric: false, align: 'left' },
     { key: 'brand', label: '品牌', numeric: false, align: 'left' },
+    { key: 'stock', label: '庫存', numeric: true, align: 'right' },
     { key: 'totalQty', label: '銷售數量', numeric: true, align: 'right' },
     { key: 'totalAmount', label: '銷售金額', numeric: true, align: 'right' },
     { key: 'docCount', label: '單據數', numeric: true, align: 'right' },
@@ -103,6 +106,25 @@ const SortableTh = ({ col, sortKey, sortDir, onSort }) => {
     );
 };
 
+const StockCell = ({ row, onOpen }) => (
+    <td className={`${styles.td} ${styles.tdRight}`}>
+        <button
+            type="button"
+            className={styles.stockLinkBtn}
+            onClick={() => onOpen({
+                p_id: row.p_id,
+                part_number: row.part_number,
+                name: row.name,
+                stock: row.stock,
+                stock_details: row.stock_details,
+            })}
+            title="全店庫存，點擊查看分店明細"
+        >
+            {formatMoney(row.stock)}
+        </button>
+    </td>
+);
+
 const SalesHistoryQuery = () => {
     const { salesOrders = [], salesReturns = [], isDocumentsLoaded } = useDocumentStore();
     const { products = [], fetchProducts } = useProductStore();
@@ -123,6 +145,7 @@ const SalesHistoryQuery = () => {
     const [searchPanelOpen, setSearchPanelOpen] = useState(true);
     const [isSearching, setIsSearching] = useState(false);
     const [resultRows, setResultRows] = useState([]);
+    const [stockDrawerItem, setStockDrawerItem] = useState(null);
 
     const [query, setQuery] = useState({
         ...DEFAULT_PRODUCT_QUERY,
@@ -179,6 +202,7 @@ const SalesHistoryQuery = () => {
         setHasSearched(false);
         setApplied(null);
         setResultRows([]);
+        setStockDrawerItem(null);
         setSortKey(tab === 'ranking' ? 'totalAmount' : 'date');
         setSortDir('desc');
     };
@@ -287,6 +311,7 @@ const SalesHistoryQuery = () => {
                     toCsvCell(row.name),
                     toCsvCell(row.car_model),
                     toCsvCell(row.brand),
+                    toCsvCell(row.stock),
                     toCsvCell(row.totalQty),
                     toCsvCell(row.totalAmount),
                     toCsvCell(row.docCount),
@@ -304,6 +329,7 @@ const SalesHistoryQuery = () => {
                     toCsvCell(row.name),
                     toCsvCell(row.car_model),
                     toCsvCell(row.brand),
+                    toCsvCell(row.stock),
                     toCsvCell(row.qty),
                     toCsvCell(row.unit_price),
                     toCsvCell(row.amount),
@@ -346,6 +372,7 @@ const SalesHistoryQuery = () => {
                     <td>${row.name || ''}</td>
                     <td>${row.car_model || ''}</td>
                     <td>${row.brand || ''}</td>
+                    <td style="text-align:right">${formatMoney(row.stock)}</td>
                     <td style="text-align:right">${formatMoney(row.totalQty)}</td>
                     <td style="text-align:right;font-weight:700">${formatMoney(row.totalAmount)}</td>
                     <td style="text-align:right">${row.docCount}</td>
@@ -361,6 +388,7 @@ const SalesHistoryQuery = () => {
                     <td>${row.name || ''}</td>
                     <td>${row.car_model || ''}</td>
                     <td>${row.brand || ''}</td>
+                    <td style="text-align:right">${formatMoney(row.stock)}</td>
                     <td style="text-align:right">${formatMoney(row.qty)}</td>
                     <td style="text-align:right">${formatMoney(row.unit_price)}</td>
                     <td style="text-align:right;font-weight:700">${formatMoney(row.amount)}</td>
@@ -369,9 +397,9 @@ const SalesHistoryQuery = () => {
 
         const tableHead = appliedTab === 'ranking'
             ? `<tr><th>#</th><th>零件號碼</th><th>品名</th><th>車型</th><th>品牌</th>
-               <th style="text-align:right">銷售數量</th><th style="text-align:right">銷售金額</th><th style="text-align:right">單據數</th></tr>`
+               <th style="text-align:right">庫存</th><th style="text-align:right">銷售數量</th><th style="text-align:right">銷售金額</th><th style="text-align:right">單據數</th></tr>`
             : `<tr><th>#</th><th>日期</th><th>單據編號</th><th>客戶</th><th>零件號碼</th>
-               <th>品名</th><th>車型</th><th>品牌</th>
+               <th>品名</th><th>車型</th><th>品牌</th><th style="text-align:right">庫存</th>
                <th style="text-align:right">數量</th><th style="text-align:right">單價</th><th style="text-align:right">金額</th></tr>`;
 
         const html = `<!doctype html><html><head><meta charset="utf-8" /><title>${title}</title>
@@ -658,7 +686,7 @@ const SalesHistoryQuery = () => {
                                     <tbody>
                                         {sortedRows.length === 0 ? (
                                             <tr>
-                                                <td colSpan={8} className={styles.empty}>
+                                                <td colSpan={9} className={styles.empty}>
                                                     <History size={40} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
                                                     此期間內找不到符合條件的銷售資料
                                                 </td>
@@ -673,6 +701,7 @@ const SalesHistoryQuery = () => {
                                                 <td className={styles.td}>{row.name || '—'}</td>
                                                 <td className={styles.td}>{row.car_model || '—'}</td>
                                                 <td className={styles.td}>{row.brand || '—'}</td>
+                                                <StockCell row={row} onOpen={setStockDrawerItem} />
                                                 <td className={`${styles.td} ${styles.tdRight}`}>{formatMoney(row.totalQty)}</td>
                                                 <td className={`${styles.td} ${styles.tdRight}`} style={{ fontWeight: 700 }}>{formatMoney(row.totalAmount)}</td>
                                                 <td className={`${styles.td} ${styles.tdRight}`}>{row.docCount}</td>
@@ -698,7 +727,7 @@ const SalesHistoryQuery = () => {
                                     <tbody>
                                         {sortedRows.length === 0 ? (
                                             <tr>
-                                                <td colSpan={10} className={styles.empty}>
+                                                <td colSpan={11} className={styles.empty}>
                                                     <History size={40} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
                                                     找不到符合條件的銷售明細
                                                     {salesDateExtent.max && applied && (applied.dateFrom > salesDateExtent.max || applied.dateTo < salesDateExtent.min) && (
@@ -720,6 +749,7 @@ const SalesHistoryQuery = () => {
                                                 <td className={styles.td}>{row.name || '—'}</td>
                                                 <td className={styles.td}>{row.car_model || '—'}</td>
                                                 <td className={styles.td}>{row.brand || '—'}</td>
+                                                <StockCell row={row} onOpen={setStockDrawerItem} />
                                                 <td className={`${styles.td} ${styles.tdRight}`}>{formatMoney(row.qty)}</td>
                                                 <td className={`${styles.td} ${styles.tdRight}`}>{formatMoney(row.unit_price)}</td>
                                                 <td className={`${styles.td} ${styles.tdRight}`} style={{ fontWeight: 700 }}>{formatMoney(row.amount)}</td>
@@ -732,6 +762,12 @@ const SalesHistoryQuery = () => {
                     </>
                 )}
             </div>
+
+            <BranchStockDrawer
+                open={Boolean(stockDrawerItem)}
+                item={stockDrawerItem}
+                onClose={() => setStockDrawerItem(null)}
+            />
         </div>
     );
 };

@@ -3,6 +3,7 @@ import {
     hasAnyProductQuery,
     normalizePartNumber,
 } from './filterProductsByQuery';
+import { getTotalStock } from './productStock';
 
 const escapeRegExp = (string) => string.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
 
@@ -152,13 +153,22 @@ function getItemKey(item) {
 }
 
 function enrichRowFromProduct(row, product) {
-    if (!product) return row;
+    if (!product) {
+        return {
+            ...row,
+            stock: row.stock ?? 0,
+            stock_details: row.stock_details ?? [],
+        };
+    }
+    const stock_details = product.stock_details || [];
     return {
         ...row,
         car_model: row.car_model || product.car_model || (product.part_numbers || [])[0]?.car_model || '',
         brand: row.brand || product.brand || (product.part_numbers || [])[0]?.brand || '',
         year: row.year || product.year || (product.part_numbers || [])[0]?.year || '',
         specifications: row.specifications || product.specifications || '',
+        stock: getTotalStock(product),
+        stock_details,
     };
 }
 
@@ -234,6 +244,7 @@ export function buildSalesRanking({
         products,
     });
 
+    const { indexes } = createFilterContext(products, appliedQuery);
     const grouped = new Map();
 
     for (const row of lineRows) {
@@ -266,11 +277,20 @@ export function buildSalesRanking({
         if (!agg.brand && row.brand) agg.brand = row.brand;
     }
 
-    const result = Array.from(grouped.values()).map((row) => ({
-        ...row,
-        docCount: row._docIds.size,
-        _docIds: undefined,
-    }));
+    const result = Array.from(grouped.values()).map((row) => {
+        const product = findProductForItemFast(
+            { p_id: row.p_id, part_number: row.part_number },
+            indexes,
+        );
+        const stock_details = product?.stock_details || [];
+        return {
+            ...row,
+            docCount: row._docIds.size,
+            stock: getTotalStock(product || { stock_details }),
+            stock_details,
+            _docIds: undefined,
+        };
+    });
 
     const sortKey = sortBy === 'qty' ? 'totalQty' : 'totalAmount';
     result.sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0) || (b.totalQty || 0) - (a.totalQty || 0));
