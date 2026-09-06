@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ArrowDown, ArrowUp, ChevronDown, ChevronUp, FileSpreadsheet, History,
-    Loader2, Printer, RotateCcw, Search, TrendingUp, Users,
+    Loader2, Printer, RotateCcw, Search, TrendingUp, Users, X,
 } from 'lucide-react';
 import AutocompleteInput from '../../components/AutocompleteInput';
 import BranchStockDrawer from '../../components/BranchStockDrawer';
+import ProductPriceHistoryBody from '../../components/ProductPriceHistoryBody';
+import { collectCustomerSalesHistory, collectSupplierPurchaseHistory } from '../../utils/buildProductTransactionHistory';
 import { useDocumentStore } from '../../store/useDocumentStore';
 import { useProductStore } from '../../store/useProductStore';
 import { useShorthandStore } from '../../store/useShorthandStore';
@@ -26,6 +28,19 @@ const getMonthStart = (dateStr) => {
     const [y, m] = String(dateStr).split('-');
     return `${y}-${m}-01`;
 };
+
+// 與產品資料庫相同的料號正規化（忽略大小寫、空白、連字號）
+const normalizePartNumber = (s) => {
+    if (s == null || s === '') return '';
+    return String(s)
+        .trim()
+        .normalize('NFKC')
+        .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D\u00ad\u200b-\u200f\uFEFF\s\-_]/g, '')
+        .toLowerCase();
+};
+
+const getPrimaryPartNumber = (p) =>
+    p?.part_number || p?.part_numbers?.[0]?.part_number || '';
 
 const formatMoney = (n) => Number(n || 0).toLocaleString(undefined, {
     minimumFractionDigits: 0,
@@ -126,7 +141,14 @@ const StockCell = ({ row, onOpen }) => (
 );
 
 const SalesHistoryQuery = () => {
-    const { salesOrders = [], salesReturns = [], isDocumentsLoaded } = useDocumentStore();
+    const {
+        salesOrders = [],
+        salesReturns = [],
+        quotations = [],
+        purchaseOrders = [],
+        inquiries = [],
+        isDocumentsLoaded,
+    } = useDocumentStore();
     const { products = [], fetchProducts } = useProductStore();
     const { models, parts, brands } = useShorthandStore();
     const { customers = [] } = useCustomerStore();
@@ -146,6 +168,9 @@ const SalesHistoryQuery = () => {
     const [isSearching, setIsSearching] = useState(false);
     const [resultRows, setResultRows] = useState([]);
     const [stockDrawerItem, setStockDrawerItem] = useState(null);
+    // F8 前價沿革抽屜：列表反白列
+    const [activeRowIdx, setActiveRowIdx] = useState(null);
+    const [historyInlineOpen, setHistoryInlineOpen] = useState(false);
 
     const [query, setQuery] = useState({
         ...DEFAULT_PRODUCT_QUERY,
@@ -285,6 +310,7 @@ const SalesHistoryQuery = () => {
     }, [resultRows, sortKey, sortDir, activeColumns]);
 
     const handleSort = useCallback((key) => {
+        setActiveRowIdx(null);
         if (sortKey === key) {
             setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
             return;
@@ -293,6 +319,49 @@ const SalesHistoryQuery = () => {
         setSortKey(key);
         setSortDir(col?.numeric ? 'desc' : 'asc');
     }, [sortKey, activeColumns]);
+
+    // ── F8 客戶前價／廠商前價沿革抽屜（同產品資料庫）──
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.repeat) return;
+            if (e.code !== 'F8') return;
+            e.preventDefault();
+            setHistoryInlineOpen((v) => !v);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
+
+    // 查詢結果變動時重置反白列
+    useEffect(() => {
+        setActiveRowIdx(null);
+    }, [resultRows]);
+
+    const historyContextProduct = useMemo(() => {
+        const row = activeRowIdx == null ? null : sortedRows[activeRowIdx];
+        if (!row) return null;
+        if (row.p_id) {
+            const byId = products.find((p) => p.p_id === row.p_id);
+            if (byId) return byId;
+        }
+        const pn = normalizePartNumber(row.part_number);
+        if (!pn) return null;
+        return products.find((p) => {
+            if (normalizePartNumber(getPrimaryPartNumber(p)) === pn) return true;
+            if (normalizePartNumber(p.p_id) === pn) return true;
+            return (p.part_numbers || []).some((x) => normalizePartNumber(x.part_number) === pn);
+        }) || null;
+    }, [activeRowIdx, sortedRows, products]);
+
+    const customerHistoryRows = useMemo(() => {
+        if (!historyContextProduct) return [];
+        return collectCustomerSalesHistory(historyContextProduct, salesOrders, quotations);
+    }, [historyContextProduct, salesOrders, quotations]);
+
+    const supplierHistoryRows = useMemo(() => {
+        if (!historyContextProduct) return [];
+        return collectSupplierPurchaseHistory(historyContextProduct, purchaseOrders, inquiries);
+    }, [historyContextProduct, purchaseOrders, inquiries]);
 
     const handleExportCsv = useCallback(() => {
         if (!sortedRows.length) {
@@ -617,6 +686,62 @@ const SalesHistoryQuery = () => {
                             )}
                             {!isDocumentsLoaded && '（單據資料載入中…）'}
                         </p>
+                        <p className={styles.hint} style={{ marginTop: '0.35rem' }}>
+                            <History size={14} style={{ verticalAlign: 'text-bottom', marginRight: '0.3rem', opacity: 0.85 }} aria-hidden />
+                            點選查詢結果任一列後，按 <strong>F8</strong> 於搜尋區塊下方滑出／收合該零件的「客戶前價／廠商前價」沿革抽屜。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                className={`${pimStyles.historyDrawerShell} ${historyInlineOpen ? pimStyles.historyDrawerShellOpen : ''}`}
+                aria-hidden={!historyInlineOpen}
+            >
+                <div className={pimStyles.historyDrawerShellInner}>
+                    <div className={pimStyles.historyDrawer} style={{ borderTop: 'none', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '0.85rem 1rem 1rem', marginTop: '0.25rem' }}>
+                        <div className={pimStyles.historyDrawerHeader}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                <History size={18} style={{ marginTop: '2px', opacity: 0.85 }} aria-hidden />
+                                <div>
+                                    <div className={pimStyles.historyDrawerTitle}>
+                                        {historyContextProduct
+                                            ? `客戶前價 · 廠商前價沿革｜${historyContextProduct.name || '未命名'}（${getPrimaryPartNumber(historyContextProduct) || historyContextProduct.p_id || '—'}）`
+                                            : '客戶前價 · 廠商前價沿革'}
+                                    </div>
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                                        左欄：銷貨單與報價單；右欄：進貨單與詢價單。
+                                        {!historyContextProduct && (
+                                            <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}> 請先點選查詢結果列以指定零件。</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setHistoryInlineOpen(false)}
+                                style={{
+                                    border: '1px solid var(--border-color)',
+                                    background: 'var(--bg-tertiary)',
+                                    color: 'var(--text-secondary)',
+                                    padding: '0.35rem 0.6rem',
+                                    borderRadius: '8px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem'
+                                }}
+                            >
+                                <X size={14} /> 收合（F8）
+                            </button>
+                        </div>
+                        <ProductPriceHistoryBody
+                            contextProduct={historyContextProduct}
+                            customerHistoryRows={customerHistoryRows}
+                            supplierHistoryRows={supplierHistoryRows}
+                        />
                     </div>
                 </div>
             </div>
@@ -692,7 +817,12 @@ const SalesHistoryQuery = () => {
                                                 </td>
                                             </tr>
                                         ) : sortedRows.map((row, idx) => (
-                                            <tr key={row.key || `${row.part_number}-${idx}`}>
+                                            <tr
+                                                key={row.key || `${row.part_number}-${idx}`}
+                                                onClick={() => setActiveRowIdx(idx)}
+                                                style={{ cursor: 'pointer', background: activeRowIdx === idx ? 'rgba(59,130,246,0.12)' : undefined }}
+                                                title="點選反白後按 F8 查看客戶前價／廠商前價"
+                                            >
                                                 <td className={`${styles.td} ${styles.tdRight} ${styles.rankCell}`}>{idx + 1}</td>
                                                 <td className={`${styles.td} ${styles.mono}`}>
                                                     <div>{row.part_number || '—'}</div>
@@ -738,7 +868,12 @@ const SalesHistoryQuery = () => {
                                                 </td>
                                             </tr>
                                         ) : sortedRows.map((row, idx) => (
-                                            <tr key={`${row.doc_id}-${row.part_number}-${idx}`}>
+                                            <tr
+                                                key={`${row.doc_id}-${row.part_number}-${idx}`}
+                                                onClick={() => setActiveRowIdx(idx)}
+                                                style={{ cursor: 'pointer', background: activeRowIdx === idx ? 'rgba(59,130,246,0.12)' : undefined }}
+                                                title="點選反白後按 F8 查看客戶前價／廠商前價"
+                                            >
                                                 <td className={styles.td}>{row.date}</td>
                                                 <td className={`${styles.td} ${styles.mono}`}>
                                                     {row.doc_id}
