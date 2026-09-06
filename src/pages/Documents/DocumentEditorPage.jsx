@@ -1055,10 +1055,7 @@ const DocumentEditorPage = () => {
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                                 {isEdit ? (
-                                    <>
-                                        <span style={{ color: '#2563eb' }}>{docTypeTitleZh}</span>
-                                        {` \u55ae\u865f: ${id}`}
-                                    </>
+                                    <span style={{ color: '#2563eb' }}>{docTypeTitleZh}</span>
                                 ) : (
                                     <>
                                         <span style={{ color: '#2563eb' }}>{docTypeTitleZh}</span>
@@ -1137,7 +1134,29 @@ const DocumentEditorPage = () => {
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1fr) minmax(200px, 2.5fr) minmax(180px, 1.4fr)', gap: '0.85rem', alignItems: 'end', padding: '0.7rem', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 1.2fr) minmax(140px, 1fr) minmax(200px, 2.5fr) minmax(180px, 1.4fr)', gap: '0.85rem', alignItems: 'end', padding: '0.7rem', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)' }}>
+                    <div>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{'\u55ae\u865f'}</label>
+                        <input
+                            type="text"
+                            readOnly
+                            tabIndex={-1}
+                            value={isEdit ? (id || '') : '\u5132\u5b58\u5f8c\u81ea\u52d5\u7de8\u865f'}
+                            title={isEdit ? `\u55ae\u865f: ${id}` : '\u65b0\u55ae\u64da\u5132\u5b58\u5f8c\u7531\u7cfb\u7d71\u81ea\u52d5\u7de8\u865f'}
+                            style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                backgroundColor: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '4px',
+                                color: isEdit ? 'var(--text-primary)' : 'var(--text-muted)',
+                                fontSize: '1rem',
+                                fontWeight: 700,
+                                fontFamily: isEdit ? 'ui-monospace, Consolas, monospace' : 'inherit',
+                                cursor: 'default'
+                            }}
+                        />
+                    </div>
                     <div>
                         <label style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontWeight: 800, letterSpacing: '0.03em' }}>{'\u65e5\u671f'}</label>
                         <input
