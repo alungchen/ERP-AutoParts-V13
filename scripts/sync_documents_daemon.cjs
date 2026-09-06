@@ -9,7 +9,7 @@
  * 使用方式:
  *   node scripts/sync_documents_daemon.cjs [--branch=both|songshan|xizhi]
  *     [--types=S,Q,T,R,B,I] [--interval=300] [--once] [--dry-run]
- *     [--target=remote|local|both] [--start=2026-07-05] [--lookback=1]
+ *     [--target=remote|local|both|api] [--api-base=https://erp-autoparts-v13.pages.dev] [--start=2026-07-05] [--lookback=1]
  *     [--rescan-every=12] [--rescan-days=3] [--rescan]
  *
  * 行為:
@@ -20,7 +20,7 @@
  *     並比對單號清單偵測「刪單」→ 在新系統標記 status='cancelled'（不硬刪）。
  *     加 --rescan 可強制本次執行就複查（常配 --once 使用）。
  *   - 啟動時第一輪會多查前一天，補漏 daemon 停機期間的單。
- *   - 同步狀態存 output/doc_sync_state.json（每個「分店+單別+日期」前綴記最後流水號）。
+ *   - 同步狀態依 target 分開存放：output/doc_sync_state.<target>.json
  *     首次執行會從遠端 D1 讀取現有單號自動建立狀態。
  *   - 匯入時檢查料號是否存在於新系統 products 表，
  *     缺料號會在單據備註加上警示、明細備註標記，並記錄到 output/doc_sync_missing.csv。
@@ -35,7 +35,7 @@ const { execSync } = require('child_process');
 const DB_NAME = 'erp-db';
 const ROOT_DIR = path.join(__dirname, '..');
 const OUTPUT_DIR = path.join(ROOT_DIR, 'output');
-const STATE_FILE = path.join(OUTPUT_DIR, 'doc_sync_state.json');
+const LEGACY_STATE_FILE = path.join(OUTPUT_DIR, 'doc_sync_state.json');
 const MISSING_CSV = path.join(OUTPUT_DIR, 'doc_sync_missing.csv');
 const BATCH_SQL = path.join(OUTPUT_DIR, 'doc_sync_batch.sql');
 
@@ -100,7 +100,8 @@ const TYPES = typesArg.split(',').map(t => {
 const INTERVAL_SEC = Math.max(60, parseInt(getArg('interval', '300'), 10) || 300);
 const RUN_ONCE = hasFlag('once');
 const DRY_RUN = hasFlag('dry-run');
-const TARGET = getArg('target', 'remote'); // remote | local | both
+const TARGET = getArg('target', 'api'); // api=經線上 Worker API 寫入遠端（Wrangler D1 管理 API 異常時建議使用）
+const API_BASE = getArg('api-base', 'https://erp-autoparts-v13.pages.dev').replace(/\/$/, '');
 const START_DATE = getArg('start', '2026-07-05'); // 此日期(含)之前的單一律不處理
 const LOOKBACK_DAYS = Math.max(1, parseInt(getArg('lookback', '1'), 10) || 1);
 // 每 N 輪做一次「完整複查」：整天重抓（覆蓋改單）＋偵測被刪除的單（0 = 停用）
@@ -138,18 +139,31 @@ function todayStr(offsetDays = 0) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// ── 同步狀態 ──────────────────────────────────────────────
+// ── 同步狀態（依 target 分開，避免 local 同步後 api 跳過重抓）──
+function getStateFile() {
+  return path.join(OUTPUT_DIR, `doc_sync_state.${TARGET}.json`);
+}
+
 function loadState() {
+  const stateFile = getStateFile();
   try {
-    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));
   } catch {
+    // 舊版共用狀態檔：api 模式不沿用（可能已被 local 污染）
+    if (TARGET !== 'api' && fs.existsSync(LEGACY_STATE_FILE)) {
+      try {
+        return JSON.parse(fs.readFileSync(LEGACY_STATE_FILE, 'utf8'));
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }
 
 function saveState(state) {
   state.lastRunAt = new Date().toISOString();
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+  fs.writeFileSync(getStateFile(), JSON.stringify(state, null, 2), 'utf8');
 }
 
 function runWranglerJson(sqlCommand, remote = true) {
@@ -161,9 +175,65 @@ function runWranglerJson(sqlCommand, remote = true) {
   return JSON.parse(out)[0]?.results || [];
 }
 
+function dateFromDocNo(docNo) {
+  const p = parseDocNo(docNo);
+  if (!p) return '';
+  return `20${p.yymmdd.slice(0, 2)}-${p.yymmdd.slice(2, 4)}-${p.yymmdd.slice(4, 6)}`;
+}
+
+async function apiRequest(branchId, apiPath, options = {}) {
+  const url = `${API_BASE}${apiPath}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Active-Branch': branchId,
+      ...(options.headers || {}),
+    },
+  });
+  const text = await res.text();
+  let data = text;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    // keep text
+  }
+  if (!res.ok) {
+    const msg = typeof data === 'object' && data?.error ? data.error : String(text).slice(0, 300);
+    throw new Error(msg);
+  }
+  return data;
+}
+
+/** 首次執行時，從線上 API 讀取既有單號建立狀態 */
+async function seedStateFromApi() {
+  console.log(`🌱 建立 ${TARGET} 同步狀態：從線上 API (${API_BASE}) 讀取 ${START_DATE} 之後既有單號（僅記錄進度，不會重抓舊單）...`);
+  const lastSeqByPrefix = {};
+  for (const branch of BRANCHES) {
+    let offset = 0;
+    for (;;) {
+      const docs = await apiRequest(branch, `/api/documents?limit=500&offset=${offset}`);
+      const list = Array.isArray(docs) ? docs : [];
+      if (list.length === 0) break;
+      for (const row of list) {
+        if (row.date && row.date < START_DATE) continue;
+        const p = parseDocNo(row.doc_id);
+        if (!p) continue;
+        if (!lastSeqByPrefix[p.prefix] || p.seq > lastSeqByPrefix[p.prefix]) {
+          lastSeqByPrefix[p.prefix] = p.seq;
+        }
+      }
+      if (list.length < 500) break;
+      offset += 500;
+    }
+  }
+  console.log(`   已建立 ${Object.keys(lastSeqByPrefix).length} 個前綴的狀態。`);
+  return { lastSeqByPrefix, seededAt: new Date().toISOString() };
+}
+
 /** 首次執行時，從 D1 現有單號建立「每個前綴的最後流水號」狀態 */
 function seedStateFromD1() {
-  console.log(`🌱 首次執行：從 D1 讀取 ${START_DATE} 之後的既有單號建立同步狀態...`);
+  console.log(`🌱 建立 ${TARGET} 同步狀態：從 D1 讀取 ${START_DATE} 之後既有單號（僅記錄進度，不會重抓舊單）...`);
   const useRemote = TARGET !== 'local';
   const rows = runWranglerJson(
     `SELECT doc_id FROM documents WHERE date >= '${START_DATE}'`, useRemote
@@ -425,7 +495,10 @@ async function scrapeNewDocsForDate(page, branch, type, dateStr, state, fullResc
 }
 
 // ── 缺料號檢查 ────────────────────────────────────────────
-function checkMissingParts(partIds) {
+async function checkMissingParts(partIds) {
+  if (TARGET === 'api') {
+    return checkMissingPartsApi(partIds);
+  }
   const missing = new Set();
   const unique = [...new Set(partIds.map(p => p.trim()).filter(Boolean))];
   if (unique.length === 0) return missing;
@@ -451,6 +524,145 @@ function appendMissingCsv(rows) {
   const lines = rows.map(r => `${r.time},${r.docId},${r.partId}`);
   const content = (exists ? '' : '\uFEFFtime,doc_id,part_id\n') + lines.join('\n') + '\n';
   fs.appendFileSync(MISSING_CSV, content, 'utf8');
+}
+
+async function checkMissingPartsApi(partIds) {
+  const missing = new Set();
+  const unique = [...new Set(partIds.map((p) => p.trim()).filter(Boolean))];
+  if (unique.length === 0) return missing;
+
+  const found = new Set();
+  let cursor = 0;
+  try {
+    for (;;) {
+      const res = await fetch(`${API_BASE}/api/products?cursor=${cursor}&limit=2000`);
+      if (!res.ok) throw new Error(`products API HTTP ${res.status}`);
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : (data.items || []);
+      for (const p of items) {
+        if (p.p_id) found.add(p.p_id);
+      }
+      if (Array.isArray(data) || !data.hasMore || data.nextCursor == null || items.length === 0) break;
+      cursor = data.nextCursor;
+    }
+    unique.forEach((p) => { if (!found.has(p)) missing.add(p); });
+  } catch (e) {
+    console.log(`  ⚠️ 料號檢查失敗（略過警示標記）: ${e.message.split('\n')[0]}`);
+  }
+  return missing;
+}
+
+function buildApiDocPayload(doc, missingParts) {
+  const partyField = PROCUREMENT_TYPES.has(doc.type) ? 'supplier_name' : 'customer_name';
+  const docMissing = doc.items.filter((it) => missingParts.has(it.partNo.trim())).map((it) => it.partNo.trim());
+  let notes = doc.note || '';
+  if (docMissing.length > 0) {
+    const warn = `⚠️ 缺料號待補正: ${[...new Set(docMissing)].join(', ')}`;
+    notes = notes ? `${notes}\n${warn}` : warn;
+  }
+  const items = doc.items.map((it) => {
+    const pid = it.partNo.trim();
+    return {
+      p_id: pid,
+      part_number: pid,
+      qty: parseFloat(String(it.qty).replace(/,/g, '')) || 0,
+      unit_price: parseFloat(String(it.price).replace(/,/g, '')) || 0,
+      note: missingParts.has(pid) ? '⚠️ 新系統無此料號' : '',
+    };
+  });
+  return {
+    doc_id: doc.docNo,
+    type: doc.type,
+    date: doc.dateStr,
+    status: 'completed',
+    branch_id: doc.branch,
+    notes,
+    [partyField]: doc.customer,
+    items,
+  };
+}
+
+async function importDocsViaApi(docs, missingParts, cancelledIds = []) {
+  let ok = 0;
+  let fail = 0;
+  let firstFailReason = '';
+
+  for (const doc of docs) {
+    try {
+      const body = buildApiDocPayload(doc, missingParts);
+      await apiRequest(doc.branch, '/api/documents', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      ok++;
+    } catch (e) {
+      fail++;
+      if (!firstFailReason) firstFailReason = e.message;
+      console.log(`  ❌ API 匯入失敗 ${doc.docNo}: ${e.message}`);
+    }
+  }
+
+  for (const docId of cancelledIds) {
+    const parsed = parseDocNo(docId);
+    if (!parsed) continue;
+    const partyField = PROCUREMENT_TYPES.has(parsed.type) ? 'supplier_name' : 'customer_name';
+    const body = {
+      doc_id: docId,
+      type: parsed.type,
+      date: dateFromDocNo(docId),
+      status: 'cancelled',
+      branch_id: parsed.branch,
+      notes: '⚠️ 舊系統已刪除此單',
+      items: [],
+      [partyField]: '',
+    };
+    try {
+      await apiRequest(parsed.branch, '/api/documents', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      ok++;
+    } catch (e) {
+      fail++;
+      if (!firstFailReason) firstFailReason = e.message;
+      console.log(`  ❌ API 作廢失敗 ${docId}: ${e.message}`);
+    }
+  }
+
+  console.log(`  API 匯入結果: 成功 ${ok} / 失敗 ${fail}`);
+  if (fail > 0 && firstFailReason) {
+    console.log(`  主要原因: ${firstFailReason}`);
+  }
+  return fail === 0;
+}
+
+async function detectDeletedDocsViaApi(rescanResults, dates) {
+  const cancelledIds = [];
+  for (const branch of BRANCHES) {
+    for (const dateStr of dates) {
+      try {
+        const docs = await apiRequest(branch, `/api/documents?datePrefix=${dateStr}&limit=500`);
+        const list = Array.isArray(docs) ? docs : [];
+        for (const row of list) {
+          if (row.status === 'cancelled') continue;
+          const docId = String(row.doc_id || '').toUpperCase();
+          const parsed = parseDocNo(docId);
+          if (!parsed) continue;
+          const result = rescanResults.get(parsed.prefix);
+          if (!result || !result.complete) continue;
+          if (result.seenDocNos.has(docId)) continue;
+          if (!result.hadData) {
+            console.log(`  ⚠️ ${docId}: 舊系統當天查無資料，為安全起見不自動作廢，請人工確認是否已刪單。`);
+            continue;
+          }
+          cancelledIds.push(docId);
+        }
+      } catch (e) {
+        console.log(`  ⚠️ 刪單偵測查詢失敗（${branch}/${dateStr}），本輪略過: ${e.message.split('\n')[0]}`);
+      }
+    }
+  }
+  return { statements: [], cancelledIds };
 }
 
 // ── SQL 產生與匯入 ────────────────────────────────────────
@@ -485,6 +697,21 @@ function buildSql(docs, missingParts) {
   return statements;
 }
 
+function wranglerExecErrorMessage(error) {
+  const chunks = [];
+  if (error?.stderr) chunks.push(String(error.stderr));
+  if (error?.stdout) chunks.push(String(error.stdout));
+  if (error?.message) chunks.push(String(error.message));
+  const text = chunks.join('\n').trim();
+  if (/Authentication error|code:\s*10000/i.test(text)) {
+    return 'Cloudflare D1 認證失敗，請執行 npx wrangler login 重新登入後再試。';
+  }
+  if (/code:\s*7500|internal error/i.test(text)) {
+    return 'Cloudflare D1 API 內部錯誤，請稍後重試或到 Cloudflare 儀表板確認資料庫狀態。';
+  }
+  return text.split('\n').find((line) => line.trim()) || '未知錯誤';
+}
+
 function executeSql(statements, remote) {
   const flag = remote ? '--remote' : '--local';
   const sqlText = 'PRAGMA defer_foreign_keys = ON;\n' + statements.join('\n') + '\n';
@@ -495,20 +722,27 @@ function executeSql(statements, remote) {
     });
     return true;
   } catch (e) {
-    console.log(`  ⚠️ 檔案模式匯入失敗（${remote ? 'remote' : 'local'}），改為逐條執行...`);
+    const reason = wranglerExecErrorMessage(e);
+    console.log(`  ⚠️ 檔案模式匯入失敗（${remote ? 'remote' : 'local'}）：${reason}`);
+    console.log('  ↪ 改為逐條執行...');
     let ok = 0, fail = 0;
+    let firstFailReason = '';
     for (const sql of statements) {
       try {
         execSync(`npx wrangler d1 execute ${DB_NAME} ${flag} --command=${JSON.stringify(sql)} --json`, {
           cwd: ROOT_DIR, stdio: 'pipe',
         });
         ok++;
-      } catch {
+      } catch (err) {
         fail++;
+        if (!firstFailReason) firstFailReason = wranglerExecErrorMessage(err);
         console.log(`    ❌ 失敗: ${sql.slice(0, 100)}...`);
       }
     }
     console.log(`  逐條執行結果: 成功 ${ok} / 失敗 ${fail}`);
+    if (fail > 0 && firstFailReason) {
+      console.log(`  主要原因: ${firstFailReason}`);
+    }
     return fail === 0;
   }
 }
@@ -640,22 +874,26 @@ async function runCycle(sessions, state, { isFirstCycle, fullRescan }) {
 
   // 刪單偵測（只在複查模式做）
   let deletionStatements = [];
+  let cancelledIds = [];
   if (fullRescan && rescanResults.size > 0) {
-    const { statements, cancelledIds } = detectDeletedDocs(rescanResults, dates);
-    deletionStatements = statements;
+    const deleted = TARGET === 'api'
+      ? await detectDeletedDocsViaApi(rescanResults, dates)
+      : detectDeletedDocs(rescanResults, dates);
+    deletionStatements = deleted.statements;
+    cancelledIds = deleted.cancelledIds;
     if (cancelledIds.length > 0) {
       console.log(`\n🗑️ 偵測到 ${cancelledIds.length} 張單在舊系統已刪除，將標記為作廢: ${cancelledIds.join(', ')}`);
     }
   }
 
-  if (allNewDocs.length === 0 && deletionStatements.length === 0) {
+  if (allNewDocs.length === 0 && deletionStatements.length === 0 && cancelledIds.length === 0) {
     console.log(`\n（本輪無新單據）`);
     return;
   }
 
   // 缺料號檢查
   const allPartIds = allNewDocs.flatMap(d => d.items.map(it => it.partNo));
-  const missingParts = checkMissingParts(allPartIds);
+  const missingParts = await checkMissingParts(allPartIds);
   if (missingParts.size > 0) {
     console.log(`\n⚠️ 缺料號警示（新系統 products 無資料，請人工補正）:`);
     const missingRows = [];
@@ -671,7 +909,7 @@ async function runCycle(sessions, state, { isFirstCycle, fullRescan }) {
   }
 
   const statements = [...buildSql(allNewDocs, missingParts), ...deletionStatements];
-  console.log(`\n共 ${allNewDocs.length} 張單（含改單覆蓋）、${deletionStatements.length} 張作廢、${statements.length} 條 SQL。`);
+  console.log(`\n共 ${allNewDocs.length} 張單（含改單覆蓋）、${cancelledIds.length} 張作廢${TARGET === 'api' ? '' : `、${statements.length} 條 SQL`}。`);
 
   if (DRY_RUN) {
     fs.writeFileSync(BATCH_SQL, 'PRAGMA defer_foreign_keys = ON;\n' + statements.join('\n') + '\n', 'utf8');
@@ -680,13 +918,18 @@ async function runCycle(sessions, state, { isFirstCycle, fullRescan }) {
   }
 
   let allOk = true;
-  if (TARGET === 'remote' || TARGET === 'both') {
-    console.log('⬆️ 匯入遠端 D1...');
-    allOk = executeSql(statements, true) && allOk;
-  }
-  if (TARGET === 'local' || TARGET === 'both') {
-    console.log('⬆️ 匯入本地 D1...');
-    allOk = executeSql(statements, false) && allOk;
+  if (TARGET === 'api') {
+    console.log(`⬆️ 經線上 API 匯入遠端 D1（${API_BASE}）...`);
+    allOk = await importDocsViaApi(allNewDocs, missingParts, cancelledIds) && allOk;
+  } else {
+    if (TARGET === 'remote' || TARGET === 'both') {
+      console.log('⬆️ 匯入遠端 D1（Wrangler）...');
+      allOk = executeSql(statements, true) && allOk;
+    }
+    if (TARGET === 'local' || TARGET === 'both') {
+      console.log('⬆️ 匯入本地 D1...');
+      allOk = executeSql(statements, false) && allOk;
+    }
   }
 
   if (allOk) {
@@ -711,13 +954,13 @@ async function runCycle(sessions, state, { isFirstCycle, fullRescan }) {
   console.log(`   分店: ${BRANCHES.map(b => BRANCH_NAMES[b]).join(' + ')}`);
   console.log(`   單別: ${TYPES.map(t => TYPE_NAMES[t]).join(', ')}`);
   console.log(`   模式: ${RUN_ONCE ? '單次執行' : `每 ${INTERVAL_SEC} 秒一輪`}${DRY_RUN ? '（dry-run 不寫入）' : ''}`);
-  console.log(`   目標: ${TARGET} D1 / 起始日: ${START_DATE}`);
+  console.log(`   目標: ${TARGET === 'api' ? `api (${API_BASE})` : `${TARGET} D1`} / 起始日: ${START_DATE}`);
   console.log(`   複查: ${RESCAN_EVERY > 0 ? `每 ${RESCAN_EVERY} 輪完整複查近 ${RESCAN_DAYS} 天（處理改單/刪單）` : '停用'}${FORCE_RESCAN ? '（本次強制複查）' : ''}`);
   console.log('═'.repeat(60));
 
   let state = loadState();
   if (!state || !state.lastSeqByPrefix) {
-    state = seedStateFromD1();
+    state = TARGET === 'api' ? await seedStateFromApi() : seedStateFromD1();
     if (!DRY_RUN) saveState(state);
   }
 

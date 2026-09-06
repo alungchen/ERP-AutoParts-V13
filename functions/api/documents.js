@@ -5,6 +5,23 @@ const STOCK_IMPACT = {
     purchaseReturn: -1 // 進退：-qty
 };
 
+/** product_stock.p_id 有外鍵指向 products；缺料號時不可寫庫存，否則整張單會 rollback */
+async function getExistingProductIds(env, pIds) {
+    const unique = [...new Set((pIds || []).map((id) => String(id || '').trim()).filter(Boolean))];
+    if (unique.length === 0) return new Set();
+    const found = new Set();
+    const CHUNK = 80;
+    for (let i = 0; i < unique.length; i += CHUNK) {
+        const chunk = unique.slice(i, i + CHUNK);
+        const placeholders = chunk.map(() => '?').join(',');
+        const { results } = await env.DB.prepare(`SELECT p_id FROM products WHERE p_id IN (${placeholders})`).bind(...chunk).all();
+        for (const row of results || []) {
+            if (row.p_id) found.add(row.p_id);
+        }
+    }
+    return found;
+}
+
 export async function onRequestGet(context) {
     try {
         const { request, env } = context;
@@ -111,8 +128,28 @@ export async function onRequestPost(context) {
             oldItems = results || [];
         }
 
+        const knownProductIds = await getExistingProductIds(env, [
+            ...(oldItems || []).map((item) => item.p_id),
+            ...(items || []).map((item) => item.p_id),
+        ]);
+
         // 2. 組裝批次交易 statements
         const batchStatements = [];
+
+        // 缺料號仍先佔住明細（數量／金額），與上週 wrangler 同步相同。
+        // 寫入 products 佔位列，避免 product_stock 外鍵整張單 rollback；之後由「缺失零件資料補齊」覆寫規格。
+        const pendingPids = [...new Set(
+            [...(oldItems || []), ...(items || [])]
+                .map((item) => String(item.p_id || '').trim())
+                .filter(Boolean)
+        )];
+        for (const pid of pendingPids) {
+            if (knownProductIds.has(pid)) continue;
+            batchStatements.push(
+                env.DB.prepare("INSERT OR IGNORE INTO products (p_id, name) VALUES (?, '舊系統無此規格')").bind(pid)
+            );
+            knownProductIds.add(pid);
+        }
 
         // A. 舊單據庫存補償 (Revert)
         if (oldDoc && STOCK_IMPACT[oldDoc.type] !== undefined) {
@@ -232,6 +269,8 @@ export async function onRequestDelete(context) {
             oldItems = results || [];
         }
 
+        const knownProductIds = await getExistingProductIds(env, (oldItems || []).map((item) => item.p_id));
+
         // 2. 組裝批次交易 statements
         const batchStatements = [];
 
@@ -241,7 +280,7 @@ export async function onRequestDelete(context) {
             const revertMultiplier = -oldImpact; 
             
             for (const item of oldItems) {
-                if (!item.p_id || item.p_id.trim() === '') continue;
+                if (!item.p_id || item.p_id.trim() === '' || !knownProductIds.has(item.p_id)) continue;
                 const loc = (item.location_code || 'A1').trim().toUpperCase();
                 const qtyVal = Number(item.qty) || 0;
                 if (qtyVal === 0) continue;

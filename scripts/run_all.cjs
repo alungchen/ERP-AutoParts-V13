@@ -28,7 +28,7 @@ try {
 
   console.log('▶️ [階段 2/3] 開始執行：回舊系統尋找這些新料號的照片 (scrape_legacy_photos.cjs)');
   console.log('--------------------------------------------------');
-  execSync('node scripts/scrape_legacy_photos.cjs', { stdio: 'inherit' });
+  execSync('node scripts/scrape_legacy_photos.cjs', { stdio: 'inherit', env: process.env });
   console.log('✅ 階段 2 完成！\n');
 
   console.log('▶️ [階段 3/3] 開始執行：下載實體照片並上傳至 R2 雲端 (migrate_photos_to_r2.cjs)');

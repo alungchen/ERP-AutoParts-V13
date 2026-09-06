@@ -73,12 +73,14 @@ function App() {
     const refreshOnFocus = () => {
       void fetchProducts();
       void fetchShorthands();
+      void fetchDocuments();
     };
 
     const refreshOnVisible = () => {
       if (document.visibilityState === 'visible') {
         void fetchProducts();
         void fetchShorthands();
+        void fetchDocuments();
       }
     };
 
@@ -95,7 +97,7 @@ function App() {
       document.removeEventListener('visibilitychange', refreshOnVisible);
       window.removeEventListener('erp:branch-changed', refreshOnBranchChange);
     };
-  }, [fetchProducts, fetchShorthands]);
+  }, [fetchProducts, fetchShorthands, fetchDocuments]);
 
   useEffect(() => {
     void fetchShorthands();
