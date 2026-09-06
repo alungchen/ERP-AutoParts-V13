@@ -30,7 +30,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # wrangler >= 4.127 需要 Node 22 以上
+          node-version: '22'
           cache: npm
 
       - name: Install dependencies
