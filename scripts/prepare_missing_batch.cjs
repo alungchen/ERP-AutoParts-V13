@@ -116,12 +116,13 @@ try {
 
   const runD1Query = (sql) => {
     const compactSql = sql.replace(/\s+/g, ' ').trim();
+    // stderr 保留（pipe），失敗時才能看到 wrangler 的真正錯誤訊息
     return execSync(
       `npx wrangler d1 execute erp-db ${targetFlag} --command=${JSON.stringify(compactSql)} --json`,
       {
         encoding: 'utf8',
         cwd: ROOT_DIR,
-        stdio: ['pipe', 'pipe', 'ignore']
+        stdio: ['pipe', 'pipe', 'pipe']
       }
     );
   };
@@ -162,6 +163,17 @@ try {
   }
 } catch (e) {
   console.error('❌ 查詢 D1 資料庫時發生錯誤：', e.message);
-  console.log('請確認是否已連線網路及登入 Cloudflare Wrangler (npx wrangler login)。');
+  // 印出 wrangler 的實際錯誤輸出，方便診斷（網路斷線、權杖過期、SQL 錯誤等）
+  const stderrText = String(e.stderr || '').trim();
+  const stdoutText = String(e.stdout || '').trim();
+  if (stderrText) {
+    console.error('\n── wrangler 錯誤輸出（stderr）──');
+    console.error(stderrText.slice(0, 3000));
+  }
+  if (!stderrText && stdoutText) {
+    console.error('\n── wrangler 輸出（stdout）──');
+    console.error(stdoutText.slice(0, 3000));
+  }
+  console.log('\n請確認是否已連線網路及登入 Cloudflare Wrangler (npx wrangler login)。');
   process.exit(1);
 }

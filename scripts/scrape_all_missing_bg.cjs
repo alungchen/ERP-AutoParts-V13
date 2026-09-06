@@ -84,11 +84,14 @@ function enrichDocumentItems() {
 
     execSync(`npx wrangler d1 execute erp-db ${targetFlag} --file=output/enrich_items.sql --json`, {
       cwd: ROOT_DIR,
-      stdio: ['pipe', 'pipe', 'ignore']
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe']
     });
     console.log('✨ 單據明細狀態更新完成！');
   } catch (e) {
     console.log('⚠️ 清理單據明細警示時發生小警告（不影響爬蟲結果）：', e.message?.slice(0, 150));
+    const stderrText = String(e.stderr || '').trim();
+    if (stderrText) console.log('   wrangler stderr:', stderrText.slice(0, 500));
   }
 }
 
@@ -122,6 +125,17 @@ console.log('==================================================\n');
       }
     } catch (err) {
       console.error('❌ 準備缺失料號清單時發生錯誤：', err.message);
+      // 印出子腳本的完整輸出（含 wrangler 錯誤），避免只剩 Command failed 一行
+      const childStdout = String(err.stdout || '').trim();
+      const childStderr = String(err.stderr || '').trim();
+      if (childStdout) {
+        console.error('\n── prepare_missing_batch 輸出 ──');
+        console.error(childStdout.slice(0, 3000));
+      }
+      if (childStderr) {
+        console.error('\n── prepare_missing_batch 錯誤輸出 ──');
+        console.error(childStderr.slice(0, 3000));
+      }
       process.exit(1);
     }
 
